@@ -2,8 +2,9 @@
   'use strict';
 
   const params = new URLSearchParams(window.location.search);
+  const basePath = (window.JM_BASE_PATH || '').replace(/\/$/, '');
   const config = {
-    apiBase: params.get('api') || '/api',
+    apiBase: params.get('api') || (window.JM_API_BASE || (basePath + '/api') || '/api'),
     siteId: params.get('site_id') || '',
     mac: params.get('mac') || params.get('mac-esc') || '',
     ip: params.get('ip') || '',

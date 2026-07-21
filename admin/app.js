@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const API = '/api/admin';
+  const BASE = (window.JM_BASE_PATH || '').replace(/\/$/, '');
+  const API = (window.JM_API_BASE || (BASE + '/api')) + '/admin';
   const state = {
     token: localStorage.getItem('jm_token') || '',
     operator: null,

@@ -199,6 +199,14 @@
     </main>
   </div>
 
+  <script>
+  (function () {
+    var p = location.pathname;
+    var base = p.indexOf('/allvendo/') === 0 ? '/allvendo' : '';
+    window.JM_BASE_PATH = base;
+    window.JM_API_BASE = base + '/api';
+  })();
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
