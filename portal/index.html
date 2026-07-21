@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JM WiFi - Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <div class="logo-icon">📶</div>
+        <h1>JM WiFi</h1>
+        <p class="subtitle">jmtechsolution.cloud</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="voucher">Voucher Code</button>
+        <button class="tab" data-tab="coin">Coin Insert</button>
+      </div>
+
+      <!-- Voucher Tab -->
+      <div id="voucher-panel" class="panel active">
+        <p class="info">Ilagay ang voucher code na nakuha mo mula sa coin machine o calling.</p>
+        <form id="voucher-form">
+          <input type="text" id="voucher-code" placeholder="XXXX-XXXX" maxlength="12" autocomplete="off" required>
+          <button type="submit" class="btn-primary">Connect</button>
+        </form>
+      </div>
+
+      <!-- Coin Tab -->
+      <div id="coin-panel" class="panel">
+        <div class="coin-info">
+          <div class="coin-icon">🪙</div>
+          <h2>Mag-insert ng Coin</h2>
+          <p>Pumunta sa coin machine at mag-insert ng barya.</p>
+          <p class="rate" id="coin-rate">1 coin = 5 minutes</p>
+          <div class="steps">
+            <div class="step"><span>1</span> Mag-insert ng coin</div>
+            <div class="step"><span>2</span> Kunin ang voucher code sa screen</div>
+            <div class="step"><span>3</span> Ilagay ang code sa Voucher tab</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="status" class="status hidden"></div>
+
+      <div class="footer">
+        <p>Powered by <strong>JM Tech Solution</strong></p>
+        <p class="mac-info" id="mac-display"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
