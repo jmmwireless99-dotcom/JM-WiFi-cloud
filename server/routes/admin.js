@@ -1,0 +1,428 @@
+const express = require('express');
+const { v4: uuid } = require('uuid');
+const db = require('../db');
+const {
+  hashPassword,
+  verifyPassword,
+  signToken,
+  authAdmin,
+  requireRole
+} = require('../lib/auth');
+const { createVoucher, createVoucherBatch } = require('../lib/voucher');
+const { getDashboardStats, getSalesReport } = require('../lib/reports');
+
+const router = express.Router();
+
+function ownedSitesSql(operator) {
+  if (operator.role === 'admin') return { sql: '1=1', params: [] };
+  return { sql: 'operator_id = ?', params: [operator.id] };
+}
+
+function getOwnedSite(operator, siteId) {
+  if (operator.role === 'admin') {
+    return db.prepare('SELECT * FROM sites WHERE id = ?').get(siteId);
+  }
+  return db.prepare('SELECT * FROM sites WHERE id = ? AND operator_id = ?').get(siteId, operator.id);
+}
+
+function publicSite(site) {
+  if (!site) return null;
+  const { mikrotik_pass, ...rest } = site;
+  return { ...rest, has_mikrotik_pass: Boolean(mikrotik_pass) };
+}
+
+// ─── Auth ─────────────────────────────────────────────────────
+
+router.post('/login', (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password required' });
+  }
+
+  const operator = db.prepare('SELECT * FROM operators WHERE email = ?').get(email.toLowerCase().trim());
+  if (!operator || operator.status !== 'active' || !verifyPassword(password, operator.password_hash)) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  const token = signToken(operator);
+  res.json({
+    token,
+    operator: {
+      id: operator.id,
+      email: operator.email,
+      name: operator.name,
+      role: operator.role
+    }
+  });
+});
+
+router.get('/me', authAdmin, (req, res) => {
+  res.json({ operator: req.operator });
+});
+
+router.post('/change-password', authAdmin, (req, res) => {
+  const { current_password, new_password } = req.body || {};
+  if (!current_password || !new_password || new_password.length < 6) {
+    return res.status(400).json({ error: 'current_password and new_password (min 6) required' });
+  }
+
+  const op = db.prepare('SELECT * FROM operators WHERE id = ?').get(req.operator.id);
+  if (!verifyPassword(current_password, op.password_hash)) {
+    return res.status(401).json({ error: 'Current password incorrect' });
+  }
+
+  db.prepare('UPDATE operators SET password_hash = ? WHERE id = ?')
+    .run(hashPassword(new_password), op.id);
+  res.json({ success: true });
+});
+
+// ─── Dashboard / Reports ──────────────────────────────────────
+
+router.get('/dashboard', authAdmin, (req, res) => {
+  const stats = getDashboardStats(req.operator, req.query.site_id || null);
+  res.json(stats);
+});
+
+router.get('/reports/sales', authAdmin, (req, res) => {
+  const report = getSalesReport(req.operator, {
+    siteId: req.query.site_id || null,
+    period: req.query.period || 'daily',
+    days: Math.min(parseInt(req.query.days || '30', 10), 365)
+  });
+  res.json(report);
+});
+
+// ─── Vendos (Sites) ───────────────────────────────────────────
+
+router.get('/vendos', authAdmin, (req, res) => {
+  const f = ownedSitesSql(req.operator);
+  const vendos = db.prepare(`
+    SELECT s.*,
+      (SELECT COUNT(*) FROM devices d WHERE d.site_id = s.id) as device_count,
+      (SELECT COUNT(*) FROM devices d WHERE d.site_id = s.id AND d.status = 'online') as online_count,
+      (SELECT COUNT(*) FROM sessions sess WHERE sess.site_id = s.id AND sess.status = 'active' AND sess.expires_at > datetime('now')) as active_sessions,
+      (SELECT COALESCE(SUM(amount), 0) FROM coin_logs c WHERE c.site_id = s.id AND date(c.created_at) = date('now')) as sales_today
+    FROM sites s
+    WHERE ${f.sql}
+    ORDER BY s.created_at DESC
+  `).all(...f.params).map(publicSite);
+
+  res.json({ vendos });
+});
+
+router.get('/vendos/:id', authAdmin, (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+
+  const devices = db.prepare(
+    'SELECT id, device_type, mac_address, name, last_seen, status, created_at FROM devices WHERE site_id = ? ORDER BY last_seen DESC'
+  ).all(site.id);
+
+  const plans = db.prepare(
+    'SELECT * FROM rate_plans WHERE site_id = ? ORDER BY sort_order, coins'
+  ).all(site.id);
+
+  res.json({ vendo: publicSite(site), devices, plans });
+});
+
+router.post('/vendos', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const {
+    name,
+    address = '',
+    mikrotik_host = '',
+    mikrotik_user = 'admin',
+    mikrotik_pass = '',
+    minutes_per_coin = 5,
+    rate_per_hour = 10,
+    coin_value = 1,
+    portal_title = 'JM WiFi',
+    bandwidth_up = '2M',
+    bandwidth_down = '5M',
+    vlan_id = 10
+  } = req.body || {};
+
+  if (!name) return res.status(400).json({ error: 'name required' });
+
+  const id = uuid();
+  const apiKey = uuid().replace(/-/g, '');
+
+  db.prepare(`
+    INSERT INTO sites (
+      id, operator_id, name, api_key, address, mikrotik_host, mikrotik_user, mikrotik_pass,
+      minutes_per_coin, rate_per_hour, coin_value, portal_title, bandwidth_up, bandwidth_down, vlan_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, req.operator.id, name, apiKey, address, mikrotik_host, mikrotik_user, mikrotik_pass,
+    minutes_per_coin, rate_per_hour, coin_value, portal_title, bandwidth_up, bandwidth_down, vlan_id
+  );
+
+  // Default rate plans
+  const defaults = [
+    ['5 Min', 1, minutes_per_coin, coin_value, 1],
+    ['30 Min', 5, minutes_per_coin * 5, coin_value * 5, 2],
+    ['1 Hour', 10, minutes_per_coin * 10, coin_value * 10, 3]
+  ];
+  for (const [planName, coins, minutes, price, sort] of defaults) {
+    db.prepare(`
+      INSERT INTO rate_plans (id, site_id, name, coins, minutes, price, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(uuid(), id, planName, coins, minutes, price, sort);
+  }
+
+  const site = db.prepare('SELECT * FROM sites WHERE id = ?').get(id);
+  res.status(201).json({ vendo: publicSite(site), api_key: apiKey });
+});
+
+router.put('/vendos/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+
+  const fields = [
+    'name', 'address', 'status', 'portal_title', 'mikrotik_host', 'mikrotik_user',
+    'mikrotik_pass', 'hotspot_profile', 'vlan_id', 'rate_per_hour', 'minutes_per_coin',
+    'coin_value', 'bandwidth_up', 'bandwidth_down', 'notes'
+  ];
+
+  const updates = [];
+  const values = [];
+  for (const field of fields) {
+    if (req.body[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      values.push(req.body[field]);
+    }
+  }
+  if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
+
+  values.push(site.id);
+  db.prepare(`UPDATE sites SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  const updated = db.prepare('SELECT * FROM sites WHERE id = ?').get(site.id);
+  res.json({ vendo: publicSite(updated) });
+});
+
+router.delete('/vendos/:id', authAdmin, requireRole('admin'), (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+  db.prepare('DELETE FROM sites WHERE id = ?').run(site.id);
+  res.json({ success: true });
+});
+
+router.post('/vendos/:id/regenerate-key', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+  const apiKey = uuid().replace(/-/g, '');
+  db.prepare('UPDATE sites SET api_key = ? WHERE id = ?').run(apiKey, site.id);
+  res.json({ api_key: apiKey });
+});
+
+// ─── Rate Plans ───────────────────────────────────────────────
+
+router.get('/vendos/:id/plans', authAdmin, (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+  const plans = db.prepare('SELECT * FROM rate_plans WHERE site_id = ? ORDER BY sort_order').all(site.id);
+  res.json({ plans });
+});
+
+router.post('/vendos/:id/plans', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const site = getOwnedSite(req.operator, req.params.id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+
+  const { name, coins = 1, minutes, price } = req.body || {};
+  if (!name || !minutes) return res.status(400).json({ error: 'name and minutes required' });
+
+  const id = uuid();
+  db.prepare(`
+    INSERT INTO rate_plans (id, site_id, name, coins, minutes, price, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, site.id, name, coins, minutes, price ?? coins * site.coin_value, coins);
+
+  res.status(201).json({ plan: db.prepare('SELECT * FROM rate_plans WHERE id = ?').get(id) });
+});
+
+router.delete('/plans/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const plan = db.prepare('SELECT * FROM rate_plans WHERE id = ?').get(req.params.id);
+  if (!plan || !getOwnedSite(req.operator, plan.site_id)) {
+    return res.status(404).json({ error: 'Plan not found' });
+  }
+  db.prepare('DELETE FROM rate_plans WHERE id = ?').run(plan.id);
+  res.json({ success: true });
+});
+
+// ─── Devices ──────────────────────────────────────────────────
+
+router.get('/devices', authAdmin, (req, res) => {
+  const f = ownedSitesSql(req.operator);
+  const devices = db.prepare(`
+    SELECT d.*, s.name as site_name
+    FROM devices d
+    JOIN sites s ON s.id = d.site_id
+    WHERE ${f.sql.replace('operator_id', 's.operator_id').replace('1=1', '1=1')}
+    ORDER BY d.last_seen DESC
+  `).all(...f.params);
+  res.json({ devices });
+});
+
+// Mark offline devices (no heartbeat > 5 min)
+function refreshDeviceStatuses() {
+  db.prepare(`
+    UPDATE devices SET status = 'offline'
+    WHERE status = 'online'
+      AND (last_seen IS NULL OR last_seen < datetime('now', '-5 minutes'))
+  `).run();
+}
+
+router.get('/devices/refresh', authAdmin, (req, res) => {
+  refreshDeviceStatuses();
+  res.json({ success: true });
+});
+
+// ─── Sessions ─────────────────────────────────────────────────
+
+router.get('/sessions', authAdmin, (req, res) => {
+  const siteId = req.query.site_id;
+  let sql = `
+    SELECT sess.*, s.name as site_name
+    FROM sessions sess
+    JOIN sites s ON s.id = sess.site_id
+    WHERE sess.status = 'active' AND sess.expires_at > datetime('now')
+  `;
+  const params = [];
+
+  if (req.operator.role !== 'admin') {
+    sql += ' AND s.operator_id = ?';
+    params.push(req.operator.id);
+  }
+  if (siteId) {
+    sql += ' AND sess.site_id = ?';
+    params.push(siteId);
+  }
+  sql += ' ORDER BY sess.started_at DESC LIMIT 200';
+
+  res.json({ sessions: db.prepare(sql).all(...params) });
+});
+
+router.post('/sessions/:id/disconnect', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const session = db.prepare(`
+    SELECT sess.* FROM sessions sess
+    JOIN sites s ON s.id = sess.site_id
+    WHERE sess.id = ?
+      AND (${req.operator.role === 'admin' ? '1=1' : 's.operator_id = ?'})
+  `).get(...(req.operator.role === 'admin' ? [req.params.id] : [req.params.id, req.operator.id]));
+
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  db.prepare("UPDATE sessions SET status = 'disconnected', expires_at = datetime('now') WHERE id = ?")
+    .run(session.id);
+  res.json({ success: true });
+});
+
+// ─── Vouchers ─────────────────────────────────────────────────
+
+router.get('/vouchers', authAdmin, (req, res) => {
+  const siteId = req.query.site_id;
+  const used = req.query.used;
+  let sql = `
+    SELECT v.*, s.name as site_name
+    FROM vouchers v
+    JOIN sites s ON s.id = v.site_id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (req.operator.role !== 'admin') {
+    sql += ' AND s.operator_id = ?';
+    params.push(req.operator.id);
+  }
+  if (siteId) {
+    sql += ' AND v.site_id = ?';
+    params.push(siteId);
+  }
+  if (used === '0' || used === '1') {
+    sql += ' AND v.used = ?';
+    params.push(parseInt(used, 10));
+  }
+  sql += ' ORDER BY v.created_at DESC LIMIT 500';
+
+  res.json({ vouchers: db.prepare(sql).all(...params) });
+});
+
+router.post('/vouchers/generate', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const { site_id, minutes, count = 1, price = 0, source = 'admin' } = req.body || {};
+  if (!site_id || !minutes) {
+    return res.status(400).json({ error: 'site_id and minutes required' });
+  }
+
+  const site = getOwnedSite(req.operator, site_id);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+
+  const n = Math.min(Math.max(parseInt(count, 10) || 1, 1), 200);
+  const vouchers = createVoucherBatch(site.id, n, minutes, source, price);
+  res.status(201).json({ vouchers, count: vouchers.length });
+});
+
+// ─── Coin / Sales logs ────────────────────────────────────────
+
+router.get('/sales', authAdmin, (req, res) => {
+  const siteId = req.query.site_id;
+  let sql = `
+    SELECT c.*, s.name as site_name, d.name as device_name
+    FROM coin_logs c
+    JOIN sites s ON s.id = c.site_id
+    LEFT JOIN devices d ON d.id = c.device_id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (req.operator.role !== 'admin') {
+    sql += ' AND s.operator_id = ?';
+    params.push(req.operator.id);
+  }
+  if (siteId) {
+    sql += ' AND c.site_id = ?';
+    params.push(siteId);
+  }
+  sql += ' ORDER BY c.created_at DESC LIMIT 500';
+
+  res.json({ sales: db.prepare(sql).all(...params) });
+});
+
+// ─── Operators (admin only) ───────────────────────────────────
+
+router.get('/operators', authAdmin, requireRole('admin'), (req, res) => {
+  const operators = db.prepare(
+    'SELECT id, email, name, role, status, created_at FROM operators ORDER BY created_at'
+  ).all();
+  res.json({ operators });
+});
+
+router.post('/operators', authAdmin, requireRole('admin'), (req, res) => {
+  const { email, password, name, role = 'operator' } = req.body || {};
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'email, password, name required' });
+  }
+  if (!['admin', 'operator', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'invalid role' });
+  }
+
+  const id = uuid();
+  try {
+    db.prepare(`
+      INSERT INTO operators (id, email, password_hash, name, role)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, email.toLowerCase().trim(), hashPassword(password), name, role);
+  } catch (err) {
+    if (String(err.message).includes('UNIQUE')) {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+    throw err;
+  }
+
+  res.status(201).json({
+    operator: db.prepare(
+      'SELECT id, email, name, role, status, created_at FROM operators WHERE id = ?'
+    ).get(id)
+  });
+});
+
+module.exports = router;

@@ -1,0 +1,7 @@
+node_modules/
+server/db/jmwifi.db
+server/db/jmwifi.db-wal
+server/db/jmwifi.db-shm
+.env
+*.log
+.DS_Store
