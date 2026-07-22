@@ -40,22 +40,18 @@
           <span class="nav-chevron" id="chevron-allvendo">▾</span>
         </button>
         <div class="nav-children open" id="children-allvendo">
-          <!-- Hotspot Vendo sub-group -->
+          <button class="nav-btn nav-child" data-view="empty-bottle" type="button">
+            <span class="nav-label">Empty Bottle</span>
+          </button>
           <div class="nav-subtree" id="nav-tree-hotspot">
             <button class="nav-btn nav-child nav-subparent" id="btn-hotspot-toggle" data-view="hotspot-vendo" type="button">
-              <span class="ico">📶</span>
-              <span class="nav-label">Hotspot Vendo</span>
+              <span class="nav-label">Cloud Hotspot</span>
               <span class="nav-chevron" id="chevron-hotspot">▾</span>
             </button>
             <div class="nav-grandchildren open" id="children-vlans">
               <div class="nav-vlan-loading">Loading VLANs...</div>
             </div>
           </div>
-          <!-- Empty Bottle Vendo -->
-          <button class="nav-btn nav-child" data-view="empty-bottle" type="button">
-            <span class="ico">♻</span>
-            <span class="nav-label">Empty Bottle Vendo</span>
-          </button>
         </div>
       </div>
 
@@ -119,15 +115,15 @@
             <strong>Gasoline Vendo</strong>
             <span>GCash/Maya QR, per-board sales</span>
           </button>
-          <button class="quick-card" data-goto="hotspot-vendo">
-            <span class="quick-icon">📶</span>
-            <strong>Hotspot Vendo</strong>
-            <span>Coin machine + MikroTik hotspot per VLAN</span>
-          </button>
           <button class="quick-card" data-goto="empty-bottle">
             <span class="quick-icon">♻</span>
-            <strong>Empty Bottle Vendo</strong>
+            <strong>Empty Bottle</strong>
             <span>Smart bottle vendo + GCash/Maya</span>
+          </button>
+          <button class="quick-card" data-goto="hotspot-vendo">
+            <span class="quick-icon">📶</span>
+            <strong>Cloud Hotspot</strong>
+            <span>Coin machine + MikroTik hotspot per VLAN</span>
           </button>
         </div>
       </div>
@@ -156,27 +152,11 @@
       </div>
 
       <div class="vendo-types">
-        <div class="vendo-type-card clickable" data-goto="hotspot-vendo">
-          <div class="vendo-type-head">
-            <span class="vendo-type-icon">📶</span>
-            <div>
-              <h3>Hotspot Vendo</h3>
-              <p>MikroTik VLAN + ESP8266 coin machine</p>
-            </div>
-            <span class="badge online" id="wifi-status">—</span>
-          </div>
-          <div class="vendo-type-stats">
-            <div><span>VLANs</span><strong id="wifi-vlans-count">0</strong></div>
-            <div><span>Coins today</span><strong id="wifi-coins">0</strong></div>
-            <div><span>Revenue</span><strong id="wifi-revenue">₱0</strong></div>
-          </div>
-        </div>
-
         <div class="vendo-type-card clickable" data-goto="empty-bottle">
           <div class="vendo-type-head">
             <span class="vendo-type-icon">♻</span>
             <div>
-              <h3>Empty Bottle Vendo</h3>
+              <h3>Empty Bottle</h3>
               <p>Smart bottle vendo + GCash/Maya</p>
             </div>
             <span class="badge" id="bottle-status">Setup</span>
@@ -187,13 +167,29 @@
             <div><span>Status</span><strong>Active</strong></div>
           </div>
         </div>
+
+        <div class="vendo-type-card clickable" data-goto="hotspot-vendo">
+          <div class="vendo-type-head">
+            <span class="vendo-type-icon">📶</span>
+            <div>
+              <h3>Cloud Hotspot</h3>
+              <p>MikroTik VLAN + ESP8266 coin machine</p>
+            </div>
+            <span class="badge online" id="wifi-status">—</span>
+          </div>
+          <div class="vendo-type-stats">
+            <div><span>VLANs</span><strong id="wifi-vlans-count">0</strong></div>
+            <div><span>Coins today</span><strong id="wifi-coins">0</strong></div>
+            <div><span>Revenue</span><strong id="wifi-revenue">₱0</strong></div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- Hotspot Vendo View -->
+    <!-- Cloud Hotspot View -->
     <section class="view" id="view-hotspot-vendo">
       <div class="view-header">
-        <h1 class="page-title">Hotspot Vendo</h1>
+        <h1 class="page-title">Cloud Hotspot</h1>
         <button class="btn-primary" id="btn-refresh-hotspot">↻ Refresh</button>
       </div>
 
@@ -243,7 +239,7 @@
     <!-- VLAN Detail View -->
     <section class="view" id="view-vlan-detail">
       <div class="view-header">
-        <button class="btn-back" data-goto="hotspot-vendo">← Back to Hotspot Vendo</button>
+        <button class="btn-back" data-goto="hotspot-vendo">← Back to Cloud Hotspot</button>
         <h1 class="page-title" id="vlan-detail-title">VLAN</h1>
       </div>
       <div class="vendo-summary" id="vlan-detail-stats"></div>
@@ -287,10 +283,10 @@
       </div>
     </section>
 
-    <!-- Empty Bottle Vendo View -->
+    <!-- Empty Bottle View -->
     <section class="view" id="view-empty-bottle">
       <div class="view-header">
-        <h1 class="page-title">Empty Bottle Vendo</h1>
+        <h1 class="page-title">Empty Bottle</h1>
         <button class="btn-primary" id="btn-refresh-bottle">↻ Refresh</button>
       </div>
       <div class="vendo-summary">

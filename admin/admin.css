@@ -159,7 +159,17 @@ body {
 
 .nav-child {
   font-size: 13px !important;
-  padding: 8px 12px !important;
+  padding: 8px 12px 8px 20px !important;
+  color: #93b4d4;
+}
+
+.nav-child:hover,
+.nav-child.active {
+  color: #c8dff5 !important;
+}
+
+.nav-subparent {
+  padding-left: 20px !important;
 }
 
 .nav-grandchild {
