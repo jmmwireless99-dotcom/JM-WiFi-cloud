@@ -1,23 +1,39 @@
-# jmtechsolution.cloud — Sidebar Fix
+# jmtechsolution.cloud — Alisin ang All Vendo / Empty Bottle / Cloud Hotspot
 
-In-edit ang live monitoring portal para alisin ang **Empty Bottle** at **Cloud Hotspot** sa sidebar.
+Ang fix ay nasa GitHub na, pero kailangan i-run sa **VPS** (72.62.73.235) — hindi automatic ang update.
 
-## File
-
-`site/monitoring/index.html` — kopya ng live portal na walang Empty Bottle / Cloud Hotspot links.
-
-## Deploy sa VPS
+## Isang command lang (copy-paste sa VPS SSH)
 
 ```bash
-# Hanapin ang current file
-grep -r "Empty Bottle" /var/www /opt /home 2>/dev/null | head -3
-
-# Deploy
-sudo bash deploy/update-jmtechsolution-portal.sh
+curl -sL https://raw.githubusercontent.com/jmmwireless99-dotcom/JM-WiFi-cloud/cursor/jmwifi-hotspot-system-3173/deploy/update-jmtechsolution-portal.sh | sudo bash
 ```
 
-Hard refresh sa browser pagkatapos: `Ctrl+Shift+R`
+## Manual (kung hindi gumana ang script)
 
-## Note
+```bash
+# 1. SSH sa VPS
+ssh root@72.62.73.235
 
-Ang WiFi hotspot API at captive portal ay nasa `server/` at `portal/` — hiwalay sa monitoring portal ng jmtechsolution.cloud.
+# 2. Hanapin ang portal file
+grep -r "Empty Bottle" /var/www /opt /home 2>/dev/null | head -3
+
+# 3. Backup at palitan (palitan ang PATH)
+PATH="/var/www/.../index.html"
+cp "$PATH" "$PATH.bak"
+curl -fsSL "https://raw.githubusercontent.com/jmmwireless99-dotcom/JM-WiFi-cloud/cursor/jmwifi-hotspot-system-3173/site/monitoring/index.html" -o "$PATH"
+
+# 4. Restart app
+pm2 restart all
+# o: systemctl restart jmtech
+
+# 5. Browser: Ctrl+Shift+R
+```
+
+## Pagkatapos i-deploy, sidebar dapat:
+
+```
+Gasoline Vendo
+JM Market        ← diretso, walang All Vendo section
+Settings
+...
+```
