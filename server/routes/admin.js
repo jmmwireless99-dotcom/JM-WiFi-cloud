@@ -83,6 +83,95 @@ router.get('/dashboard', authAdmin, (req, res) => {
   res.json(stats);
 });
 
+router.get('/system', authAdmin, async (req, res) => {
+  const os = require('os');
+  const { mtFetch } = require('../lib/mikrotik');
+  const f = ownedSitesSql(req.operator);
+  const sites = db.prepare(`
+    SELECT id, name, mikrotik_host, mikrotik_user, mikrotik_pass
+    FROM sites WHERE ${f.sql} AND mikrotik_host IS NOT NULL AND mikrotik_host != ''
+    ORDER BY created_at DESC LIMIT 4
+  `).all(...f.params);
+
+  const routers = [];
+  for (const site of sites) {
+    if (!site.mikrotik_pass) {
+      routers.push({
+        site_id: site.id,
+        name: site.name,
+        host: site.mikrotik_host,
+        online: false,
+        error: 'No password'
+      });
+      continue;
+    }
+    const [identity, resource] = await Promise.all([
+      mtFetch(site, '/system/identity'),
+      mtFetch(site, '/system/resource')
+    ]);
+    const idData = Array.isArray(identity.data) ? identity.data[0] : identity.data;
+    const resData = Array.isArray(resource.data) ? resource.data[0] : resource.data;
+    if (!resource.success || !resData) {
+      routers.push({
+        site_id: site.id,
+        name: site.name,
+        host: site.mikrotik_host,
+        online: false,
+        error: resource.error || identity.error || 'Unreachable'
+      });
+      continue;
+    }
+    const totalMem = Number(resData['total-memory'] || 0);
+    const freeMem = Number(resData['free-memory'] || 0);
+    const totalHdd = Number(resData['total-hdd-space'] || 0);
+    const freeHdd = Number(resData['free-hdd-space'] || 0);
+    routers.push({
+      site_id: site.id,
+      name: site.name,
+      host: site.mikrotik_host,
+      online: true,
+      identity: idData?.name || site.name,
+      board: resData['board-name'] || resData.platform || 'MikroTik',
+      version: resData.version || '',
+      cpu_load: Number(resData['cpu-load'] || 0),
+      cpu_count: Number(resData['cpu-count'] || 1),
+      uptime: resData.uptime || '',
+      architecture: resData['architecture-name'] || '',
+      memory: {
+        free: freeMem,
+        total: totalMem,
+        used_pct: totalMem ? Math.round(((totalMem - freeMem) / totalMem) * 100) : 0
+      },
+      hdd: {
+        free: freeHdd,
+        total: totalHdd,
+        used_pct: totalHdd ? Math.round(((totalHdd - freeHdd) / totalHdd) * 100) : 0
+      },
+      temperature: resData['cpu-temperature'] || null
+    });
+  }
+
+  const cpus = os.cpus() || [];
+  const load = os.loadavg();
+  res.json({
+    cloud: {
+      hostname: os.hostname(),
+      platform: os.platform(),
+      uptime: os.uptime(),
+      cpu_count: cpus.length,
+      cpu_model: cpus[0]?.model || 'CPU',
+      load: load[0],
+      memory: {
+        free: os.freemem(),
+        total: os.totalmem(),
+        used_pct: Math.round(((os.totalmem() - os.freemem()) / os.totalmem()) * 100)
+      }
+    },
+    routers,
+    stamped_at: new Date().toISOString()
+  });
+});
+
 router.get('/reports/sales', authAdmin, (req, res) => {
   const report = getSalesReport(req.operator, {
     siteId: req.query.site_id || null,

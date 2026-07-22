@@ -1,37 +1,72 @@
 /**
  * MikroTik RouterOS REST helpers for JM WiFi Cloud Hotspot.
  * Pause/resume mode: do NOT set wall-clock limit-uptime — cloud owns remaining time.
+ * Prefers HTTP (www) then HTTPS — many CHR/VPN peers only expose :80.
  */
+const http = require('http');
+const https = require('https');
+
 async function mtFetch(site, path, { method = 'GET', body } = {}) {
   const host = site.mikrotik_host;
-  const user = site.mikrotik_user || 'admin';
   const pass = site.mikrotik_pass;
   if (!host || !pass) return { manual: true, error: 'No MikroTik credentials' };
 
-  const url = `https://${host}/rest${path}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6000);
-
   try {
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64')
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    const text = await res.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-    if (!res.ok) return { error: data || text, status: res.status };
+    const data = await mtRequest(site, path, { method, body, tls: false });
     return { success: true, data };
-  } catch (err) {
-    clearTimeout(timeout);
-    return { error: err.message };
+  } catch (errHttp) {
+    try {
+      const data = await mtRequest(site, path, { method, body, tls: true });
+      return { success: true, data };
+    } catch (errHttps) {
+      return { error: errHttps.message || errHttp.message };
+    }
   }
+}
+
+function mtRequest(site, path, { method = 'GET', body, tls = false } = {}) {
+  const user = site.mikrotik_user || 'admin';
+  const pass = site.mikrotik_pass;
+  const payload = body ? JSON.stringify(body) : null;
+  const lib = tls ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = lib.request(
+      {
+        host: site.mikrotik_host,
+        port: tls ? 443 : 80,
+        path: `/rest${path}`,
+        method,
+        rejectUnauthorized: false,
+        timeout: 8000,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64'),
+          ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
+        }
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (c) => { raw += c; });
+        res.on('end', () => {
+          let data = null;
+          try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
+          if (res.statusCode >= 400) {
+            reject(new Error(
+              typeof data === 'string'
+                ? data
+                : (data?.detail || data?.message || JSON.stringify(data))
+            ));
+          } else {
+            resolve(data);
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    if (payload) req.write(payload);
+    req.end();
+  });
 }
 
 /**

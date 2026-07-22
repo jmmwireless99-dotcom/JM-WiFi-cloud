@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JM WiFi Cloud — All Vendo</title>
+  <title>JM WiFi — All Vendo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,9 +15,9 @@
   <div id="login-view" class="login-view">
     <div class="login-panel">
       <div class="login-brand">
-        <p class="brand-mark">JM WiFi Cloud</p>
-        <h1>All Vendo Control</h1>
-        <p class="login-sub">Central dashboard para sa lahat ng vendo sa jmtechsolution.cloud</p>
+        <p class="brand-mark">JM WiFi</p>
+        <h1>All Vendo</h1>
+        <p class="login-sub">Central control plane — gaya ng Kitifi, para sa lahat ng vendo sa jmtechsolution.cloud</p>
       </div>
       <form id="login-form" class="login-form">
         <label>
@@ -31,286 +32,351 @@
         <p id="login-error" class="form-error hidden"></p>
       </form>
     </div>
-    <div class="login-visual" aria-hidden="true"></div>
+    <div class="login-visual" aria-hidden="true">
+      <div class="login-orb"></div>
+      <p class="login-visual-brand">JM WiFi</p>
+      <p class="login-visual-sub">Cloud Hotspot · Empty Bottle · Multi-vendo</p>
+    </div>
   </div>
 
-  <!-- App shell -->
+  <!-- App shell (Kitifi-style) -->
   <div id="app-view" class="app hidden">
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <span class="brand-mark">JM WiFi</span>
-        <span class="brand-sub">All Vendo</span>
+    <header class="app-header">
+      <div class="header-left">
+        <button type="button" id="btn-sidebar-toggle" class="icon-btn" aria-label="Toggle menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="header-brand">
+          <span class="brand-mark">JM WiFi</span>
+          <span class="brand-chip">All Vendo</span>
+        </div>
       </div>
-      <nav class="nav">
-        <p class="nav-sec">All Vendo</p>
-        <button data-page="hub" class="nav-item active" data-module="hub">Modules</button>
-        <button data-page="empty-bottle" class="nav-item" data-module="empty-bottle">Empty Bottle</button>
-        <button data-page="hotspot" class="nav-item" data-module="hotspot">Cloud Hotspot</button>
-        <p class="nav-sec">Cloud Hotspot</p>
-        <button data-page="dashboard" class="nav-item">Overview</button>
-        <button data-page="hs-server" class="nav-item">Hotspot Server</button>
-        <button data-page="vendos" class="nav-item">Mga Vendo</button>
-        <button data-page="devices" class="nav-item">Devices</button>
-        <button data-page="sessions" class="nav-item">Sessions</button>
-        <button data-page="vouchers" class="nav-item">Vouchers</button>
-        <button data-page="sales" class="nav-item">Sales</button>
-        <button data-page="reports" class="nav-item">Reports</button>
-      </nav>
-      <div class="sidebar-footer">
-        <p id="op-name" class="op-name"></p>
-        <button id="logout-btn" class="btn-ghost">Logout</button>
+      <div class="header-right">
+        <span id="header-clock" class="header-clock"></span>
+        <button type="button" id="btn-refresh-page" class="icon-btn" title="Refresh" aria-label="Refresh">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+        <button type="button" id="btn-user-menu" class="icon-btn user-chip" title="Account">
+          <i class="fa-solid fa-user"></i>
+          <span id="op-name-short">Admin</span>
+        </button>
+        <button type="button" id="logout-btn" class="icon-btn" title="Logout" aria-label="Logout">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
       </div>
-    </aside>
+    </header>
 
-    <main class="main">
-      <header class="topbar">
-        <h2 id="page-title">Overview</h2>
-        <p class="topbar-domain">jmtechsolution.cloud</p>
-      </header>
+    <div class="app-body">
+      <aside class="sidebar" id="sidebar">
+        <nav class="nav">
+          <div class="nav-group open" data-group="home">
+            <button type="button" class="nav-group-title" data-toggle-group="home">
+              <span><i class="fa-solid fa-house"></i> Home</span>
+              <i class="fa-solid fa-chevron-down chev"></i>
+            </button>
+            <div class="nav-group-items">
+              <button data-page="dashboard" class="nav-item active"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
+              <button data-page="sales" class="nav-item"><i class="fa-solid fa-coins"></i> Sales Inventory</button>
+              <button data-page="reports" class="nav-item"><i class="fa-solid fa-chart-line"></i> Daily Sales Report</button>
+              <button data-page="vendos" class="nav-item"><i class="fa-solid fa-store"></i> Vendo List</button>
+              <button data-page="vouchers" class="nav-item"><i class="fa-solid fa-ticket"></i> Voucher Generator</button>
+              <button data-page="empty-bottle" class="nav-item"><i class="fa-solid fa-bottle-water"></i> Empty Bottle</button>
+            </div>
+          </div>
 
-      <!-- Modules hub -->
-      <section id="page-hub" class="page active">
-        <p class="hub-lead">Piliin ang vendo module mo.</p>
-        <div class="module-grid">
-          <button type="button" class="module-card" data-goto="empty-bottle">
-            <span class="module-kicker">All Vendo</span>
-            <span class="module-title">Empty Bottle</span>
-            <span class="module-desc">Empty bottle vendo — sales, machines, at cloud monitoring.</span>
-          </button>
-          <button type="button" class="module-card" data-goto="hotspot">
-            <span class="module-kicker">All Vendo</span>
-            <span class="module-title">Cloud Hotspot</span>
-            <span class="module-desc">WiFi hotspot, coin/voucher, MikroTik sessions, multi-vendo reports.</span>
-          </button>
+          <div class="nav-group open" data-group="hotspot">
+            <button type="button" class="nav-group-title" data-toggle-group="hotspot">
+              <span><i class="fa-solid fa-wifi"></i> Hotspot</span>
+              <i class="fa-solid fa-chevron-down chev"></i>
+            </button>
+            <div class="nav-group-items">
+              <button data-page="hs-server" class="nav-item"><i class="fa-solid fa-server"></i> Server</button>
+              <button data-page="sessions" class="nav-item"><i class="fa-solid fa-users"></i> Users</button>
+              <button data-page="devices" class="nav-item"><i class="fa-solid fa-microchip"></i> Devices</button>
+              <button data-page="hotspot" class="nav-item"><i class="fa-solid fa-circle-info"></i> Cloud Hotspot</button>
+            </div>
+          </div>
+
+          <div class="nav-group" data-group="modules">
+            <button type="button" class="nav-group-title" data-toggle-group="modules">
+              <span><i class="fa-solid fa-cubes"></i> Modules</span>
+              <i class="fa-solid fa-chevron-down chev"></i>
+            </button>
+            <div class="nav-group-items">
+              <button data-page="hub" class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> All Modules</button>
+            </div>
+          </div>
+        </nav>
+        <div class="sidebar-footer">
+          <p id="op-name" class="op-name"></p>
+          <p class="op-domain">jmtechsolution.cloud</p>
         </div>
-      </section>
+      </aside>
 
-      <!-- Empty Bottle module -->
-      <section id="page-empty-bottle" class="page">
-        <div class="panel">
-          <h3>Empty Bottle Vendo</h3>
-          <p class="hub-lead">Cloud control para sa empty bottle machines — GCash/Maya pay, sales tracking, at online status.</p>
-          <div class="action-row">
-            <a class="btn-primary" href="/vendo-admin" target="_blank" rel="noopener">Open Vendo Admin</a>
-            <a class="btn-secondary" href="https://jmtechsolution.cloud/#products" target="_blank" rel="noopener">Product info</a>
+      <main class="main">
+        <div class="page-head">
+          <div>
+            <h2 id="page-title">Dashboard</h2>
+            <p class="breadcrumb" id="page-breadcrumb">Home / Dashboard</p>
           </div>
         </div>
-      </section>
 
-      <!-- Hotspot module landing -->
-      <section id="page-hotspot" class="page">
-        <div class="panel">
-          <h3>Cloud Hotspot</h3>
-          <p class="hub-lead">Central captive portal 10.0.0.1 · lahat ng VLAN · pause on disconnect · auto-resume · random MAC · no validity.</p>
-          <div class="action-row">
-            <button class="btn-primary" data-goto="hs-server">Hotspot Server</button>
-            <button class="btn-secondary" data-goto="dashboard">Overview</button>
-            <button class="btn-secondary" data-goto="vendos">Mga Vendo</button>
+        <!-- Dashboard (Kitifi-style) -->
+        <section id="page-dashboard" class="page active">
+          <div class="kpi-grid" id="sales-kpi-grid"></div>
+          <div class="kpi-grid kpi-users" id="user-kpi-grid"></div>
+
+          <div class="monitor-panel">
+            <div class="monitor-tabs" role="tablist">
+              <button type="button" class="monitor-tab active" data-mon-tab="system">System</button>
+              <button type="button" class="monitor-tab" data-mon-tab="sales">Sales</button>
+              <button type="button" class="monitor-tab" data-mon-tab="traffic">Traffic</button>
+            </div>
+            <div id="mon-system" class="monitor-body">
+              <div class="monitor-split">
+                <div class="cpu-chart-wrap">
+                  <h3>CPU Usage</h3>
+                  <canvas id="cpu-chart" width="520" height="220"></canvas>
+                </div>
+                <div class="resource-wrap" id="resource-cards"></div>
+              </div>
+              <p class="monitor-stamp" id="monitor-stamp"></p>
+            </div>
+            <div id="mon-sales" class="monitor-body hidden">
+              <div id="today-sales-detail" class="metric-block"></div>
+            </div>
+            <div id="mon-traffic" class="monitor-body hidden">
+              <p class="empty">Traffic graph — connected MikroTik sessions at CENTRAL 10.0.0.1.</p>
+              <div id="traffic-summary" class="metric-block"></div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Kitifi-style Hotspot Server -->
-      <section id="page-hs-server" class="page">
-        <div class="hs-tabs" role="tablist">
-          <button type="button" class="hs-tab active" data-hs-tab="server">Server</button>
-          <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
-        </div>
-        <div class="toolbar">
-          <p id="hs-toolbar-text">Central hotspot server — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.</p>
-          <div class="filter-row">
-            <button id="btn-add-server" class="btn-primary">+ Server</button>
-            <button id="btn-add-profile" class="btn-primary">+ Profile</button>
-            <button id="btn-refresh-hs" class="btn-secondary">Refresh</button>
+        <!-- Modules hub -->
+        <section id="page-hub" class="page">
+          <p class="hub-lead">Piliin ang vendo module mo.</p>
+          <div class="module-grid">
+            <button type="button" class="module-card" data-goto="empty-bottle">
+              <span class="module-kicker">All Vendo</span>
+              <span class="module-title">Empty Bottle</span>
+              <span class="module-desc">Empty bottle vendo — sales, machines, at cloud monitoring.</span>
+            </button>
+            <button type="button" class="module-card" data-goto="hotspot">
+              <span class="module-kicker">All Vendo</span>
+              <span class="module-title">Cloud Hotspot</span>
+              <span class="module-desc">WiFi hotspot, coin/voucher, MikroTik sessions, multi-vendo reports.</span>
+            </button>
           </div>
-        </div>
-        <div id="hs-server-panel" class="hs-panel">
-          <div id="hs-server-list" class="table-wrap"></div>
-        </div>
-        <div id="hs-profile-panel" class="hs-panel hidden">
-          <div id="hs-profile-list" class="table-wrap"></div>
-        </div>
+        </section>
 
-        <dialog id="hs-server-dialog">
-          <form id="hs-server-form" method="dialog">
-            <h3>Setup Hotspot Server</h3>
-            <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
-            <div class="form-row">
-              <label>HS Address <input name="hs_address" value="10.0.0.1" required></label>
-              <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs via bridge-hotspot"></label>
-            </div>
-            <div class="form-row">
-              <label>HTML Directory <input name="html_directory" value="hotspot"></label>
-              <label>Login By <input name="login_by" value="http-pap,cookie"></label>
-            </div>
-            <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
-            <p class="hub-lead">Kitifi-style: isang CENTRAL server (10.0.0.1). VLAN ID = 0 = lahat ng VLAN sa bridge-hotspot.</p>
-            <div class="dialog-actions">
-              <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
-              <button type="submit" class="btn-primary">Save Server</button>
-            </div>
-          </form>
-        </dialog>
-
-        <dialog id="hs-profile-dialog">
-          <form id="hs-profile-form" method="dialog">
-            <h3>+ Profile</h3>
-            <label>Name <input name="name" required placeholder="jmwifi-pause"></label>
-            <div class="form-row">
-              <label>Rate limit <input name="rate_limit" value="2M/5M" placeholder="up/down"></label>
-              <label>Shared users <input name="shared_users" type="number" value="1" min="1"></label>
-            </div>
-            <div class="form-row">
-              <label>Keepalive <input name="keepalive_timeout" value="2m"></label>
-              <label>Idle timeout <input name="idle_timeout" value="none"></label>
-            </div>
-            <label class="check-row"><input type="checkbox" name="pause_on_disconnect" checked> Pause on disconnect (auto-resume when reconnect)</label>
-            <label class="check-row"><input type="checkbox" name="no_validity" checked> No validity (time only while connected)</label>
-            <label class="check-row"><input type="checkbox" name="allow_random_mac" checked> Allow random MAC address</label>
-            <label>Notes <input name="notes" placeholder="Optional"></label>
-            <div class="dialog-actions">
-              <button type="button" class="btn-ghost" id="hs-profile-cancel">Cancel</button>
-              <button type="submit" class="btn-primary">Create Profile</button>
-            </div>
-          </form>
-        </dialog>
-      </section>
-
-      <!-- Dashboard -->
-      <section id="page-dashboard" class="page">
-        <div class="stat-grid" id="stat-grid"></div>
-        <div class="split">
+        <!-- Empty Bottle -->
+        <section id="page-empty-bottle" class="page">
           <div class="panel">
-            <h3>Sales ngayong araw</h3>
-            <div id="today-sales-detail" class="metric-block"></div>
-          </div>
-          <div class="panel">
-            <h3>Quick actions</h3>
+            <h3>Empty Bottle Vendo</h3>
+            <p class="hub-lead">Cloud control para sa empty bottle machines — GCash/Maya pay, sales tracking, at online status.</p>
             <div class="action-row">
-              <button class="btn-secondary" data-goto="hs-server">Setup Profile</button>
-              <button class="btn-secondary" data-goto="vendos">Magdagdag ng Vendo</button>
-              <button class="btn-secondary" data-goto="vouchers">Generate Voucher</button>
+              <a class="btn-primary" href="/vendo-admin" target="_blank" rel="noopener">Open Vendo Admin</a>
+              <a class="btn-secondary" href="https://jmtechsolution.cloud/#products" target="_blank" rel="noopener">Product info</a>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Vendos -->
-      <section id="page-vendos" class="page">
-        <div class="toolbar">
-          <p>Lahat ng vendo locations — gaya ng Kitifi multi-vendo.</p>
-          <button id="btn-new-vendo" class="btn-primary">+ Bagong Vendo</button>
-        </div>
-        <div id="vendo-list" class="table-wrap"></div>
-
-        <dialog id="vendo-dialog">
-          <form id="vendo-form" method="dialog">
-            <h3 id="vendo-dialog-title">Bagong Vendo</h3>
-            <label>Pangalan <input name="name" required placeholder="Tindahan WiFi - Brgy 1"></label>
-            <label>Address <input name="address" placeholder="Location / branch"></label>
-            <label>Portal title <input name="portal_title" value="JM WiFi"></label>
-            <div class="form-row">
-              <label>Minutes / coin <input name="minutes_per_coin" type="number" value="5" min="1"></label>
-              <label>Coin value (₱) <input name="coin_value" type="number" value="1" min="0.5" step="0.5"></label>
-            </div>
-            <div class="form-row">
-              <label>MikroTik host <input name="mikrotik_host" placeholder="192.168.88.1"></label>
-              <label>MikroTik user <input name="mikrotik_user" value="admin"></label>
-            </div>
-            <label>MikroTik password <input name="mikrotik_pass" type="password"></label>
-            <div class="dialog-actions">
-              <button type="button" class="btn-ghost" id="vendo-cancel">Cancel</button>
-              <button type="submit" class="btn-primary">I-save</button>
-            </div>
-          </form>
-        </dialog>
-
-        <dialog id="vendo-detail-dialog">
-          <div class="detail-head">
-            <h3 id="detail-title">Vendo</h3>
-            <button type="button" class="btn-ghost" id="detail-close">Close</button>
-          </div>
-          <div id="vendo-detail-body"></div>
-        </dialog>
-      </section>
-
-      <!-- Devices -->
-      <section id="page-devices" class="page">
-        <div class="toolbar">
-          <p>ESP8266 coin machines at MikroTik routers na naka-bind sa mga vendo.</p>
-          <button id="btn-refresh-devices" class="btn-secondary">Refresh status</button>
-        </div>
-        <div id="device-list" class="table-wrap"></div>
-      </section>
-
-      <!-- Sessions -->
-      <section id="page-sessions" class="page">
-        <div class="toolbar">
-          <p>Active hotspot sessions across all vendos.</p>
-        </div>
-        <div id="session-list" class="table-wrap"></div>
-      </section>
-
-      <!-- Vouchers -->
-      <section id="page-vouchers" class="page">
-        <div class="toolbar">
-          <p>Generate at i-monitor ang voucher codes.</p>
-          <button id="btn-gen-voucher" class="btn-primary">Generate</button>
-        </div>
-        <div id="voucher-list" class="table-wrap"></div>
-
-        <dialog id="voucher-dialog">
-          <form id="voucher-form" method="dialog">
-            <h3>Generate Vouchers</h3>
-            <label>Vendo
-              <select name="site_id" id="voucher-site" required></select>
-            </label>
-            <div class="form-row">
-              <label>Minutes <input name="minutes" type="number" value="60" min="1" required></label>
-              <label>Count <input name="count" type="number" value="10" min="1" max="200" required></label>
-              <label>Price (₱) <input name="price" type="number" value="10" min="0" step="0.5"></label>
-            </div>
-            <div class="dialog-actions">
-              <button type="button" class="btn-ghost" id="voucher-cancel">Cancel</button>
-              <button type="submit" class="btn-primary">Generate</button>
-            </div>
-          </form>
-        </dialog>
-      </section>
-
-      <!-- Sales -->
-      <section id="page-sales" class="page">
-        <div class="toolbar">
-          <p>Coin insert / sales transactions.</p>
-        </div>
-        <div id="sales-list" class="table-wrap"></div>
-      </section>
-
-      <!-- Reports -->
-      <section id="page-reports" class="page">
-        <div class="toolbar">
-          <p>Daily / weekly / monthly sales — multi-vendo tracking.</p>
-          <div class="filter-row">
-            <select id="report-period">
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            <button id="btn-load-report" class="btn-secondary">I-load</button>
-          </div>
-        </div>
-        <div class="split">
+        <!-- Hotspot landing -->
+        <section id="page-hotspot" class="page">
           <div class="panel">
-            <h3>Sales series</h3>
-            <div id="report-series" class="table-wrap"></div>
+            <h3>Cloud Hotspot</h3>
+            <p class="hub-lead">Central captive portal 10.0.0.1 · lahat ng VLAN · pause on disconnect · auto-resume · random MAC · no validity.</p>
+            <div class="action-row">
+              <button class="btn-primary" data-goto="hs-server">Hotspot Server</button>
+              <button class="btn-secondary" data-goto="dashboard">Dashboard</button>
+              <button class="btn-secondary" data-goto="vendos">Vendo List</button>
+            </div>
           </div>
-          <div class="panel">
-            <h3>Per vendo</h3>
-            <div id="report-by-vendo" class="table-wrap"></div>
+        </section>
+
+        <!-- Hotspot Server -->
+        <section id="page-hs-server" class="page">
+          <div class="hs-tabs" role="tablist">
+            <button type="button" class="hs-tab active" data-hs-tab="server">Server</button>
+            <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
           </div>
-        </div>
-      </section>
-    </main>
+          <div class="toolbar">
+            <p id="hs-toolbar-text">Central hotspot server — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.</p>
+            <div class="filter-row">
+              <button id="btn-add-server" class="btn-primary">+ Server</button>
+              <button id="btn-add-profile" class="btn-primary">+ Profile</button>
+              <button id="btn-refresh-hs" class="btn-secondary">Refresh</button>
+            </div>
+          </div>
+          <div id="hs-server-panel" class="hs-panel">
+            <div id="hs-server-list" class="table-wrap"></div>
+          </div>
+          <div id="hs-profile-panel" class="hs-panel hidden">
+            <div id="hs-profile-list" class="table-wrap"></div>
+          </div>
+
+          <dialog id="hs-server-dialog">
+            <form id="hs-server-form" method="dialog">
+              <h3>Setup Hotspot Server</h3>
+              <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
+              <div class="form-row">
+                <label>HS Address <input name="hs_address" value="10.0.0.1" required></label>
+                <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs via bridge-hotspot"></label>
+              </div>
+              <div class="form-row">
+                <label>HTML Directory <input name="html_directory" value="hotspot"></label>
+                <label>Login By <input name="login_by" value="http-pap,cookie"></label>
+              </div>
+              <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
+              <p class="hub-lead">Kitifi-style: isang CENTRAL server (10.0.0.1). VLAN ID = 0 = lahat ng VLAN sa bridge-hotspot.</p>
+              <div class="dialog-actions">
+                <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Save Server</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="hs-profile-dialog">
+            <form id="hs-profile-form" method="dialog">
+              <h3>+ Profile</h3>
+              <label>Name <input name="name" required placeholder="jmwifi-pause"></label>
+              <div class="form-row">
+                <label>Rate limit <input name="rate_limit" value="2M/5M" placeholder="up/down"></label>
+                <label>Shared users <input name="shared_users" type="number" value="1" min="1"></label>
+              </div>
+              <div class="form-row">
+                <label>Keepalive <input name="keepalive_timeout" value="2m"></label>
+                <label>Idle timeout <input name="idle_timeout" value="none"></label>
+              </div>
+              <label class="check-row"><input type="checkbox" name="pause_on_disconnect" checked> Pause on disconnect (auto-resume when reconnect)</label>
+              <label class="check-row"><input type="checkbox" name="no_validity" checked> No validity (time only while connected)</label>
+              <label class="check-row"><input type="checkbox" name="allow_random_mac" checked> Allow random MAC address</label>
+              <label>Notes <input name="notes" placeholder="Optional"></label>
+              <div class="dialog-actions">
+                <button type="button" class="btn-ghost" id="hs-profile-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Create Profile</button>
+              </div>
+            </form>
+          </dialog>
+        </section>
+
+        <!-- Vendos -->
+        <section id="page-vendos" class="page">
+          <div class="toolbar">
+            <p>Lahat ng vendo locations — multi-vendo gaya ng Kitifi.</p>
+            <button id="btn-new-vendo" class="btn-primary">+ Bagong Vendo</button>
+          </div>
+          <div id="vendo-list" class="table-wrap"></div>
+
+          <dialog id="vendo-dialog">
+            <form id="vendo-form" method="dialog">
+              <h3 id="vendo-dialog-title">Bagong Vendo</h3>
+              <label>Pangalan <input name="name" required placeholder="Tindahan WiFi - Brgy 1"></label>
+              <label>Address <input name="address" placeholder="Location / branch"></label>
+              <label>Portal title <input name="portal_title" value="JM WiFi"></label>
+              <div class="form-row">
+                <label>Minutes / coin <input name="minutes_per_coin" type="number" value="5" min="1"></label>
+                <label>Coin value (₱) <input name="coin_value" type="number" value="1" min="0.5" step="0.5"></label>
+              </div>
+              <div class="form-row">
+                <label>MikroTik host <input name="mikrotik_host" placeholder="10.90.0.27"></label>
+                <label>MikroTik user <input name="mikrotik_user" value="admin"></label>
+              </div>
+              <label>MikroTik password <input name="mikrotik_pass" type="password"></label>
+              <div class="dialog-actions">
+                <button type="button" class="btn-ghost" id="vendo-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">I-save</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="vendo-detail-dialog">
+            <div class="detail-head">
+              <h3 id="detail-title">Vendo</h3>
+              <button type="button" class="btn-ghost" id="detail-close">Close</button>
+            </div>
+            <div id="vendo-detail-body"></div>
+          </dialog>
+        </section>
+
+        <!-- Devices -->
+        <section id="page-devices" class="page">
+          <div class="toolbar">
+            <p>ESP8266 coin machines at MikroTik routers.</p>
+            <button id="btn-refresh-devices" class="btn-secondary">Refresh status</button>
+          </div>
+          <div id="device-list" class="table-wrap"></div>
+        </section>
+
+        <!-- Sessions -->
+        <section id="page-sessions" class="page">
+          <div class="toolbar">
+            <p>Active / paused hotspot users across all vendos.</p>
+          </div>
+          <div id="session-list" class="table-wrap"></div>
+        </section>
+
+        <!-- Vouchers -->
+        <section id="page-vouchers" class="page">
+          <div class="toolbar">
+            <p>Generate at i-monitor ang voucher codes.</p>
+            <button id="btn-gen-voucher" class="btn-primary">Generate</button>
+          </div>
+          <div id="voucher-list" class="table-wrap"></div>
+
+          <dialog id="voucher-dialog">
+            <form id="voucher-form" method="dialog">
+              <h3>Generate Vouchers</h3>
+              <label>Vendo
+                <select name="site_id" id="voucher-site" required></select>
+              </label>
+              <div class="form-row">
+                <label>Minutes <input name="minutes" type="number" value="60" min="1" required></label>
+                <label>Count <input name="count" type="number" value="10" min="1" max="200" required></label>
+                <label>Price (₱) <input name="price" type="number" value="10" min="0" step="0.5"></label>
+              </div>
+              <div class="dialog-actions">
+                <button type="button" class="btn-ghost" id="voucher-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Generate</button>
+              </div>
+            </form>
+          </dialog>
+        </section>
+
+        <!-- Sales -->
+        <section id="page-sales" class="page">
+          <div class="toolbar">
+            <p>Coin insert / sales transactions.</p>
+          </div>
+          <div id="sales-list" class="table-wrap"></div>
+        </section>
+
+        <!-- Reports -->
+        <section id="page-reports" class="page">
+          <div class="toolbar">
+            <p>Daily / weekly / monthly sales — multi-vendo tracking.</p>
+            <div class="filter-row">
+              <select id="report-period">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <button id="btn-load-report" class="btn-secondary">I-load</button>
+            </div>
+          </div>
+          <div class="split">
+            <div class="panel">
+              <h3>Sales series</h3>
+              <div id="report-series" class="table-wrap"></div>
+            </div>
+            <div class="panel">
+              <h3>Per vendo</h3>
+              <div id="report-by-vendo" class="table-wrap"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <script>

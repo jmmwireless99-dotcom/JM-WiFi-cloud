@@ -7,7 +7,8 @@
     token: localStorage.getItem('jm_token') || '',
     operator: null,
     vendos: [],
-    page: 'dashboard'
+    page: 'dashboard',
+    systemTimer: null
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -27,7 +28,7 @@
   }
 
   function money(n) {
-    return '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return '₱ ' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   function esc(s) {
@@ -36,15 +37,45 @@
     }[c]));
   }
 
+  function fmtBytes(n) {
+    const v = Number(n || 0);
+    if (v >= 1024 ** 3) return (v / 1024 ** 3).toFixed(2) + ' GiB';
+    if (v >= 1024 ** 2) return (v / 1024 ** 2).toFixed(2) + ' MiB';
+    if (v >= 1024) return (v / 1024).toFixed(1) + ' KiB';
+    return v + ' B';
+  }
+
+  function fmtUptime(sec) {
+    sec = Math.floor(Number(sec) || 0);
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${d}d. ${h}hr. ${m}min. ${s}sec.`;
+  }
+
+  function tickClock() {
+    const el = $('#header-clock');
+    if (!el) return;
+    el.textContent = new Date().toLocaleString('en-PH', {
+      month: '2-digit', day: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+    });
+  }
+
   function showApp() {
     $('#login-view').classList.add('hidden');
     $('#app-view').classList.remove('hidden');
     $('#op-name').textContent = state.operator.name + ' · ' + state.operator.role;
+    $('#op-name-short').textContent = state.operator.name || 'Admin';
+    tickClock();
+    setInterval(tickClock, 1000);
   }
 
   function showLogin() {
     $('#app-view').classList.add('hidden');
     $('#login-view').classList.remove('hidden');
+    if (state.systemTimer) clearInterval(state.systemTimer);
   }
 
   function logout(clear = true) {
@@ -94,28 +125,52 @@
   });
 
   $('#logout-btn').addEventListener('click', () => logout());
+  $('#btn-sidebar-toggle')?.addEventListener('click', () => {
+    $('#app-view').classList.toggle('sidebar-collapsed');
+  });
+  $('#btn-refresh-page')?.addEventListener('click', () => navigate(state.page));
 
-  // ── Navigation ──
-  $$('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => navigate(btn.dataset.page));
+  $$('[data-toggle-group]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const g = btn.closest('.nav-group');
+      g?.classList.toggle('open');
+    });
   });
 
-  $$('[data-goto]').forEach((btn) => {
-    btn.addEventListener('click', () => navigate(btn.dataset.goto));
+  // ── Navigation ──
+  document.addEventListener('click', (e) => {
+    const nav = e.target.closest('.nav-item');
+    if (nav?.dataset.page) navigate(nav.dataset.page);
+    const goto = e.target.closest('[data-goto]');
+    if (goto?.dataset.goto) navigate(goto.dataset.goto);
   });
 
   const titles = {
-    hub: 'All Vendo',
+    hub: 'All Modules',
     'empty-bottle': 'Empty Bottle',
     hotspot: 'Cloud Hotspot',
     'hs-server': 'Hotspot Server',
-    dashboard: 'Hotspot Overview',
-    vendos: 'Mga Vendo',
+    dashboard: 'Dashboard',
+    vendos: 'Vendo List',
     devices: 'Devices',
-    sessions: 'Sessions',
-    vouchers: 'Vouchers',
-    sales: 'Sales',
-    reports: 'Reports'
+    sessions: 'Users',
+    vouchers: 'Voucher Generator',
+    sales: 'Sales Inventory',
+    reports: 'Daily Sales Report'
+  };
+
+  const crumbs = {
+    hub: 'Modules / All',
+    'empty-bottle': 'Home / Empty Bottle',
+    hotspot: 'Hotspot / Overview',
+    'hs-server': 'Hotspot / Server',
+    dashboard: 'Home / Dashboard',
+    vendos: 'Home / Vendo List',
+    devices: 'Hotspot / Devices',
+    sessions: 'Hotspot / Users',
+    vouchers: 'Home / Voucher Generator',
+    sales: 'Home / Sales Inventory',
+    reports: 'Home / Daily Sales Report'
   };
 
   async function navigate(page) {
@@ -123,12 +178,20 @@
     $$('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === page));
     $$('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + page));
     $('#page-title').textContent = titles[page] || page;
+    $('#page-breadcrumb').textContent = crumbs[page] || ('Home / ' + page);
+
+    // auto-open parent group
+    const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    activeNav?.closest('.nav-group')?.classList.add('open');
 
     const url = new URL(location.href);
-    if (page === 'empty-bottle' || page === 'hotspot' || page === 'hub' || page === 'hs-server') {
-      url.searchParams.set('module', page === 'hub' ? 'hub' : page);
-    }
+    url.searchParams.set('module', page);
     history.replaceState(null, '', url);
+
+    if (state.systemTimer) {
+      clearInterval(state.systemTimer);
+      state.systemTimer = null;
+    }
 
     const loaders = {
       dashboard: loadDashboard,
@@ -145,35 +208,286 @@
 
   function initialPage() {
     const mod = new URLSearchParams(location.search).get('module');
-    if (mod === 'empty-bottle') return 'empty-bottle';
-    if (mod === 'hotspot') return 'hotspot';
-    if (mod === 'hs-server') return 'hs-server';
-    if (mod === 'hub') return 'hub';
-    return 'hub';
+    if (mod && titles[mod]) return mod;
+    return 'dashboard';
+  }
+
+  function kpiCard({ label, value, color, icon, pct }) {
+    return `
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <div>
+            <div class="kpi-label">${esc(label)}</div>
+            <div class="kpi-value">${esc(value)}</div>
+          </div>
+          <div class="kpi-icon ${color}"><i class="fa-solid ${icon}"></i></div>
+        </div>
+        <div class="kpi-bar ${color}" style="--w:${Math.max(8, Math.min(100, pct || 40))}%"><span></span></div>
+      </div>
+    `;
+  }
+
+  function drawCpuChart(canvas, routers, cloud) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 520;
+    const h = 220;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const labels = [];
+    const values = [];
+    if (routers?.length) {
+      routers.filter((r) => r.online).forEach((r) => {
+        const n = Math.max(1, r.cpu_count || 1);
+        for (let i = 1; i <= Math.min(n, 8); i++) {
+          labels.push('CPU' + i);
+          // approximate per-core from overall load
+          values.push(Math.max(0, Math.min(100, Number(r.cpu_load) + (i - 1) * 2)));
+        }
+        labels.push('ALL');
+        values.push(Number(r.cpu_load) || 0);
+      });
+    }
+    if (!labels.length && cloud) {
+      const n = Math.min(cloud.cpu_count || 4, 8);
+      for (let i = 1; i <= n; i++) {
+        labels.push('CPU' + i);
+        values.push(Math.min(100, Math.round((cloud.load || 0) * 25) + i));
+      }
+      labels.push('ALL');
+      values.push(Math.min(100, Math.round((cloud.load || 0) * 40)));
+    }
+    if (!labels.length) {
+      labels.push('CPU1', 'ALL');
+      values.push(0, 0);
+    }
+
+    const pad = { t: 20, r: 16, b: 36, l: 36 };
+    const chartW = w - pad.l - pad.r;
+    const chartH = h - pad.t - pad.b;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillStyle = '#9aa3b2';
+    ctx.font = '11px DM Sans, sans-serif';
+    for (let y = 0; y <= 100; y += 25) {
+      const yy = pad.t + chartH - (y / 100) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, yy);
+      ctx.lineTo(pad.l + chartW, yy);
+      ctx.stroke();
+      ctx.fillText(String(y), 8, yy + 3);
+    }
+
+    const gap = 8;
+    const barW = Math.max(10, (chartW - gap * labels.length) / labels.length);
+    values.forEach((v, i) => {
+      const x = pad.l + i * (barW + gap) + gap / 2;
+      const bh = (v / 100) * chartH;
+      const y = pad.t + chartH - bh;
+      const grad = ctx.createLinearGradient(0, y, 0, pad.t + chartH);
+      grad.addColorStop(0, '#60a5fa');
+      grad.addColorStop(1, '#2563eb');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, barW, bh);
+      ctx.fillStyle = '#9aa3b2';
+      ctx.save();
+      ctx.translate(x + barW / 2, h - 10);
+      ctx.rotate(-0.4);
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], 0, 0);
+      ctx.restore();
+    });
   }
 
   // ── Dashboard ──
   async function loadDashboard() {
-    const stats = await api('/dashboard');
-    $('#stat-grid').innerHTML = [
-      ['Vendos', stats.vendos],
-      ['Devices online', stats.devices_online + ' / ' + stats.devices_total],
-      ['Active sessions', stats.active_sessions],
-      ['Unused vouchers', stats.unused_vouchers]
-    ].map(([label, value]) => `
-      <div class="stat">
-        <div class="label">${esc(label)}</div>
-        <div class="value">${esc(value)}</div>
-      </div>
-    `).join('');
+    const [stats, system] = await Promise.all([
+      api('/dashboard'),
+      api('/system').catch(() => null)
+    ]);
+
+    const salesMax = Math.max(
+      1,
+      Number(stats.sales.today.amount),
+      Number(stats.sales.week.amount),
+      Number(stats.sales.month.amount),
+      Number(stats.sales.year?.amount || 0)
+    );
+
+    $('#sales-kpi-grid').innerHTML = [
+      kpiCard({
+        label: 'Daily',
+        value: money(stats.sales.today.amount),
+        color: 'blue',
+        icon: 'fa-coins',
+        pct: (stats.sales.today.amount / salesMax) * 100
+      }),
+      kpiCard({
+        label: 'Weekly',
+        value: money(stats.sales.week.amount),
+        color: 'green',
+        icon: 'fa-coins',
+        pct: (stats.sales.week.amount / salesMax) * 100
+      }),
+      kpiCard({
+        label: 'Monthly',
+        value: money(stats.sales.month.amount),
+        color: 'yellow',
+        icon: 'fa-coins',
+        pct: (stats.sales.month.amount / salesMax) * 100
+      }),
+      kpiCard({
+        label: 'Yearly',
+        value: money(stats.sales.year?.amount || 0),
+        color: 'red',
+        icon: 'fa-coins',
+        pct: ((stats.sales.year?.amount || 0) / salesMax) * 100
+      })
+    ].join('');
+
+    $('#user-kpi-grid').innerHTML = [
+      kpiCard({
+        label: 'Hotspot Active',
+        value: String(stats.active_sessions),
+        color: 'blue',
+        icon: 'fa-wifi',
+        pct: Math.min(100, stats.active_sessions * 5 || 8)
+      }),
+      kpiCard({
+        label: 'Hotspot Total User',
+        value: String(stats.total_users || 0),
+        color: 'green',
+        icon: 'fa-wifi',
+        pct: Math.min(100, (stats.total_users || 0) / 10 || 8)
+      }),
+      kpiCard({
+        label: 'Devices Online',
+        value: `${stats.devices_online} / ${stats.devices_total}`,
+        color: 'yellow',
+        icon: 'fa-microchip',
+        pct: stats.devices_total
+          ? (stats.devices_online / stats.devices_total) * 100
+          : 8
+      }),
+      kpiCard({
+        label: 'Vendos',
+        value: String(stats.vendos),
+        color: 'red',
+        icon: 'fa-store',
+        pct: Math.min(100, stats.vendos * 15 || 8)
+      })
+    ].join('');
 
     $('#today-sales-detail').innerHTML = `
-      <div><strong>${money(stats.sales.today.amount)}</strong></div>
-      <div>${stats.sales.today.coins} coins · ${stats.sales.today.txns} transactions</div>
-      <div style="margin-top:10px">Week: <strong>${money(stats.sales.week.amount)}</strong></div>
+      <div><strong>${money(stats.sales.today.amount)}</strong> today · ${stats.sales.today.coins} coins · ${stats.sales.today.txns} txns</div>
+      <div>Week: <strong>${money(stats.sales.week.amount)}</strong></div>
       <div>Month: <strong>${money(stats.sales.month.amount)}</strong></div>
+      <div>Year: <strong>${money(stats.sales.year?.amount || 0)}</strong></div>
+      <div style="margin-top:10px">Paused sessions: ${stats.paused_sessions || 0} · Unused vouchers: ${stats.unused_vouchers}</div>
     `;
+
+    $('#traffic-summary').innerHTML = `
+      <div>Active hotspot sessions: <strong>${stats.active_sessions}</strong></div>
+      <div>CENTRAL captive portal gateway: <strong>10.0.0.1</strong></div>
+    `;
+
+    renderSystem(system);
+    state.systemTimer = setInterval(async () => {
+      try {
+        renderSystem(await api('/system'));
+      } catch {}
+    }, 15000);
   }
+
+  function renderSystem(system) {
+    const wrap = $('#resource-cards');
+    if (!wrap) return;
+    if (!system) {
+      wrap.innerHTML = '<p class="empty">System monitor unavailable.</p>';
+      return;
+    }
+
+    const cards = [];
+    (system.routers || []).forEach((r) => {
+      if (!r.online) {
+        cards.push(`
+          <div class="resource-card">
+            <h4>${esc(r.name)} · ${esc(r.host)}</h4>
+            <p class="empty" style="padding:8px 0">Offline — ${esc(r.error || 'unreachable')}</p>
+          </div>
+        `);
+        return;
+      }
+      cards.push(`
+        <div class="resource-card">
+          <h4>${esc(r.identity || r.name)} · ${esc(r.board)}</h4>
+          <div class="res-row">
+            <span class="label">CPU Load</span>
+            <div class="res-track blue"><span style="width:${r.cpu_load}%"></span></div>
+            <span>${r.cpu_load}%</span>
+          </div>
+          <div class="res-row">
+            <span class="label">Free Memory</span>
+            <div class="res-track red"><span style="width:${r.memory.used_pct}%"></span></div>
+            <span>${fmtBytes(r.memory.total - r.memory.free)} / ${fmtBytes(r.memory.total)}</span>
+          </div>
+          <div class="res-row">
+            <span class="label">Free HDD</span>
+            <div class="res-track green"><span style="width:${r.hdd.used_pct}%"></span></div>
+            <span>${fmtBytes(r.hdd.total - r.hdd.free)} / ${fmtBytes(r.hdd.total)}</span>
+          </div>
+          <div class="res-meta">
+            <span>Temp: ${r.temperature != null ? esc(r.temperature) + '°' : 'N/A'}</span>
+            <span>Uptime: ${esc(r.uptime)}</span>
+            <span>${esc(r.version)}</span>
+          </div>
+        </div>
+      `);
+    });
+
+    if (system.cloud) {
+      const c = system.cloud;
+      cards.push(`
+        <div class="resource-card">
+          <h4>Cloud · ${esc(c.hostname)}</h4>
+          <div class="res-row">
+            <span class="label">Load</span>
+            <div class="res-track blue"><span style="width:${Math.min(100, (c.load || 0) * 25)}%"></span></div>
+            <span>${Number(c.load || 0).toFixed(2)}</span>
+          </div>
+          <div class="res-row">
+            <span class="label">Free Memory</span>
+            <div class="res-track red"><span style="width:${c.memory.used_pct}%"></span></div>
+            <span>${fmtBytes(c.memory.total - c.memory.free)} / ${fmtBytes(c.memory.total)}</span>
+          </div>
+          <div class="res-meta">
+            <span>CPUs: ${c.cpu_count}</span>
+            <span>Uptime: ${fmtUptime(c.uptime)}</span>
+          </div>
+        </div>
+      `);
+    }
+
+    wrap.innerHTML = cards.join('') || '<p class="empty">Walang router pa.</p>';
+    drawCpuChart($('#cpu-chart'), system.routers, system.cloud);
+    const stamp = $('#monitor-stamp');
+    if (stamp) {
+      stamp.textContent = new Date(system.stamped_at || Date.now()).toLocaleString('en-PH');
+    }
+  }
+
+  $$('.monitor-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      $$('.monitor-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      ['system', 'sales', 'traffic'].forEach((name) => {
+        $('#mon-' + name)?.classList.toggle('hidden', tab.dataset.monTab !== name);
+      });
+    });
+  });
 
   // ── Vendos ──
   async function loadVendos() {
@@ -253,15 +567,14 @@
     });
   }
 
-  $('#detail-close').addEventListener('click', () => $('#vendo-detail-dialog').close());
-
-  $('#btn-new-vendo').addEventListener('click', () => {
+  $('#detail-close')?.addEventListener('click', () => $('#vendo-detail-dialog').close());
+  $('#btn-new-vendo')?.addEventListener('click', () => {
     $('#vendo-form').reset();
     $('#vendo-dialog').showModal();
   });
-  $('#vendo-cancel').addEventListener('click', () => $('#vendo-dialog').close());
+  $('#vendo-cancel')?.addEventListener('click', () => $('#vendo-dialog').close());
 
-  $('#vendo-form').addEventListener('submit', async (e) => {
+  $('#vendo-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
@@ -299,7 +612,7 @@
       </table>
     `;
   }
-  $('#btn-refresh-devices').addEventListener('click', () => loadDevices());
+  $('#btn-refresh-devices')?.addEventListener('click', () => loadDevices());
 
   // ── Sessions ──
   async function loadSessions() {
@@ -334,7 +647,7 @@
     });
   }
 
-  // ── Hotspot Server / Profile (Kitifi-style) ──
+  // ── Hotspot Server / Profile ──
   function setHsTab(tab) {
     $$('.hs-tab').forEach((t) => t.classList.toggle('active', t.dataset.hsTab === tab));
     $('#hs-server-panel').classList.toggle('hidden', tab !== 'server');
@@ -425,9 +738,7 @@
   }
 
   $$('.hs-tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      setHsTab(tab.dataset.hsTab);
-    });
+    tab.addEventListener('click', () => setHsTab(tab.dataset.hsTab));
   });
 
   $('#btn-refresh-hs')?.addEventListener('click', () => loadHotspotServer());
@@ -464,7 +775,7 @@
     body.allow_random_mac = fd.get('allow_random_mac') ? 1 : 0;
     const data = await api('/hotspot/profiles', { method: 'POST', body: JSON.stringify(body) });
     $('#hs-profile-dialog').close();
-    if (data.script) alert('Profile created.\\n\\nMikroTik script:\\n' + data.script);
+    if (data.script) alert('Profile created.\n\nMikroTik script:\n' + data.script);
     loadHotspotServer();
   });
 
@@ -495,7 +806,7 @@
     `;
   }
 
-  $('#btn-gen-voucher').addEventListener('click', async () => {
+  $('#btn-gen-voucher')?.addEventListener('click', async () => {
     if (!state.vendos.length) {
       const data = await api('/vendos');
       state.vendos = data.vendos;
@@ -504,9 +815,9 @@
     sel.innerHTML = state.vendos.map((v) => `<option value="${v.id}">${esc(v.name)}</option>`).join('');
     $('#voucher-dialog').showModal();
   });
-  $('#voucher-cancel').addEventListener('click', () => $('#voucher-dialog').close());
+  $('#voucher-cancel')?.addEventListener('click', () => $('#voucher-dialog').close());
 
-  $('#voucher-form').addEventListener('submit', async (e) => {
+  $('#voucher-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
@@ -584,7 +895,7 @@
       </table>
     `;
   }
-  $('#btn-load-report').addEventListener('click', () => loadReports());
+  $('#btn-load-report')?.addEventListener('click', () => loadReports());
 
   boot();
 })();

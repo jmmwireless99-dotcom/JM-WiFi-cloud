@@ -60,8 +60,23 @@ function getDashboardStats(operator, siteId = null) {
     WHERE created_at >= datetime('now', 'start of month') AND ${f.sql}
   `).get(...f.params);
 
+  const yearSales = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as amount, COALESCE(SUM(coins), 0) as coins, COUNT(*) as txns
+    FROM coin_logs
+    WHERE created_at >= datetime('now', 'start of year') AND ${f.sql}
+  `).get(...f.params);
+
   const unusedVouchers = db.prepare(`
     SELECT COUNT(*) as c FROM vouchers WHERE used = 0 AND ${f.sql}
+  `).get(...f.params);
+
+  const totalUsers = db.prepare(`
+    SELECT COUNT(*) as c FROM sessions WHERE ${f.sql}
+  `).get(...f.params);
+
+  const pausedSessions = db.prepare(`
+    SELECT COUNT(*) as c FROM sessions
+    WHERE status = 'paused' AND ${f.sql}
   `).get(...f.params);
 
   return {
@@ -69,11 +84,14 @@ function getDashboardStats(operator, siteId = null) {
     devices_online: devicesOnline.c,
     devices_total: devicesTotal.c,
     active_sessions: activeSessions.c,
+    paused_sessions: pausedSessions.c,
+    total_users: totalUsers.c,
     unused_vouchers: unusedVouchers.c,
     sales: {
       today: todaySales,
       week: weekSales,
-      month: monthSales
+      month: monthSales,
+      year: yearSales
     }
   };
 }
