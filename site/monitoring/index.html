@@ -2282,8 +2282,9 @@ function MikrotikSiteModal({ stations, onClose, onDone }) {
     </div></div>`;
 }
 
-function HotspotServerModal({ wifiSites, defaultSiteId, onClose, onDone }) {
-  const nextVlan = 101 + (wifiSites?.length ? 0 : 0);
+function HotspotServerModal({ wifiSites, hotspotServers = [], defaultSiteId, onClose, onDone }) {
+  const maxVlan = hotspotServers.reduce((m,s)=>Math.max(m, Number(s.vlanId)||0), 100);
+  const nextVlan = maxVlan + 1;
   const ips = suggestVlanIps(nextVlan);
   const [f,setF]=useState({
     siteId: defaultSiteId || (wifiSites[0]?.id ? String(wifiSites[0].id) : ''),
@@ -3704,7 +3705,7 @@ function App() {
     ${modal?.type==='wifiSite' && isManager && html`<${MikrotikSiteModal}
       stations=${stations} onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='hotspotServer' && isManager && html`<${HotspotServerModal}
-      wifiSites=${wifiSites} defaultSiteId=${modal.siteId}
+      wifiSites=${wifiSites} hotspotServers=${hotspotServers} defaultSiteId=${modal.siteId}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='camera' && isManager && html`<${CameraModal} barangay=${modal.barangay} geo=${geo} stations=${stations} onClose=${()=>setModal(null)}
       onDone=${()=>{setModal(null); loadAll();}} />`}
