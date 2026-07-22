@@ -24,4 +24,4 @@ document.querySelector('[data-view="allvendo"]').addEventListener('click', funct
 https://jmwifi.jmtechsolution.cloud/admin/#allvendo
 ```
 
-Empty Bottle at Cloud Hotspot — nasa loob ng ALL VENDO page bilang cards, hindi sa sidebar (pwede idagdag ulit later).
+Ang **ALL VENDO** ay simpleng nav button. Walang Empty Bottle o Cloud Hotspot sa sidebar o page — idadagdag later.

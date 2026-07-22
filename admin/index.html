@@ -85,22 +85,12 @@
           <button class="quick-card" data-goto="allvendo">
             <span class="quick-icon">🛒</span>
             <strong>ALL VENDO</strong>
-            <span>WiFi, Gasoline, Bottle — lahat sa isang view</span>
+            <span>Lahat ng vendo machines sa isang view</span>
           </button>
           <button class="quick-card" data-goto="gasoline">
             <span class="quick-icon">⛽</span>
             <strong>Gasoline Vendo</strong>
             <span>GCash/Maya QR, per-board sales</span>
-          </button>
-          <button class="quick-card" data-goto="empty-bottle">
-            <span class="quick-icon">♻</span>
-            <strong>Empty Bottle</strong>
-            <span>Smart bottle vendo + GCash/Maya</span>
-          </button>
-          <button class="quick-card" data-goto="hotspot-vendo">
-            <span class="quick-icon">📶</span>
-            <strong>Cloud Hotspot</strong>
-            <span>Coin machine + MikroTik hotspot per VLAN</span>
           </button>
         </div>
       </div>
@@ -128,167 +118,8 @@
         </div>
       </div>
 
-      <div class="vendo-types">
-        <div class="vendo-type-card clickable" data-goto="empty-bottle">
-          <div class="vendo-type-head">
-            <span class="vendo-type-icon">♻</span>
-            <div>
-              <h3>Empty Bottle</h3>
-              <p>Smart bottle vendo + GCash/Maya</p>
-            </div>
-            <span class="badge" id="bottle-status">Setup</span>
-          </div>
-          <div class="vendo-type-stats">
-            <div><span>Bottles</span><strong id="bottle-count">0</strong></div>
-            <div><span>Sales</span><strong id="bottle-sales">₱0</strong></div>
-            <div><span>Status</span><strong>Active</strong></div>
-          </div>
-        </div>
-
-        <div class="vendo-type-card clickable" data-goto="hotspot-vendo">
-          <div class="vendo-type-head">
-            <span class="vendo-type-icon">📶</span>
-            <div>
-              <h3>Cloud Hotspot</h3>
-              <p>MikroTik VLAN + ESP8266 coin machine</p>
-            </div>
-            <span class="badge online" id="wifi-status">—</span>
-          </div>
-          <div class="vendo-type-stats">
-            <div><span>VLANs</span><strong id="wifi-vlans-count">0</strong></div>
-            <div><span>Coins today</span><strong id="wifi-coins">0</strong></div>
-            <div><span>Revenue</span><strong id="wifi-revenue">₱0</strong></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Cloud Hotspot View -->
-    <section class="view" id="view-hotspot-vendo">
-      <div class="view-header">
-        <h1 class="page-title">Cloud Hotspot</h1>
-        <button class="btn-primary" id="btn-refresh-hotspot">↻ Refresh</button>
-      </div>
-
-      <div class="vendo-summary">
-        <div class="summary-card">
-          <span class="summary-label">Total VLANs</span>
-          <span class="summary-value" id="hotspot-vlan-count">0</span>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">Active Sessions</span>
-          <span class="summary-value" id="hotspot-sessions">0</span>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">Coins Today</span>
-          <span class="summary-value" id="hotspot-coins">0</span>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>All VLANs</h2>
-        <div class="vlan-grid" id="vlan-grid">
-          <div class="empty">Loading VLANs...</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Recent Coin Transactions</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>VLAN / Site</th>
-                <th>Coins</th>
-                <th>Minutes</th>
-                <th>Voucher</th>
-              </tr>
-            </thead>
-            <tbody id="coin-logs-table">
-              <tr><td colspan="5" class="empty">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- VLAN Detail View -->
-    <section class="view" id="view-vlan-detail">
-      <div class="view-header">
-        <button class="btn-back" data-goto="hotspot-vendo">← Back to Cloud Hotspot</button>
-        <h1 class="page-title" id="vlan-detail-title">VLAN</h1>
-      </div>
-      <div class="vendo-summary" id="vlan-detail-stats"></div>
-      <div class="panel">
-        <h2>Devices</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Device</th>
-                <th>Type</th>
-                <th>MAC Address</th>
-                <th>Status</th>
-                <th>Last Seen</th>
-              </tr>
-            </thead>
-            <tbody id="vlan-devices-table">
-              <tr><td colspan="5" class="empty">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Active Sessions</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>MAC</th>
-                <th>Username</th>
-                <th>Minutes</th>
-                <th>Expires</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="vlan-sessions-table">
-              <tr><td colspan="5" class="empty">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Empty Bottle View -->
-    <section class="view" id="view-empty-bottle">
-      <div class="view-header">
-        <h1 class="page-title">Empty Bottle</h1>
-        <button class="btn-primary" id="btn-refresh-bottle">↻ Refresh</button>
-      </div>
-      <div class="vendo-summary">
-        <div class="summary-card">
-          <span class="summary-label">Bottles Collected Today</span>
-          <span class="summary-value" id="bottle-today">0</span>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">Sales Today</span>
-          <span class="summary-value" id="bottle-revenue">₱0</span>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">Active Machines</span>
-          <span class="summary-value" id="bottle-machines">0</span>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Bottle Vendo Machines</h2>
-        <div class="vlan-grid" id="bottle-machines-grid">
-          <div class="empty-state">
-            <span class="empty-icon">♻</span>
-            <p>Walang bottle vendo machine pa.</p>
-            <p class="empty-sub">I-connect ang ESP8266 bottle controller sa cloud para mag-register dito.</p>
-          </div>
-        </div>
+      <div class="panel placeholder">
+        <p>ALL VENDO dashboard — magdadagdag ng modules dito soon.</p>
       </div>
     </section>
 
