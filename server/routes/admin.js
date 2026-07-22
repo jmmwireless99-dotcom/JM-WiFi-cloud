@@ -10,25 +10,13 @@ const {
 } = require('../lib/auth');
 const { createVoucher, createVoucherBatch } = require('../lib/voucher');
 const { getDashboardStats, getSalesReport } = require('../lib/reports');
+const { moduleSitesSql, getOwnedSite, publicSite, siteIdsSubquery } = require('../lib/module-sites');
 
 const router = express.Router();
+const MODULE = 'hotspot';
 
 function ownedSitesSql(operator) {
-  if (operator.role === 'admin') return { sql: '1=1', params: [] };
-  return { sql: 'operator_id = ?', params: [operator.id] };
-}
-
-function getOwnedSite(operator, siteId) {
-  if (operator.role === 'admin') {
-    return db.prepare('SELECT * FROM sites WHERE id = ?').get(siteId);
-  }
-  return db.prepare('SELECT * FROM sites WHERE id = ? AND operator_id = ?').get(siteId, operator.id);
-}
-
-function publicSite(site) {
-  if (!site) return null;
-  const { mikrotik_pass, ...rest } = site;
-  return { ...rest, has_mikrotik_pass: Boolean(mikrotik_pass) };
+  return moduleSitesSql(operator, MODULE);
 }
 
 // ─── Auth ─────────────────────────────────────────────────────
@@ -79,14 +67,14 @@ router.post('/change-password', authAdmin, (req, res) => {
 // ─── Dashboard / Reports ──────────────────────────────────────
 
 router.get('/dashboard', authAdmin, (req, res) => {
-  const stats = getDashboardStats(req.operator, req.query.site_id || null);
+  const stats = getDashboardStats(req.operator, req.query.site_id || null, MODULE);
   res.json(stats);
 });
 
 router.get('/system', authAdmin, async (req, res) => {
   const os = require('os');
   const { mtFetch } = require('../lib/mikrotik');
-  const f = ownedSitesSql(req.operator);
+  const f = moduleSitesSql(req.operator, MODULE);
   const sites = db.prepare(`
     SELECT id, name, mikrotik_host, mikrotik_user, mikrotik_pass
     FROM sites WHERE ${f.sql} AND mikrotik_host IS NOT NULL AND mikrotik_host != ''
@@ -176,7 +164,8 @@ router.get('/reports/sales', authAdmin, (req, res) => {
   const report = getSalesReport(req.operator, {
     siteId: req.query.site_id || null,
     period: req.query.period || 'daily',
-    days: Math.min(parseInt(req.query.days || '30', 10), 365)
+    days: Math.min(parseInt(req.query.days || '30', 10), 365),
+    moduleType: MODULE
   });
   res.json(report);
 });
@@ -200,7 +189,7 @@ router.get('/vendos', authAdmin, (req, res) => {
 });
 
 router.get('/vendos/:id', authAdmin, (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
 
   const devices = db.prepare(
@@ -237,9 +226,9 @@ router.post('/vendos', authAdmin, requireRole('admin', 'operator'), (req, res) =
 
   db.prepare(`
     INSERT INTO sites (
-      id, operator_id, name, api_key, address, mikrotik_host, mikrotik_user, mikrotik_pass,
+      id, operator_id, name, api_key, module_type, address, mikrotik_host, mikrotik_user, mikrotik_pass,
       minutes_per_coin, rate_per_hour, coin_value, portal_title, bandwidth_up, bandwidth_down, vlan_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, 'hotspot', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, req.operator.id, name, apiKey, address, mikrotik_host, mikrotik_user, mikrotik_pass,
     minutes_per_coin, rate_per_hour, coin_value, portal_title, bandwidth_up, bandwidth_down, vlan_id
@@ -263,7 +252,7 @@ router.post('/vendos', authAdmin, requireRole('admin', 'operator'), (req, res) =
 });
 
 router.put('/vendos/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
 
   const fields = [
@@ -290,14 +279,14 @@ router.put('/vendos/:id', authAdmin, requireRole('admin', 'operator'), (req, res
 });
 
 router.delete('/vendos/:id', authAdmin, requireRole('admin'), (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
   db.prepare('DELETE FROM sites WHERE id = ?').run(site.id);
   res.json({ success: true });
 });
 
 router.post('/vendos/:id/regenerate-key', authAdmin, requireRole('admin', 'operator'), (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
   const apiKey = uuid().replace(/-/g, '');
   db.prepare('UPDATE sites SET api_key = ? WHERE id = ?').run(apiKey, site.id);
@@ -307,14 +296,14 @@ router.post('/vendos/:id/regenerate-key', authAdmin, requireRole('admin', 'opera
 // ─── Rate Plans ───────────────────────────────────────────────
 
 router.get('/vendos/:id/plans', authAdmin, (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
   const plans = db.prepare('SELECT * FROM rate_plans WHERE site_id = ? ORDER BY sort_order').all(site.id);
   res.json({ plans });
 });
 
 router.post('/vendos/:id/plans', authAdmin, requireRole('admin', 'operator'), (req, res) => {
-  const site = getOwnedSite(req.operator, req.params.id);
+  const site = getOwnedSite(req.operator, req.params.id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
 
   const { name, coins = 1, minutes, price } = req.body || {};
@@ -331,7 +320,7 @@ router.post('/vendos/:id/plans', authAdmin, requireRole('admin', 'operator'), (r
 
 router.delete('/plans/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
   const plan = db.prepare('SELECT * FROM rate_plans WHERE id = ?').get(req.params.id);
-  if (!plan || !getOwnedSite(req.operator, plan.site_id)) {
+  if (!plan || !getOwnedSite(req.operator, plan.site_id, MODULE)) {
     return res.status(404).json({ error: 'Plan not found' });
   }
   db.prepare('DELETE FROM rate_plans WHERE id = ?').run(plan.id);
@@ -341,12 +330,12 @@ router.delete('/plans/:id', authAdmin, requireRole('admin', 'operator'), (req, r
 // ─── Devices ──────────────────────────────────────────────────
 
 router.get('/devices', authAdmin, (req, res) => {
-  const f = ownedSitesSql(req.operator);
+  const f = siteIdsSubquery(req.operator, MODULE);
   const devices = db.prepare(`
     SELECT d.*, s.name as site_name
     FROM devices d
     JOIN sites s ON s.id = d.site_id
-    WHERE ${f.sql.replace('operator_id', 's.operator_id').replace('1=1', '1=1')}
+    WHERE ${f.sql}
     ORDER BY d.last_seen DESC
   `).all(...f.params);
   res.json({ devices });
@@ -434,7 +423,7 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), (re
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
-  if (site_id && !getOwnedSite(req.operator, site_id)) {
+  if (site_id && !getOwnedSite(req.operator, site_id, MODULE)) {
     return res.status(404).json({ error: 'Vendo not found' });
   }
 
@@ -452,7 +441,7 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), (re
 router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
   const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
   if (!server) return res.status(404).json({ error: 'Server not found' });
-  if (server.site_id && !getOwnedSite(req.operator, server.site_id)) {
+  if (server.site_id && !getOwnedSite(req.operator, server.site_id, MODULE)) {
     return res.status(404).json({ error: 'Server not found' });
   }
 
@@ -518,7 +507,7 @@ router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (r
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
-  if (site_id && !getOwnedSite(req.operator, site_id)) {
+  if (site_id && !getOwnedSite(req.operator, site_id, MODULE)) {
     return res.status(404).json({ error: 'Vendo not found' });
   }
 
@@ -542,7 +531,7 @@ router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (r
 router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
   const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
-  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id)) {
+  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id, MODULE)) {
     return res.status(404).json({ error: 'Profile not found' });
   }
 
@@ -572,7 +561,7 @@ router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'),
 router.delete('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
   const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
-  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id)) {
+  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id, MODULE)) {
     return res.status(404).json({ error: 'Profile not found' });
   }
   db.prepare('DELETE FROM hotspot_profiles WHERE id = ?').run(profile.id);
@@ -622,7 +611,7 @@ router.post('/vouchers/generate', authAdmin, requireRole('admin', 'operator'), (
     return res.status(400).json({ error: 'site_id and minutes required' });
   }
 
-  const site = getOwnedSite(req.operator, site_id);
+  const site = getOwnedSite(req.operator, site_id, MODULE);
   if (!site) return res.status(404).json({ error: 'Vendo not found' });
 
   const n = Math.min(Math.max(parseInt(count, 10) || 1, 1), 200);

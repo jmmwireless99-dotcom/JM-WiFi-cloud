@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JM WiFi — Empty Bottle Vendo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-empty-bottle">
+  <div id="login-view" class="login-view">
+    <div class="login-panel">
+      <div class="login-brand">
+        <p class="brand-mark">JM WiFi</p>
+        <h1>Empty Bottle</h1>
+        <p class="login-sub">Sariling dashboard · VLAN103 · machine network 10.0.3.1 — hiwalay sa Cloud Hotspot.</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <label>Email <input type="email" id="login-email" value="admin@jmtechsolution.cloud" required></label>
+        <label>Password <input type="password" id="login-password" value="admin123" required></label>
+        <button type="submit" class="btn-primary">Mag-login</button>
+        <p id="login-error" class="form-error hidden"></p>
+      </form>
+      <p class="login-foot"><a href="../admin/">← Cloud Hotspot dashboard</a></p>
+    </div>
+    <div class="login-visual" aria-hidden="true">
+      <div class="login-orb"></div>
+      <p class="login-visual-brand">Empty Bottle</p>
+      <p class="login-visual-sub">GCash/Maya · bottle returns · VLAN103</p>
+    </div>
+  </div>
+
+  <div id="app-view" class="app hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <button type="button" id="btn-sidebar-toggle" class="icon-btn" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+        <div class="header-brand">
+          <span class="brand-mark">JM WiFi</span>
+          <span class="brand-chip">Empty Bottle</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="header-clock" class="header-clock"></span>
+        <button type="button" id="btn-refresh-page" class="icon-btn" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+        <button type="button" id="logout-btn" class="icon-btn" title="Logout"><i class="fa-solid fa-power-off"></i></button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar" id="sidebar">
+        <nav class="nav">
+          <div class="nav-group open">
+            <button type="button" class="nav-group-title"><span><i class="fa-solid fa-bottle-water"></i> Empty Bottle</span></button>
+            <div class="nav-group-items" style="display:grid">
+              <button data-page="dashboard" class="nav-item active"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
+              <button data-page="sales" class="nav-item"><i class="fa-solid fa-coins"></i> Sales</button>
+              <button data-page="machines" class="nav-item"><i class="fa-solid fa-microchip"></i> Machines</button>
+              <button data-page="network" class="nav-item"><i class="fa-solid fa-network-wired"></i> MikroTik / VLAN</button>
+              <button data-page="settings" class="nav-item"><i class="fa-solid fa-gear"></i> Site Settings</button>
+            </div>
+          </div>
+          <div class="nav-group open">
+            <div class="nav-group-items" style="display:grid;margin-top:8px">
+              <a class="nav-item" href="../admin/" style="text-decoration:none"><i class="fa-solid fa-wifi"></i> Cloud Hotspot</a>
+              <a class="nav-item" href="/vendo-admin" target="_blank" rel="noopener" style="text-decoration:none"><i class="fa-solid fa-up-right-from-square"></i> Legacy Vendo Admin</a>
+            </div>
+          </div>
+        </nav>
+        <div class="sidebar-footer">
+          <p id="op-name" class="op-name"></p>
+          <p class="op-domain">VLAN103 · 10.0.3.1</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="page-head">
+          <div>
+            <h2 id="page-title">Dashboard</h2>
+            <p class="breadcrumb" id="page-breadcrumb">Empty Bottle / Dashboard</p>
+          </div>
+        </div>
+
+        <section id="page-dashboard" class="page active">
+          <div class="kpi-grid" id="sales-kpi-grid"></div>
+          <div class="kpi-grid kpi-users" id="user-kpi-grid"></div>
+          <div class="monitor-panel">
+            <div class="monitor-tabs">
+              <button type="button" class="monitor-tab active" data-mon-tab="system">System</button>
+              <button type="button" class="monitor-tab" data-mon-tab="network">Network</button>
+            </div>
+            <div id="mon-system" class="monitor-body">
+              <div class="monitor-split">
+                <div class="cpu-chart-wrap"><h3>CPU Usage</h3><canvas id="cpu-chart" width="520" height="220"></canvas></div>
+                <div class="resource-wrap" id="resource-cards"></div>
+              </div>
+              <p class="monitor-stamp" id="monitor-stamp"></p>
+            </div>
+            <div id="mon-network" class="monitor-body hidden">
+              <div id="network-summary" class="metric-block"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-sales" class="page">
+          <div id="sales-list" class="table-wrap"></div>
+        </section>
+
+        <section id="page-machines" class="page">
+          <div class="toolbar">
+            <p>Bottle vendo machines (ESP8266 / controllers) sa VLAN103.</p>
+            <button id="btn-refresh-devices" class="btn-secondary">Refresh</button>
+          </div>
+          <div id="device-list" class="table-wrap"></div>
+        </section>
+
+        <section id="page-network" class="page">
+          <div class="panel">
+            <h3>MikroTik — Empty Bottle VLAN</h3>
+            <p class="hub-lead">Hiwalay na site at subnet mula sa Cloud Hotspot CENTRAL (10.0.0.1).</p>
+            <div id="network-detail" class="metric-block"></div>
+            <div class="action-row" style="margin-top:14px">
+              <button id="btn-show-script" class="btn-primary">Show RouterOS Script</button>
+            </div>
+            <pre id="network-script" class="script-box hidden"></pre>
+          </div>
+        </section>
+
+        <section id="page-settings" class="page">
+          <div class="panel">
+            <h3>Site Settings</h3>
+            <form id="site-form" class="settings-form">
+              <label>Name <input name="name" required></label>
+              <label>Address <input name="address"></label>
+              <label>MikroTik host <input name="mikrotik_host" placeholder="10.90.0.27"></label>
+              <label>MikroTik user <input name="mikrotik_user" value="admin"></label>
+              <label>MikroTik password <input name="mikrotik_pass" type="password"></label>
+              <label>VLAN ID <input name="vlan_id" type="number" value="103" min="1"></label>
+              <label>Notes <input name="notes"></label>
+              <input type="hidden" name="id">
+              <button type="submit" class="btn-primary">Save</button>
+            </form>
+            <dl class="detail-grid" id="site-api-info" style="margin-top:16px"></dl>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var p = location.pathname;
+    var base = p.indexOf('/allvendo/') === 0 ? '/allvendo/empty-bottle' : '/empty-bottle';
+    window.EB_BASE_PATH = base;
+    window.EB_API_BASE = (p.indexOf('/allvendo/') === 0 ? '/allvendo' : '') + '/api/empty-bottle/admin';
+  })();
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

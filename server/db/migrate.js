@@ -25,8 +25,47 @@ function ensureColumn(table, column, ddl) {
   ['coin_value', 'coin_value REAL DEFAULT 1'],
   ['bandwidth_up', "bandwidth_up TEXT DEFAULT '2M'"],
   ['bandwidth_down', "bandwidth_down TEXT DEFAULT '5M'"],
-  ['notes', "notes TEXT DEFAULT ''"]
+  ['notes', "notes TEXT DEFAULT ''"],
+  ['module_type', "module_type TEXT DEFAULT 'hotspot'"]
 ].forEach(([col, ddl]) => ensureColumn('sites', col, ddl));
+
+db.prepare("UPDATE sites SET module_type = 'hotspot' WHERE module_type IS NULL OR module_type = ''").run();
+
+const emptyBottleSite = db.prepare("SELECT id FROM sites WHERE module_type = 'empty_bottle' LIMIT 1").get();
+if (!emptyBottleSite) {
+  const admin = db.prepare('SELECT id FROM operators LIMIT 1').get();
+  const hs = db.prepare("SELECT mikrotik_host, mikrotik_user, mikrotik_pass FROM sites WHERE COALESCE(module_type,'hotspot')='hotspot' LIMIT 1").get();
+  const siteId = uuid();
+  const apiKey = uuid().replace(/-/g, '');
+  db.prepare(`
+    INSERT INTO sites (
+      id, operator_id, name, api_key, module_type, mikrotik_host, mikrotik_user, mikrotik_pass,
+      vlan_id, minutes_per_coin, coin_value, address, portal_title, notes
+    ) VALUES (?, ?, ?, ?, 'empty_bottle', ?, ?, ?, 103, 1, 1, ?, ?, ?)
+  `).run(
+    siteId,
+    admin?.id || null,
+    'Empty Bottle Vendo',
+    apiKey,
+    hs?.mikrotik_host || '10.90.0.27',
+    hs?.mikrotik_user || 'admin',
+    hs?.mikrotik_pass || '',
+    'Empty Bottle Location',
+    'Empty Bottle',
+    'Dedicated VLAN103 · gateway 10.0.3.1 — separate from Cloud Hotspot CENTRAL'
+  );
+  db.prepare(`
+    INSERT INTO hotspot_servers (
+      id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, dns_name, profile_name, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    uuid(), siteId, 'EMPTY-BOTTLE', '10.0.3.1', 'hotspot', 'http-pap,cookie',
+    'bridge-empty-bottle', 103, 'emptybottle.local', 'jmwifi', 'active'
+  );
+  console.log('Seeded Empty Bottle site:', siteId);
+}
+
+db.prepare("UPDATE sites SET module_type = 'hotspot' WHERE name = 'Demo Vendo 1' AND (module_type IS NULL OR module_type = 'hotspot')").run();
 
 ensureColumn('vouchers', 'price', 'price REAL DEFAULT 0');
 ensureColumn('coin_logs', 'amount', 'amount REAL DEFAULT 1');

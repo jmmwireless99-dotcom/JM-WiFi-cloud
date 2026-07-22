@@ -1,0 +1,62 @@
+@import url('../admin/style.css');
+
+body.theme-empty-bottle {
+  --brand: #ea580c;
+  --brand-2: #fbbf24;
+}
+
+body.theme-empty-bottle .login-brand h1,
+body.theme-empty-bottle .brand-chip {
+  color: var(--brand);
+}
+
+body.theme-empty-bottle .brand-chip {
+  background: rgba(234, 88, 12, 0.12);
+  border-color: rgba(234, 88, 12, 0.28);
+}
+
+body.theme-empty-bottle .login-visual {
+  background:
+    radial-gradient(ellipse 70% 55% at 30% 40%, rgba(234, 88, 12, 0.25), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(251, 191, 36, 0.15), transparent 55%),
+    linear-gradient(160deg, #0f1218, #1a1810 60%, #1a120d);
+}
+
+body.theme-empty-bottle .login-orb {
+  background: radial-gradient(circle, rgba(234, 88, 12, 0.35), transparent 70%);
+}
+
+.login-foot {
+  margin-top: 18px;
+  font-size: 0.85rem;
+}
+
+.login-foot a {
+  color: var(--muted);
+}
+
+.settings-form {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.script-box {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #cbd5e1;
+}

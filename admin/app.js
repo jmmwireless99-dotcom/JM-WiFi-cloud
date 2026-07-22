@@ -146,8 +146,6 @@
   });
 
   const titles = {
-    hub: 'All Modules',
-    'empty-bottle': 'Empty Bottle',
     hotspot: 'Cloud Hotspot',
     'hs-server': 'Hotspot Server',
     dashboard: 'Dashboard',
@@ -160,8 +158,6 @@
   };
 
   const crumbs = {
-    hub: 'Modules / All',
-    'empty-bottle': 'Home / Empty Bottle',
     hotspot: 'Hotspot / Overview',
     'hs-server': 'Hotspot / Server',
     dashboard: 'Home / Dashboard',

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
+const emptyBottleAdminRoutes = require('./routes/empty-bottle-admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,9 +37,11 @@ app.get(`${BASE_PATH}/config.js`, (req, res) => {
 
 app.use(`${BASE_PATH}/api`, apiRoutes);
 app.use(`${BASE_PATH}/api/admin`, adminRoutes);
+app.use(`${BASE_PATH}/api/empty-bottle/admin`, emptyBottleAdminRoutes);
 
 app.use(`${BASE_PATH}/portal`, express.static(path.join(__dirname, '../portal')));
 app.use(`${BASE_PATH}/admin`, express.static(path.join(__dirname, '../admin')));
+app.use(`${BASE_PATH}/empty-bottle`, express.static(path.join(__dirname, '../empty-bottle')));
 
 // Site-specific MikroTik login.html (for /tool fetch upload)
 app.get(`${BASE_PATH}/mikrotik/login-:siteId.html`, (req, res) => {
@@ -103,6 +106,7 @@ app.listen(PORT, '0.0.0.0', () => {
   const base = process.env.BASE_URL || `http://localhost:${PORT}`;
   console.log(`JM WiFi Cloud (All Vendo) on port ${PORT}`);
   console.log(`  Admin:  ${base}${BASE_PATH}/admin/`);
+  console.log(`  Empty Bottle: ${base}${BASE_PATH}/empty-bottle/`);
   console.log(`  Portal: ${base}${BASE_PATH}/portal/`);
   console.log(`  API:    ${base}${BASE_PATH}/api/`);
 });

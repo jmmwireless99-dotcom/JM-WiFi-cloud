@@ -1,13 +1,24 @@
 const db = require('../db');
 
-function siteFilter(operator, siteId) {
+function siteFilter(operator, siteId, moduleType = null) {
+  const moduleSql = moduleType
+    ? `site_id IN (SELECT id FROM sites WHERE COALESCE(module_type, 'hotspot') = '${moduleType}')`
+    : null;
   if (operator.role === 'admin') {
-    return siteId ? { sql: 'site_id = ?', params: [siteId] } : { sql: '1=1', params: [] };
+    if (siteId) return { sql: 'site_id = ?', params: [siteId] };
+    if (moduleSql) return { sql: moduleSql, params: [] };
+    return { sql: '1=1', params: [] };
   }
   if (siteId) {
     return {
       sql: 'site_id = ? AND site_id IN (SELECT id FROM sites WHERE operator_id = ?)',
       params: [siteId, operator.id]
+    };
+  }
+  if (moduleType) {
+    return {
+      sql: 'site_id IN (SELECT id FROM sites WHERE operator_id = ? AND COALESCE(module_type, \'hotspot\') = ?)',
+      params: [operator.id, moduleType]
     };
   }
   return {
@@ -16,17 +27,25 @@ function siteFilter(operator, siteId) {
   };
 }
 
-function getDashboardStats(operator, siteId = null) {
-  const f = siteFilter(operator, siteId);
+function sitesScopeSql(operator, siteId, moduleType = 'hotspot') {
+  if (siteId) {
+    return operator.role === 'admin'
+      ? { sql: 'id = ? AND COALESCE(module_type, \'hotspot\') = ?', params: [siteId, moduleType] }
+      : { sql: 'id = ? AND operator_id = ? AND COALESCE(module_type, \'hotspot\') = ?', params: [siteId, operator.id, moduleType] };
+  }
+  if (operator.role === 'admin') {
+    return { sql: "COALESCE(module_type, 'hotspot') = ?", params: [moduleType] };
+  }
+  return { sql: 'operator_id = ? AND COALESCE(module_type, \'hotspot\') = ?', params: [operator.id, moduleType] };
+}
+
+function getDashboardStats(operator, siteId = null, moduleType = 'hotspot') {
+  const f = siteFilter(operator, siteId, moduleType);
+  const sf = sitesScopeSql(operator, siteId, moduleType);
 
   const vendos = db.prepare(`
-    SELECT COUNT(*) as c FROM sites
-    WHERE ${operator.role === 'admin' ? (siteId ? 'id = ?' : '1=1') : 'operator_id = ?' + (siteId ? ' AND id = ?' : '')}
-  `).get(
-    ...(operator.role === 'admin'
-      ? (siteId ? [siteId] : [])
-      : (siteId ? [operator.id, siteId] : [operator.id]))
-  );
+    SELECT COUNT(*) as c FROM sites WHERE ${sf.sql}
+  `).get(...sf.params);
 
   const devicesOnline = db.prepare(`
     SELECT COUNT(*) as c FROM devices
@@ -96,8 +115,8 @@ function getDashboardStats(operator, siteId = null) {
   };
 }
 
-function getSalesReport(operator, { siteId = null, period = 'daily', days = 30 } = {}) {
-  const f = siteFilter(operator, siteId);
+function getSalesReport(operator, { siteId = null, period = 'daily', days = 30, moduleType = 'hotspot' } = {}) {
+  const f = siteFilter(operator, siteId, moduleType);
   const groupExpr =
     period === 'monthly'
       ? "strftime('%Y-%m', created_at)"
@@ -130,19 +149,19 @@ function getSalesReport(operator, { siteId = null, period = 'daily', days = 30 }
       AND c.created_at >= datetime('now', ?)
     WHERE ${
       operator.role === 'admin'
-        ? (siteId ? 's.id = ?' : '1=1')
-        : 's.operator_id = ?' + (siteId ? ' AND s.id = ?' : '')
+        ? (siteId ? 's.id = ? AND COALESCE(s.module_type, \'hotspot\') = ?' : "COALESCE(s.module_type, 'hotspot') = ?")
+        : 's.operator_id = ? AND COALESCE(s.module_type, \'hotspot\') = ?' + (siteId ? ' AND s.id = ?' : '')
     }
     GROUP BY s.id
     ORDER BY amount DESC
   `).all(
     `-${days} days`,
     ...(operator.role === 'admin'
-      ? (siteId ? [siteId] : [])
-      : (siteId ? [operator.id, siteId] : [operator.id]))
+      ? (siteId ? [siteId, moduleType] : [moduleType])
+      : (siteId ? [operator.id, moduleType, siteId] : [operator.id, moduleType]))
   );
 
   return { period, days, series: rows, by_vendo: byVendo };
 }
 
-module.exports = { getDashboardStats, getSalesReport, siteFilter };
+module.exports = { getDashboardStats, getSalesReport, siteFilter, sitesScopeSql };
