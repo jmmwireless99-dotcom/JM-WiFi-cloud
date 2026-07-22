@@ -58,3 +58,6 @@ CREATE TABLE IF NOT EXISTS wifi_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_wifi_hotspot_site ON wifi_hotspot_servers(site_id);
 CREATE INDEX IF NOT EXISTS idx_wifi_coin_site ON wifi_coin_logs(site_id);
+
+ALTER TABLE wifi_hotspot_servers ADD COLUMN IF NOT EXISTS last_pushed_at TIMESTAMPTZ;
+ALTER TABLE wifi_hotspot_servers ADD COLUMN IF NOT EXISTS push_status TEXT;

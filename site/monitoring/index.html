@@ -2312,12 +2312,30 @@ function HotspotServerModal({ wifiSites, hotspotServers = [], defaultSiteId, onC
     });
   };
   if (made) return html`<div class="modal-bg"><div class="modal wide">
-    <h2>Hotspot server created ✓</h2>
+    <h2>Hotspot server ${made.push?.success ? 'uploaded sa MikroTik ✓' : 'saved ✓'}</h2>
     <p class="dim" style=${{fontSize:'13px'}}>${made.name} · VLAN ${made.vlanId} · ${made.parentInterface}</p>
-    <h3 style=${{marginTop:'16px'}}>MikroTik script <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>copy all</button></h3>
+    ${made.push?.success ? html`
+      <div class="metric" style=${{marginTop:'12px'}}>
+        <div class="ml">MikroTik push</div>
+        <div class="ms" style=${{whiteSpace:'pre-wrap'}}>${(made.push.steps||[]).join('\n')}</div>
+      </div>
+      <p class="dim" style=${{fontSize:'12px',marginTop:'8px'}}>
+        Client portal: <a href="/allvendo/portal/" target="_blank" rel="noopener">/allvendo/portal/</a>
+        · login.html na-upload sa MikroTik
+      </p>
+    ` : made.push?.error ? html`<div class="err" style=${{marginTop:'12px'}}>
+      MikroTik upload failed: ${made.push.error}
+      <div class="dim" style=${{marginTop:'6px',fontSize:'12px'}}>Check: API port 8728 open, VPN online, tamang API password.</div>
+    </div>` : ''}
+    <h3 style=${{marginTop:'16px'}}>MikroTik script (backup)</h3>
     <pre>${made.routerosScript||'—'}</pre>
-    <p class="dim" style=${{fontSize:'12px'}}>I-paste sa MikroTik terminal (o Winbox → New Terminal).</p>
-    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px',gap:'8px'}}>
+      ${!made.push?.success && html`<button class="ghost" onClick=${async()=>{
+        try {
+          const push = await api('/hotspot/servers/'+made.id+'/push',{method:'POST'});
+          setMade({...made, push});
+        } catch(e){ alert(e.message); }
+      }}>Retry upload MikroTik</button>`}
       <button onClick=${onDone}>Done</button>
     </div>
   </div></div>`;
@@ -3360,7 +3378,7 @@ function App() {
         </div>
         <div class="table-wrap" style=${{marginBottom:'22px'}}>
           <table><thead><tr>
-            <th>#</th><th>Name</th><th>Interface</th><th>Idle Timeout</th><th>Address</th><th>Pool</th><th></th>
+            <th>#</th><th>Name</th><th>Interface</th><th>Idle Timeout</th><th>Address</th><th>Pool</th><th>MikroTik</th><th></th>
           </tr></thead>
           <tbody>
             ${shownServers.map((s,i)=>html`<tr key=${s.id}>
@@ -3370,7 +3388,15 @@ function App() {
               <td class="dim">${s.idleTimeout||'—'}</td>
               <td class="mono">${s.address}</td>
               <td class="mono dim">${s.ipStart} – ${s.ipEnd}</td>
+              <td><span class="badge ${s.pushStatus==='ok'?'b-ok':'b-warn'}">${s.pushStatus==='ok'?'uploaded':(s.pushStatus||'pending')}</span></td>
               <td>
+                <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}} title="Upload sa MikroTik" onClick=${async()=>{
+                  try {
+                    const push = await api('/hotspot/servers/'+s.id+'/push',{method:'POST'});
+                    alert(push.success ? 'Na-upload sa MikroTik!\n'+(push.steps||[]).join('\n') : (push.error||'Failed'));
+                    loadAll();
+                  } catch(e){ alert(e.message); }
+                }}>↑ MikroTik</button>
                 <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
                   try {
                     const r = await api('/hotspot/servers/'+s.id+'/script');
@@ -3384,7 +3410,7 @@ function App() {
                 }}>✕</button>
               </td>
             </tr>`)}
-            ${shownServers.length===0 && html`<tr><td colSpan="7" class="dim" style=${{textAlign:'center',padding:'28px'}}>
+            ${shownServers.length===0 && html`<tr><td colSpan="8" class="dim" style=${{textAlign:'center',padding:'28px'}}>
               Wala pang hotspot server — i-click ang “+ Server” (gaya ng KiTifi).
               ${wifiSites.length===0 ? html`<div style=${{marginTop:'8px'}}>Kailangan muna ng <b>MikroTik Site</b>.</div>`:''}
             </td></tr>`}
@@ -3453,7 +3479,7 @@ function App() {
               <b>${wifi.coins_today||0}</b> coins · <b>${wifi.sessions_today||0}</b> sessions · <b>${hotspotServers.length}</b> VLAN
             </div>
             <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>
-              Click → Hotspot Server (+ VLAN) · <a href="/portal/" target="_blank" rel="noopener" onClick=${e=>e.stopPropagation()}>/portal/</a>
+              Click → Hotspot Server (+ VLAN) · <a href="/allvendo/portal/" target="_blank" rel="noopener" onClick=${e=>e.stopPropagation()}>/allvendo/portal/</a>
             </div>
           </div>
         </div>

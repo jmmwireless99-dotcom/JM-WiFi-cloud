@@ -1,6 +1,15 @@
 import { Router } from 'express';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { pool, audit } from '../db.js';
 import { requireAdmin } from '../auth.js';
+
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const { pushHotspotServer } = require(path.join(__dirname, '../services/mikrotik-push.cjs'));
+
+const CLOUD_BASE = process.env.JM_WIFI_CLOUD_URL || 'https://jmtechsolution.cloud/allvendo';
 
 const r = Router();
 r.use(requireAdmin);
@@ -40,8 +49,49 @@ function serverView(row) {
     masquerade: !!row.masquerade,
     antiSharing: !!row.anti_sharing,
     status: row.status || 'active',
+    lastPushedAt: row.last_pushed_at || null,
+    pushStatus: row.push_status || null,
     created: row.created_at,
   };
+}
+
+function mapSiteForPush(row) {
+  return {
+    id: String(row.id),
+    name: row.name,
+    mikrotik_host: row.mikrotik_host,
+    mikrotik_user: row.api_user || 'admin',
+    mikrotik_pass: row.api_password || '',
+    module_type: 'hotspot',
+  };
+}
+
+function mapServerForPush(row, siteRow) {
+  const gw = String(row.address || '10.0.0.1/24').split('/')[0];
+  return {
+    site_id: row.site_id,
+    name: row.name,
+    interface_name: row.parent_interface,
+    vlan_id: row.vlan_id,
+    hs_address: gw,
+    profile_name: row.server_profile === 'default' ? 'jmwifi' : (row.server_profile || 'jmwifi'),
+    html_directory: 'hotspot',
+    login_by: 'http-pap,cookie',
+    dns_name: 'jmwifi.local',
+    _mrpSite: mapSiteForPush(siteRow),
+  };
+}
+
+async function pushServerToMikrotik(serverRow, siteRow) {
+  if (!siteRow?.mikrotik_host || !siteRow?.api_password) {
+    return { success: false, error: 'Walang MikroTik API password sa site. I-set sa MikroTik Site.' };
+  }
+  const payload = mapServerForPush(serverRow, siteRow);
+  return pushHotspotServer(payload, {
+    site: payload._mrpSite,
+    cloudUrl: CLOUD_BASE,
+    vlanParent: siteRow.bridge_interface || 'bridge-local',
+  });
 }
 
 function formatIdle(sec) {
@@ -274,8 +324,19 @@ r.post('/servers', async (req, res) => {
       ]
     );
     const script = routerosForServer(sites[0], rows[0]);
-    await audit(req.user?.sub || 'admin', 'hotspot.server.create', { id: rows[0].id, name: rows[0].name, vlanId });
-    res.status(201).json({ ...serverView(rows[0]), routerosScript: script });
+    let push = null;
+    if (b.pushToMikrotik !== false) {
+      push = await pushServerToMikrotik(rows[0], sites[0]);
+      await pool.query(
+        `UPDATE wifi_hotspot_servers SET
+           last_pushed_at = CASE WHEN $2 THEN now() ELSE last_pushed_at END,
+           push_status = $3
+         WHERE id = $1`,
+        [rows[0].id, !!push?.success, push?.success ? 'ok' : (push?.error || 'failed')]
+      );
+    }
+    await audit(req.user?.sub || 'admin', 'hotspot.server.create', { id: rows[0].id, name: rows[0].name, vlanId, push: push?.success });
+    res.status(201).json({ ...serverView(rows[0]), routerosScript: script, push });
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ error: 'VLAN or name already exists on this site' });
     console.error('hotspot server create:', e.message);
@@ -318,6 +379,28 @@ r.delete('/servers/:id', async (req, res) => {
   const { rowCount } = await pool.query(`DELETE FROM wifi_hotspot_servers WHERE id = $1`, [id]);
   if (!rowCount) return res.status(404).json({ error: 'not found' });
   res.json({ ok: true });
+});
+
+r.post('/servers/:id/push', async (req, res) => {
+  const id = Number(req.params.id);
+  const { rows } = await pool.query(
+    `SELECT hs.*, ms.*
+       FROM wifi_hotspot_servers hs
+       JOIN wifi_mikrotik_sites ms ON ms.id = hs.site_id
+      WHERE hs.id = $1`,
+    [id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'not found' });
+  const push = await pushServerToMikrotik(rows[0], rows[0]);
+  await pool.query(
+    `UPDATE wifi_hotspot_servers SET
+       last_pushed_at = CASE WHEN $2 THEN now() ELSE last_pushed_at END,
+       push_status = $3
+     WHERE id = $1`,
+    [id, !!push?.success, push?.success ? 'ok' : (push?.error || 'failed')]
+  );
+  if (!push?.success) return res.status(502).json(push);
+  res.json(push);
 });
 
 r.get('/servers/:id/script', async (req, res) => {
