@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { buildMikrotikLoginHtml } = require('./lib/login-html');
+const { buildMikrotikLoginHtml } = require('./lib/hotspot-portal-builder');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const emptyBottleAdminRoutes = require('./routes/empty-bottle-admin');
@@ -47,7 +47,7 @@ app.use(`${BASE_PATH}/empty-bottle`, express.static(path.join(__dirname, '../emp
 // Site-specific MikroTik login.html (for /tool fetch upload)
 app.get(`${BASE_PATH}/mikrotik/login-:siteId.html`, (req, res) => {
   const { getPublicBaseUrl } = require('./lib/public-url');
-  res.set('X-JM-Portal-Build', 'full-v2');
+  res.set('X-JM-Portal-Build', 'hotspot-v3-8files');
   res.type('html').send(buildMikrotikLoginHtml(req.params.siteId, {
     apiBase: `${getPublicBaseUrl()}/api`
   }));

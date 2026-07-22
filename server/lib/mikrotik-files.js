@@ -8,24 +8,13 @@ const os = require('os');
 const path = require('path');
 const dns = require('dns').promises;
 const http = require('http');
-const { buildMikrotikLoginHtml } = require('./login-html');
+const { buildHotspotFileSet } = require('./hotspot-portal-builder');
 const { getLoginHtmlUrl, getPublicBaseUrl } = require('./public-url');
 
 const execFileAsync = promisify(execFile);
 
-function buildMinimalHtml(title, body) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${body}</body></html>`;
-}
-
 function hotspotFileSet(siteId, options = {}) {
-  const apiBase = options.apiBase || `${getPublicBaseUrl(options)}/api`;
-  return {
-    'hotspot/login.html': buildMikrotikLoginHtml(siteId, { ...options, apiBase }),
-    'hotspot/alogin.html': buildMinimalHtml('JM WiFi', '<p>Connected. Redirecting…</p><meta http-equiv="refresh" content="1;url=$(link-redirect)">'),
-    'hotspot/logout.html': buildMinimalHtml('JM WiFi', '<p>Logged out.</p><a href="$(link-login)">Login again</a>'),
-    'hotspot/status.html': buildMinimalHtml('JM WiFi', '<p>Status</p><a href="$(link-login-only)">Login</a>'),
-    'hotspot/redirect.html': buildMinimalHtml('JM WiFi', '<meta http-equiv="refresh" content="0;url=login.html">')
-  };
+  return buildHotspotFileSet(siteId, options);
 }
 
 async function uploadViaRest(site, remotePath, content) {
@@ -102,14 +91,38 @@ async function uploadViaFtp(site, remotePath, content) {
   }
 }
 
-async function verifyLoginHtml(api, minSize = 4000) {
+async function verifyHotspotFiles(api, minLoginSize = 1500) {
   const files = await api.call(['/file/print']);
-  const hit = files.find((f) => {
-    const name = String(f.name || '');
-    return name === 'hotspot/login.html' || name.endsWith('/login.html');
-  });
-  const size = Number(hit?.size || 0);
-  return { ok: !!hit && size >= minSize, size, name: hit?.name || null };
+  const names = files.map((f) => String(f.name || ''));
+  const required = ['portal.css', 'portal.js', 'login.html', 'alogin.html', 'logout.html', 'status.html', 'error.html', 'redirect.html'];
+  const missing = [];
+  const sizes = {};
+  for (const req of required) {
+    const hit = files.find((f) => {
+      const n = String(f.name || '');
+      return n === `hotspot/${req}` || n.endsWith(`/${req}`);
+    });
+    if (!hit) missing.push(req);
+    else sizes[req] = Number(hit.size || 0);
+  }
+  const loginOk = (sizes['login.html'] || 0) >= minLoginSize;
+  return {
+    ok: missing.length === 0 && loginOk,
+    missing,
+    sizes,
+    loginSize: sizes['login.html'] || 0
+  };
+}
+
+async function verifyLoginHtml(api, minSize = 1500) {
+  const check = await verifyHotspotFiles(api, minSize);
+  return {
+    ok: check.ok,
+    size: check.loginSize,
+    name: check.missing.length ? null : 'hotspot/login.html',
+    missing: check.missing,
+    sizes: check.sizes
+  };
 }
 
 async function uploadViaFetch(api, siteId, options = {}) {
@@ -124,7 +137,7 @@ async function uploadViaFetch(api, siteId, options = {}) {
       await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
       for (let i = 0; i < 6; i++) {
         await new Promise((r) => setTimeout(r, 1500));
-        const check = await verifyLoginHtml(api, 4000);
+        const check = await verifyLoginHtml(api, 1500);
         if (check.ok) return { ok: true, size: check.size, url, method: 'fetch' };
       }
     } catch (e) {
@@ -146,45 +159,50 @@ async function uploadHotspotPortal(api, site, siteId, options = {}) {
 
   for (const [remotePath, content] of Object.entries(files)) {
     let uploaded = await uploadViaRest(site, remotePath, content);
-    if (!uploaded.ok && remotePath === 'hotspot/login.html') {
-      uploaded = await uploadViaFtp(site, remotePath, content);
-    } else if (!uploaded.ok && remotePath !== 'hotspot/login.html') {
+    if (!uploaded.ok) {
       uploaded = await uploadViaFtp(site, remotePath, content);
     }
     if (uploaded.ok) {
       steps.push(`${uploaded.method.toUpperCase()} uploaded ${remotePath} (${content.length} bytes)`);
       if (remotePath === 'hotspot/login.html') loginResult = uploaded;
     } else if (remotePath === 'hotspot/login.html') {
-      steps.push(`REST/FTP failed for login.html: ${uploaded.error}`);
+      steps.push(`Upload failed for ${remotePath}: ${uploaded.error}`);
+    } else {
+      steps.push(`WARN: ${remotePath} — ${uploaded.error}`);
     }
   }
 
-  let check = await verifyLoginHtml(api, 4000);
+  let check = await verifyHotspotFiles(api, 1500);
   if (!check.ok) {
     const fetch = await uploadViaFetch(api, siteId, options);
     if (fetch.ok) {
       steps.push(`fetch uploaded login.html (${fetch.size} bytes)`);
       loginResult = fetch;
-    } else {
+    } else if (fetch.error) {
       steps.push(`fetch failed: ${fetch.error}`);
     }
-    check = await verifyLoginHtml(api, 4000);
+    check = await verifyHotspotFiles(api, 4000);
   }
 
   if (!check.ok) {
+    const detail = check.missing.length
+      ? `missing: ${check.missing.join(', ')}`
+      : `login.html too small (${check.loginSize} bytes)`;
     return {
       ok: false,
-      error: 'login.html wala o maliit sa MikroTik — walang captive portal sa http://10.0.0.1',
-      size: check.size,
+      error: `Hotspot portal files incomplete — ${detail}`,
+      size: check.loginSize,
+      missing: check.missing,
       steps
     };
   }
 
   return {
     ok: true,
-    size: check.size,
+    size: check.loginSize,
     method: loginResult?.method || 'verified',
-    steps: [...steps, `Verified hotspot/login.html (${check.size} bytes)`]
+    files: check.sizes,
+    steps: [...steps, `Verified hotspot/ (${Object.keys(check.sizes).length} files, login ${check.loginSize} bytes)`]
   };
 }
 
@@ -232,6 +250,7 @@ async function ensureHotspotRunning(api, hsName, steps = []) {
 module.exports = {
   uploadHotspotPortal,
   verifyLoginHtml,
+  verifyHotspotFiles,
   ensureWalledGardenIps,
   ensureHotspotRunning,
   hotspotFileSet

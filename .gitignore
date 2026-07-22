@@ -4,4 +4,5 @@ server/db/jmwifi.db-wal
 server/db/jmwifi.db-shm
 .env
 *.log
+out/
 .DS_Store
