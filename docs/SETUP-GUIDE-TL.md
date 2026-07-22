@@ -25,13 +25,20 @@ Default login:
 2. Lagyan ng pangalan, address, minutes/coin, MikroTik host
 3. I-save ang **API Key** — ito ang key ng site na iyon
 
-## 3) MikroTik
+## 3) MikroTik — CENTRAL captive portal (Kitifi-style)
 
-1. I-edit `mikrotik/hotspot-setup.rsc` — `cloudUrl` = `https://jmwifi.jmtechsolution.cloud`
-2. I-edit `mikrotik/login.html` — palitan `YOUR_SITE_ID`
-3. Upload login.html sa `flash/hotspot/`
-4. `/import file-name=hotspot-setup.rsc`
-5. I-verify walled garden may `jmwifi.jmtechsolution.cloud`
+Lahat ng VLAN (hal. 101, 102) dadaan sa **isang** hotspot gateway: **`10.0.0.1`**.
+
+1. I-edit `mikrotik/hotspot-setup.rsc` — palitan `YOUR_SITE_ID`, ayusin `vlanIds` kung kailangan
+2. O sa VPS: `source /root/.jm-mikrotik.env && node deploy/push-mikrotik.js`
+3. I-verify:
+   - `/ip hotspot print` → **CENTRAL** on `bridge-hotspot`
+   - `/ip address print` → **10.0.0.1/24**
+   - Clients sa VLAN101/102 = DHCP `10.0.0.x`, portal = `10.0.0.1`
+4. Walled garden: `jmtechsolution.cloud` + `*.jmtechsolution.cloud`
+5. Cloud portal: `https://jmtechsolution.cloud/allvendo/portal/?site_id=...`
+
+**Huwag** gumawa ng per-VLAN hotspot (10.101.x / 10.102.x) — central model lang.
 
 ## 4) ESP8266 Coin Controller
 

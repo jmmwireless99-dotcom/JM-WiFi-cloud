@@ -119,23 +119,25 @@ function buildProfileScript(profile = {}) {
 }
 
 function buildServerScript(server = {}, cloudUrl = 'https://jmtechsolution.cloud/allvendo') {
-  const name = server.name || 'JMWIFI';
-  const vlan = server.vlan_id || 10;
-  const hs = server.hs_address || '10.10.10.1';
+  const name = server.name || 'CENTRAL';
+  const vlan = server.vlan_id || 0;
+  const hs = server.hs_address || '10.0.0.1';
   const html = server.html_directory || 'hotspot';
-  const loginBy = server.login_by || 'http-pap,mac-cookie';
-  return `; JM WiFi Cloud VLAN Hotspot — ${name}
-; Mixed captive portal (MikroTik hotspot + cloud)
+  const loginBy = server.login_by || 'http-pap,cookie';
+  const iface = server.interface_name || 'bridge-hotspot';
+  const dns = server.dns_name || 'jmwifi.local';
+  return `; JM WiFi Cloud CENTRAL Hotspot — ${name}
+; All VLANs share captive portal gateway ${hs} (Kitifi-style)
 :local cloudUrl "${cloudUrl}"
 /ip hotspot profile
-add name=jmwifi hotspot-address=${hs} html-directory=${html} login-by=${loginBy} open-status-page=http-login status-autorefresh=30s
+add name=jmwifi hotspot-address=${hs} dns-name=${dns} html-directory=${html} login-by=${loginBy}
 /ip hotspot walled-garden
 add dst-host=jmtechsolution.cloud
 add dst-host=*.jmtechsolution.cloud
 /ip hotspot
-add name=${name} interface=bridge-hotspot address-pool=hotspot-pool profile=jmwifi disabled=no
+add name=${name} interface=${iface} address-pool=pool-central profile=jmwifi idle-timeout=none keepalive-timeout=2m disabled=no
 :put ("Portal: " . $cloudUrl . "/portal/?site_id=YOUR_SITE_ID")
-; VLAN id hint: ${vlan}
+; vlan_id=${vlan} (0 = all VLANs on ${iface})
 `;
 }
 

@@ -1,46 +1,52 @@
 ; ============================================================
-; JM WiFi Cloud - MikroTik VLAN Hotspot (Pause / Resume)
+; JM WiFi Cloud — CENTRAL Hotspot (Kitifi-style)
 ; ============================================================
 ; Flow:
-;   Client → JM WiFi SSID → VLAN hotspot interface
-;   Captive portal = MikroTik hotspot HTML + cloud portal (fast mix)
+;   Client → SSID → VLAN101 / VLAN102 / … → bridge-hotspot
+;   Captive portal gateway = 10.0.0.1 (ALL VLANs)
 ;   Time PAUSES on disconnect (no validity / wall-clock expiry)
-;   Auto-RESUME on reconnect — random MAC OK with same voucher code
+;   Auto-RESUME on reconnect — random MAC OK with same voucher
 ;
 ; Cloud: https://jmtechsolution.cloud/allvendo
 ; ============================================================
 
 :local cloudUrl "https://jmtechsolution.cloud/allvendo"
 :local siteId "YOUR_SITE_ID"
-:local wlanInterface "wlan1"
+:local bridgeLocal "bridge-local"
 :local bridgeName "bridge-hotspot"
-:local vlanId 10
-:local hotspotPool "10.10.10.2-10.10.10.254"
-:local hotspotNetwork "10.10.10.0/24"
-:local hotspotGateway "10.10.10.1"
+:local hotspotPool "10.0.0.10-10.0.0.254"
+:local hotspotNetwork "10.0.0.0/24"
+:local hotspotGateway "10.0.0.1"
 :local dnsName "jmwifi.local"
+:local vlanIds {101;102}
 
-# ─── 1. VLAN + Bridge ─────────────────────────────────────────
-
-/interface vlan
-add name=vlan-hotspot vlan-id=$vlanId interface=$wlanInterface comment="JM WiFi Cloud VLAN"
+# ─── 1. Central hotspot bridge ────────────────────────────────
 
 /interface bridge
-add name=$bridgeName comment="JM WiFi Hotspot Bridge"
+add name=$bridgeName comment="JM Central Captive Portal" disabled=no
 
-/interface bridge port
-add bridge=$bridgeName interface=vlan-hotspot
+# ─── 2. VLAN interfaces → bridge-hotspot (all share 10.0.0.1) ─
 
-# ─── 2. IP / DHCP ─────────────────────────────────────────────
+:foreach vid in=$vlanIds do={
+  :local vname ("VLAN" . $vid)
+  :if ([:len [/interface vlan find where name=$vname]] = 0) do={
+    /interface vlan add name=$vname vlan-id=$vid interface=$bridgeLocal comment=("JM Cloud Hotspot " . $vname)
+  }
+  :if ([:len [/interface bridge port find where interface=$vname]] = 0) do={
+    /interface bridge port add bridge=$bridgeName interface=$vname comment="central HS"
+  }
+}
+
+# ─── 3. IP / DHCP (single pool for all VLANs) ─────────────────
 
 /ip pool
-add name=hotspot-pool ranges=$hotspotPool
+add name=pool-central ranges=$hotspotPool
 
 /ip address
-add address=($hotspotGateway . "/24") interface=$bridgeName comment="Hotspot Gateway"
+add address=($hotspotGateway . "/24") interface=$bridgeName comment="JM Central Hotspot Captive Portal"
 
 /ip dhcp-server
-add name=hotspot-dhcp interface=$bridgeName address-pool=hotspot-pool lease-time=30m
+add name=dhcp-central interface=$bridgeName address-pool=pool-central lease-time=30m
 
 /ip dhcp-server network
 add address=$hotspotNetwork gateway=$hotspotGateway dns-server=$hotspotGateway
@@ -49,33 +55,29 @@ add address=$hotspotNetwork gateway=$hotspotGateway dns-server=$hotspotGateway
 set allow-remote-requests=yes
 
 /ip dns static
-add name=$dnsName address=$hotspotGateway comment="JM WiFi Portal"
+add name=$dnsName address=$hotspotGateway comment="Central captive portal"
 
-# ─── 3. Hotspot Profile (mixed portal) ────────────────────────
-; login.html in flash/hotspot redirects to cloud portal quickly
+# ─── 4. Hotspot profile (mixed portal) ────────────────────────
 
 /ip hotspot profile
 add name=jmwifi \
     hotspot-address=$hotspotGateway \
     dns-name=$dnsName \
-    html-directory=flash/hotspot \
-    login-by=http-pap,mac-cookie \
-    http-cookie-lifetime=1d \
-    open-status-page=http-login \
-    status-autorefresh=30s
+    html-directory=hotspot \
+    login-by=http-pap,cookie \
+    http-cookie-lifetime=1d
 
 /ip hotspot walled-garden
-add dst-host=jmtechsolution.cloud comment="Cloud portal"
-add dst-host=*.jmtechsolution.cloud comment="Cloud subdomains"
+add dst-host=jmtechsolution.cloud comment="JM WiFi Cloud"
+add dst-host=*.jmtechsolution.cloud comment="JM WiFi Cloud"
 
-# ─── 4. Hotspot Server ────────────────────────────────────────
+# ─── 5. Single CENTRAL hotspot server ─────────────────────────
 
 /ip hotspot
-add name=JMWIFI interface=$bridgeName address-pool=hotspot-pool profile=jmwifi disabled=no
+add name=CENTRAL interface=$bridgeName address-pool=pool-central profile=jmwifi \
+    idle-timeout=none keepalive-timeout=2m disabled=no
 
-# ─── 5. User Profile — PAUSE mode (no validity) ───────────────
-; No session-timeout / no limit-uptime from profile.
-; Cloud tracks remaining seconds; keepalive detects disconnect → pause.
+# ─── 6. User profile — PAUSE mode (no validity) ───────────────
 
 /ip hotspot user profile
 add name=jmwifi-pause \
@@ -87,18 +89,13 @@ add name=jmwifi-pause \
     status-autorefresh=30s \
     add-mac-cookie=yes \
     mac-cookie-timeout=1d \
-    on-logout="/tool fetch url=(\"$cloudUrl/api/session/pause\") http-method=post http-data=(\"{\\\"mac\\\":\\\"\$mac-address\\\"}\") http-header-field=\"Content-Type: application/json,X-API-Key: YOUR_API_KEY\" keep-result=no" \
     comment="JM WiFi pause — no validity, random MAC OK"
 
-# ─── 6. Firewall / NAT ────────────────────────────────────────
-
-/ip firewall filter
-add chain=forward src-address=$hotspotNetwork action=accept comment="Hotspot users forward" place-before=0
-add chain=forward src-address=$hotspotNetwork dst-address=!$hotspotNetwork connection-state=new action=drop comment="Block hotspot to LAN" place-before=1
+# ─── 7. NAT ───────────────────────────────────────────────────
 
 /ip firewall nat
-add chain=srcnat out-interface=ether1 action=masquerade comment="Hotspot NAT" place-before=0
+add chain=srcnat src-address=$hotspotNetwork action=masquerade comment="JM Hotspot NAT"
 
-:put "JM WiFi Cloud VLAN Hotspot applied (pause/resume)."
+:put "JM WiFi CENTRAL hotspot applied — gateway 10.0.0.1 for all VLANs."
 :put ("Portal: " . $cloudUrl . "/portal/?site_id=" . $siteId)
-:put "Upload flash/hotspot/login.html that redirects to cloud portal."
+:put "Upload hotspot/login.html (site-specific) that redirects to cloud portal."

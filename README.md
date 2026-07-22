@@ -29,8 +29,9 @@ Central dashboard para sa lahat ng vendo: sales reports, devices (ESP8266 + Mikr
 - **Active sessions** — monitor / disconnect
 - **Voucher batch generate** — calling / admin codes
 - **Rate plans** per vendo
-- **Captive portal** — branded JM WiFi login
+- **Captive portal** — CENTRAL gateway **10.0.0.1** (lahat ng VLAN), branded JM WiFi login
 - **REST API** for coin insert, redeem, heartbeat
+- **Pause / resume** — disconnect = pause time; reconnect / random MAC OK with same voucher
 
 ## Quick deploy sa VPS
 
@@ -68,8 +69,8 @@ Open `http://localhost:3000/admin/`
 1. Mag-login sa `/admin/` → **Mga Vendo** → **+ Bagong Vendo**
 2. I-save ang **API Key**
 3. Flash ESP8266 (`firmware/esp8266/...`) with API key + cloud URL
-4. Import `mikrotik/hotspot-setup.rsc` + upload `login.html` (set `site_id`)
-5. Clients magre-redirect sa cloud portal → coin/voucher → internet
+4. Import `mikrotik/hotspot-setup.rsc` (CENTRAL **10.0.0.1**, VLAN101/102 → `bridge-hotspot`) o `node deploy/push-mikrotik.js`
+5. Clients sa kahit anong VLAN → DHCP `10.0.0.x` → captive portal `10.0.0.1` → cloud portal → coin/voucher → internet
 
 ## API (device)
 

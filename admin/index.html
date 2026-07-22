@@ -101,7 +101,7 @@
       <section id="page-hotspot" class="page">
         <div class="panel">
           <h3>Cloud Hotspot</h3>
-          <p class="hub-lead">VLAN captive portal · pause on disconnect · auto-resume · random MAC · no validity.</p>
+          <p class="hub-lead">Central captive portal 10.0.0.1 · lahat ng VLAN · pause on disconnect · auto-resume · random MAC · no validity.</p>
           <div class="action-row">
             <button class="btn-primary" data-goto="hs-server">Hotspot Server</button>
             <button class="btn-secondary" data-goto="dashboard">Overview</button>
@@ -117,7 +117,7 @@
           <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
         </div>
         <div class="toolbar">
-          <p id="hs-toolbar-text">VLAN hotspot servers — mixed MikroTik + cloud captive portal.</p>
+          <p id="hs-toolbar-text">Central hotspot server — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.</p>
           <div class="filter-row">
             <button id="btn-add-server" class="btn-primary">+ Server</button>
             <button id="btn-add-profile" class="btn-primary">+ Profile</button>
@@ -134,17 +134,17 @@
         <dialog id="hs-server-dialog">
           <form id="hs-server-form" method="dialog">
             <h3>Setup Hotspot Server</h3>
-            <label>Name <input name="name" required placeholder="JMWIFI"></label>
+            <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
             <div class="form-row">
-              <label>HS Address <input name="hs_address" value="10.10.10.1" required></label>
-              <label>VLAN ID <input name="vlan_id" type="number" value="10" min="1"></label>
+              <label>HS Address <input name="hs_address" value="10.0.0.1" required></label>
+              <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs via bridge-hotspot"></label>
             </div>
             <div class="form-row">
               <label>HTML Directory <input name="html_directory" value="hotspot"></label>
-              <label>Login By <input name="login_by" value="http-pap,mac-cookie"></label>
+              <label>Login By <input name="login_by" value="http-pap,cookie"></label>
             </div>
             <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
-            <p class="hub-lead">Portal mix: MikroTik hotspot HTML + cloud `/portal` for smooth/fast login.</p>
+            <p class="hub-lead">Kitifi-style: isang CENTRAL server (10.0.0.1). VLAN ID = 0 = lahat ng VLAN sa bridge-hotspot.</p>
             <div class="dialog-actions">
               <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
               <button type="submit" class="btn-primary">Save Server</button>

@@ -340,7 +340,7 @@
     $('#hs-server-panel').classList.toggle('hidden', tab !== 'server');
     $('#hs-profile-panel').classList.toggle('hidden', tab !== 'profile');
     $('#hs-toolbar-text').textContent = tab === 'server'
-      ? 'VLAN hotspot servers — mixed MikroTik + cloud captive portal.'
+      ? 'Central hotspot — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.'
       : 'User profiles — pause on disconnect, no validity, random MAC.';
     $('#btn-add-server').style.display = tab === 'server' ? '' : 'none';
     $('#btn-add-profile').style.display = tab === 'profile' ? '' : 'none';
@@ -355,15 +355,15 @@
 
     $('#hs-server-list').innerHTML = servers.servers.length ? `
       <table>
-        <thead><tr><th>Name</th><th>HS Address</th><th>HTML Directory</th><th>Login By</th><th>VLAN</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>HS Address</th><th>Interface</th><th>Login By</th><th>VLAN</th><th>Action</th></tr></thead>
         <tbody>
           ${servers.servers.map((s) => `
             <tr>
               <td><strong>${esc(s.name)}</strong></td>
               <td class="mono">${esc(s.hs_address)}</td>
-              <td>${esc(s.html_directory)}</td>
+              <td>${esc(s.interface_name || 'bridge-hotspot')}</td>
               <td>${esc(s.login_by)}</td>
-              <td>${s.vlan_id}</td>
+              <td>${Number(s.vlan_id) === 0 ? 'ALL' : esc(s.vlan_id)}</td>
               <td>
                 <button class="btn-secondary" data-hs-script="${s.id}">Script</button>
                 <button class="btn-danger" data-hs-del="${s.id}">Delete</button>

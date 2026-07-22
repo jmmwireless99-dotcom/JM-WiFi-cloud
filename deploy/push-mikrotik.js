@@ -1,26 +1,28 @@
 #!/usr/bin/env node
 /**
- * Push JM WiFi Cloud VLAN hotspot config to MikroTik via RouterOS API (8728)
- * or REST when available. Downloads login.html from cloud via /tool fetch.
+ * Push JM WiFi Cloud CENTRAL hotspot (10.0.0.1) to MikroTik via RouterOS API.
+ * Kitifi-style: all VLANs share one captive portal on bridge-hotspot.
  *
  * Usage:
- *   MIKROTIK_HOST=10.254.0.10 MIKROTIK_USER=admin MIKROTIK_PASS='...' \
- *   SITE_ID=... API_KEY=... node deploy/push-mikrotik.js
+ *   MIKROTIK_HOST=10.90.0.27 MIKROTIK_USER=admin MIKROTIK_PASS='...' \
+ *   SITE_ID=... API_KEY=... VLAN_IDS=101,102 node deploy/push-mikrotik.js
  */
 const net = require('net');
-const fs = require('fs');
-const path = require('path');
 
-const HOST = process.env.MIKROTIK_HOST || '10.254.0.10';
+const HOST = process.env.MIKROTIK_HOST || '10.90.0.27';
 const PORT = Number(process.env.MIKROTIK_API_PORT || 8728);
 const USER = process.env.MIKROTIK_USER || 'admin';
 const PASS = process.env.MIKROTIK_PASS || '';
 const SITE_ID = process.env.SITE_ID || '';
 const API_KEY = process.env.API_KEY || '';
 const CLOUD = (process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
-const VLAN_ID = Number(process.env.VLAN_ID || 10);
-const WLAN = process.env.WLAN_INTERFACE || 'wlan1';
-const HS_GW = process.env.HS_GATEWAY || '10.10.10.1';
+const BRIDGE_LOCAL = process.env.BRIDGE_LOCAL || 'bridge-local';
+const VLAN_IDS = String(process.env.VLAN_IDS || process.env.VLAN_ID || '101,102')
+  .split(',')
+  .map((v) => Number(String(v).trim()))
+  .filter((n) => n > 0);
+const HS_GW = process.env.HS_GATEWAY || '10.0.0.1';
+const HS_NAME = process.env.HS_NAME || 'CENTRAL';
 
 if (!PASS) {
   console.error('MIKROTIK_PASS required');
@@ -96,7 +98,7 @@ class RouterOS {
   connect() {
     return new Promise((resolve, reject) => {
       this.sock = net.createConnection({ host: this.host, port: this.port }, () => resolve());
-      this.sock.setTimeout(15000);
+      this.sock.setTimeout(20000);
       this.sock.on('error', reject);
       this.sock.on('timeout', () => reject(new Error('socket timeout')));
       this.sock.on('data', (chunk) => {
@@ -105,82 +107,58 @@ class RouterOS {
     });
   }
 
-  async write(words) {
-    this.sock.write(encodeSentence(words));
+  close() {
+    try { this.sock?.destroy(); } catch {}
   }
 
-  async read(timeoutMs = 10000) {
+  async readReply(timeoutMs = 12000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const sentences = decodeSentences(this.buf);
-      // Need trailing empty word consumed — decodeSentences already splits on 0
-      // Wait until we see !done or !trap
-      const flat = sentences.flat();
-      if (flat.includes('!done') || flat.includes('!trap') || flat.includes('!fatal')) {
+      if (sentences.some((s) => s[0] === '!done' || s[0] === '!trap' || s[0] === '!fatal')) {
         this.buf = Buffer.alloc(0);
-        return sentences;
+        const trap = sentences.find((s) => s[0] === '!trap' || s[0] === '!fatal');
+        if (trap) throw new Error(trap.join(' '));
+        return sentences
+          .filter((s) => s[0] === '!re')
+          .map((s) => {
+            const o = {};
+            for (const w of s.slice(1)) {
+              if (w.startsWith('=')) {
+                const eq = w.indexOf('=', 1);
+                if (eq > 0) o[w.slice(1, eq)] = w.slice(eq + 1);
+              }
+            }
+            return o;
+          });
       }
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 20));
     }
-    throw new Error('read timeout: ' + this.buf.toString('utf8').slice(0, 200));
+    throw new Error('reply timeout');
   }
 
   async call(words) {
-    await this.write(words);
-    const sentences = await this.read();
-    const trap = sentences.find((s) => s[0] === '!trap' || s[0] === '!fatal');
-    if (trap) {
-      const msg = trap.find((w) => w.startsWith('=message=')) || trap.join(' ');
-      throw new Error(String(msg).replace(/^=message=/, ''));
-    }
-    return sentences.filter((s) => s[0] === '!re').map((s) => {
-      const o = {};
-      for (const w of s.slice(1)) {
-        const m = w.match(/^=([^=]+)=(.*)$/);
-        if (m) o[m[1]] = m[2];
-      }
-      return o;
-    });
+    this.sock.write(encodeSentence(words));
+    return this.readReply();
   }
 
   async login(user, pass) {
-    // RouterOS v6.43+ post-login
-    try {
-      await this.call(['/login', `=name=${user}`, `=password=${pass}`]);
-      return;
-    } catch (_) {
-      // fallback challenge login
-    }
-    const res = await this.call(['/login']);
-    const ret = (res[0] && res[0].ret) || '';
-    const crypto = require('crypto');
-    const hash = crypto.createHash('md5')
-      .update(Buffer.concat([Buffer.from([0]), Buffer.from(pass, 'utf8'), Buffer.from(ret, 'hex')]))
-      .digest('hex');
-    await this.call(['/login', `=name=${user}`, `=response=00${hash}`]);
-  }
-
-  close() {
-    try { this.sock.end(); } catch (_) {}
+    await this.call(['/login', `=name=${user}`, `=password=${pass}`]);
   }
 }
 
-function safeAdd(api, path, props) {
-  const words = [path + '/add', ...Object.entries(props).map(([k, v]) => `=${k}=${v}`)];
+async function safeAdd(api, addPath, props) {
+  const words = [addPath];
+  for (const [k, v] of Object.entries(props)) words.push(`=${k}=${v}`);
   return api.call(words);
 }
 
-async function ensure(api, printPath, matchKey, matchVal, addPath, props) {
-  const rows = await api.call([printPath + '/print', `?${matchKey}=${matchVal}`]);
-  if (rows.length) {
-    console.log(`exists ${addPath} ${matchKey}=${matchVal}`);
-    return rows[0];
-  }
-  console.log(`add ${addPath} ${matchKey}=${matchVal}`);
+async function ensure(api, menuPath, key, value, props) {
+  const found = await api.call([`${menuPath}/print`, `?${key}=${value}`]);
+  if (found.length) return found[0];
   try {
-    await safeAdd(api, addPath, props);
+    await safeAdd(api, `${menuPath}/add`, props);
   } catch (e) {
-    // maybe already exists under different query
     console.log('add warn:', e.message);
   }
   return null;
@@ -188,99 +166,106 @@ async function ensure(api, printPath, matchKey, matchVal, addPath, props) {
 
 async function main() {
   console.log(`Connecting ${HOST}:${PORT} as ${USER}...`);
+  console.log(`CENTRAL gateway ${HS_GW} VLANs=[${VLAN_IDS.join(',')}]`);
   const api = new RouterOS(HOST, PORT);
   await api.connect();
   await api.login(USER, PASS);
   const id = await api.call(['/system/identity/print']);
   console.log('Identity:', id[0]?.name || id);
 
-  // Enable API/www if needed — skip destructive changes
-  // Fetch login.html from cloud (site-specific)
   const loginUrl = `${CLOUD}/mikrotik/login-${SITE_ID}.html`;
   console.log('Fetching login.html from', loginUrl);
   try {
     await api.call([
       '/tool/fetch',
       `=url=${loginUrl}`,
-      '=dst-path=flash/hotspot/login.html',
-      '=keep-result=no'
+      '=dst-path=hotspot/login.html'
     ]);
   } catch (e) {
-    // older path without flash/
-    console.log('fetch flash path failed, trying hotspot/login.html:', e.message);
-    await api.call([
-      '/tool/fetch',
-      `=url=${loginUrl}`,
-      '=dst-path=hotspot/login.html',
-      '=keep-result=no'
-    ]);
+    console.log('API fetch skip (use REST/SSH if needed):', e.message);
   }
 
-  // VLAN
-  await ensure(api, '/interface/vlan', 'name', 'vlan-hotspot', '/interface/vlan', {
-    name: 'vlan-hotspot',
-    'vlan-id': String(VLAN_ID),
-    interface: WLAN,
-    comment: 'JM WiFi Cloud VLAN'
-  });
-
-  await ensure(api, '/interface/bridge', 'name', 'bridge-hotspot', '/interface/bridge', {
+  await ensure(api, '/interface/bridge', 'name', 'bridge-hotspot', {
     name: 'bridge-hotspot',
-    comment: 'JM WiFi Hotspot Bridge'
+    comment: 'JM Central Captive Portal'
   });
 
-  // bridge port
-  const ports = await api.call(['/interface/bridge/port/print', '?interface=vlan-hotspot']);
-  if (!ports.length) {
-    await safeAdd(api, '/interface/bridge/port', {
-      bridge: 'bridge-hotspot',
-      interface: 'vlan-hotspot'
+  for (const vid of VLAN_IDS) {
+    const vname = `VLAN${vid}`;
+    await ensure(api, '/interface/vlan', 'name', vname, {
+      name: vname,
+      'vlan-id': String(vid),
+      interface: BRIDGE_LOCAL,
+      comment: `JM Cloud Hotspot ${vname}`
     });
+    const ports = await api.call(['/interface/bridge/port/print', `?interface=${vname}`]);
+    if (!ports.length) {
+      await safeAdd(api, '/interface/bridge/port/add', {
+        bridge: 'bridge-hotspot',
+        interface: vname,
+        comment: 'central HS'
+      });
+    } else if (ports[0].bridge !== 'bridge-hotspot') {
+      try {
+        await api.call([
+          '/interface/bridge/port/set',
+          `=.id=${ports[0]['.id']}`,
+          '=bridge=bridge-hotspot',
+          '=comment=central HS'
+        ]);
+      } catch (e) {
+        console.log('bridge port move warn:', e.message);
+      }
+    }
   }
 
-  await ensure(api, '/ip/pool', 'name', 'hotspot-pool', '/ip/pool', {
-    name: 'hotspot-pool',
-    ranges: '10.10.10.2-10.10.10.254'
+  await ensure(api, '/ip/pool', 'name', 'pool-central', {
+    name: 'pool-central',
+    ranges: '10.0.0.10-10.0.0.254'
   });
 
   const addrs = await api.call(['/ip/address/print', '?interface=bridge-hotspot']);
-  if (!addrs.length) {
-    await safeAdd(api, '/ip/address', {
+  const hasGw = addrs.some((a) => String(a.address || '').startsWith(`${HS_GW}/`));
+  if (!hasGw) {
+    await safeAdd(api, '/ip/address/add', {
       address: `${HS_GW}/24`,
       interface: 'bridge-hotspot',
-      comment: 'Hotspot Gateway'
+      comment: 'JM Central Hotspot Captive Portal'
     });
   }
 
-  await ensure(api, '/ip/dhcp-server', 'name', 'hotspot-dhcp', '/ip/dhcp-server', {
-    name: 'hotspot-dhcp',
+  await ensure(api, '/ip/dhcp-server', 'name', 'dhcp-central', {
+    name: 'dhcp-central',
     interface: 'bridge-hotspot',
-    'address-pool': 'hotspot-pool',
+    'address-pool': 'pool-central',
     'lease-time': '30m'
   });
 
-  const nets = await api.call(['/ip/dhcp-server/network/print', '?address=10.10.10.0/24']);
+  const nets = await api.call(['/ip/dhcp-server/network/print', '?address=10.0.0.0/24']);
   if (!nets.length) {
-    await safeAdd(api, '/ip/dhcp-server/network', {
-      address: '10.10.10.0/24',
+    await safeAdd(api, '/ip/dhcp-server/network/add', {
+      address: '10.0.0.0/24',
       gateway: HS_GW,
       'dns-server': HS_GW
     });
   }
 
-  // Hotspot server profile
-  await ensure(api, '/ip/hotspot/profile', 'name', 'jmwifi', '/ip/hotspot/profile', {
+  await ensure(api, '/ip/dns/static', 'name', 'jmwifi.local', {
+    name: 'jmwifi.local',
+    address: HS_GW,
+    comment: 'Central captive portal'
+  });
+
+  await ensure(api, '/ip/hotspot/profile', 'name', 'jmwifi', {
     name: 'jmwifi',
     'hotspot-address': HS_GW,
     'dns-name': 'jmwifi.local',
-    'html-directory': 'flash/hotspot',
-    'login-by': 'http-pap,mac-cookie',
-    'open-status-page': 'http-login',
-    'status-autorefresh': '30s'
+    'html-directory': 'hotspot',
+    'login-by': 'http-pap,cookie',
+    'http-cookie-lifetime': '1d'
   });
 
-  // User profile pause mode
-  await ensure(api, '/ip/hotspot/user/profile', 'name', 'jmwifi-pause', '/ip/hotspot/user/profile', {
+  await ensure(api, '/ip/hotspot/user/profile', 'name', 'jmwifi-pause', {
     name: 'jmwifi-pause',
     'shared-users': '1',
     'rate-limit': '2M/5M',
@@ -293,7 +278,6 @@ async function main() {
     comment: 'JM WiFi pause — no validity'
   });
 
-  // Set on-logout webhook if API key present
   if (API_KEY) {
     const onLogout =
       `/tool fetch url="${CLOUD}/api/session/pause" http-method=post ` +
@@ -311,31 +295,39 @@ async function main() {
     }
   }
 
-  // Walled garden
   for (const host of ['jmtechsolution.cloud', '*.jmtechsolution.cloud']) {
     const wg = await api.call(['/ip/hotspot/walled-garden/print', `?dst-host=${host}`]);
     if (!wg.length) {
-      await safeAdd(api, '/ip/hotspot/walled-garden', {
+      await safeAdd(api, '/ip/hotspot/walled-garden/add', {
         'dst-host': host,
         comment: 'JM WiFi Cloud'
       });
     }
   }
 
-  await ensure(api, '/ip/hotspot', 'name', 'JMWIFI', '/ip/hotspot', {
-    name: 'JMWIFI',
+  await ensure(api, '/ip/hotspot', 'name', HS_NAME, {
+    name: HS_NAME,
     interface: 'bridge-hotspot',
-    'address-pool': 'hotspot-pool',
+    'address-pool': 'pool-central',
     profile: 'jmwifi',
+    'idle-timeout': 'none',
+    'keepalive-timeout': '2m',
     disabled: 'no'
   });
 
-  // Quick verify
+  const nat = await api.call(['/ip/firewall/nat/print', '?comment=JM Hotspot NAT']);
+  if (!nat.length) {
+    await safeAdd(api, '/ip/firewall/nat/add', {
+      chain: 'srcnat',
+      'src-address': '10.0.0.0/24',
+      action: 'masquerade',
+      comment: 'JM Hotspot NAT'
+    });
+  }
+
   const hs = await api.call(['/ip/hotspot/print']);
-  const profiles = await api.call(['/ip/hotspot/user/profile/print']);
-  console.log('Hotspot servers:', hs.map((h) => h.name).join(', '));
-  console.log('User profiles:', profiles.map((p) => p.name).join(', '));
-  console.log('DONE — VLAN hotspot pause/resume pushed.');
+  console.log('Hotspot servers:', hs.map((h) => `${h.name}@${h.interface}`).join(', '));
+  console.log(`DONE — CENTRAL ${HS_GW} for VLANs ${VLAN_IDS.join(',')}`);
   api.close();
 }
 
