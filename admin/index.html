@@ -42,7 +42,12 @@
         <span class="brand-sub">All Vendo</span>
       </div>
       <nav class="nav">
-        <button data-page="dashboard" class="nav-item active">Overview</button>
+        <p class="nav-sec">All Vendo</p>
+        <button data-page="hub" class="nav-item active" data-module="hub">Modules</button>
+        <button data-page="empty-bottle" class="nav-item" data-module="empty-bottle">Empty Bottle</button>
+        <button data-page="hotspot" class="nav-item" data-module="hotspot">Cloud Hotspot</button>
+        <p class="nav-sec">Cloud Hotspot</p>
+        <button data-page="dashboard" class="nav-item">Overview</button>
         <button data-page="vendos" class="nav-item">Mga Vendo</button>
         <button data-page="devices" class="nav-item">Devices</button>
         <button data-page="sessions" class="nav-item">Sessions</button>
@@ -62,8 +67,50 @@
         <p class="topbar-domain">jmtechsolution.cloud</p>
       </header>
 
+      <!-- Modules hub -->
+      <section id="page-hub" class="page active">
+        <p class="hub-lead">Piliin ang vendo module mo.</p>
+        <div class="module-grid">
+          <button type="button" class="module-card" data-goto="empty-bottle">
+            <span class="module-kicker">All Vendo</span>
+            <span class="module-title">Empty Bottle</span>
+            <span class="module-desc">Empty bottle vendo — sales, machines, at cloud monitoring.</span>
+          </button>
+          <button type="button" class="module-card" data-goto="hotspot">
+            <span class="module-kicker">All Vendo</span>
+            <span class="module-title">Cloud Hotspot</span>
+            <span class="module-desc">WiFi hotspot, coin/voucher, MikroTik sessions, multi-vendo reports.</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Empty Bottle module -->
+      <section id="page-empty-bottle" class="page">
+        <div class="panel">
+          <h3>Empty Bottle Vendo</h3>
+          <p class="hub-lead">Cloud control para sa empty bottle machines — GCash/Maya pay, sales tracking, at online status.</p>
+          <div class="action-row">
+            <a class="btn-primary" href="/vendo-admin" target="_blank" rel="noopener">Open Vendo Admin</a>
+            <a class="btn-secondary" href="https://jmtechsolution.cloud/#products" target="_blank" rel="noopener">Product info</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hotspot module landing -->
+      <section id="page-hotspot" class="page">
+        <div class="panel">
+          <h3>Cloud Hotspot</h3>
+          <p class="hub-lead">JM WiFi multi-vendo hotspot — coin, voucher, sessions, at sales reports.</p>
+          <div class="action-row">
+            <button class="btn-primary" data-goto="dashboard">Open Hotspot Overview</button>
+            <button class="btn-secondary" data-goto="vendos">Mga Vendo</button>
+            <a class="btn-secondary" href="/wifi/login" target="_blank" rel="noopener">Laravel Hotspot Admin</a>
+          </div>
+        </div>
+      </section>
+
       <!-- Dashboard -->
-      <section id="page-dashboard" class="page active">
+      <section id="page-dashboard" class="page">
         <div class="stat-grid" id="stat-grid"></div>
         <div class="split">
           <div class="panel">

@@ -63,7 +63,7 @@
       const data = await api('/me');
       state.operator = data.operator;
       showApp();
-      navigate('dashboard');
+      navigate(initialPage());
     } catch {
       showLogin();
     }
@@ -86,7 +86,7 @@
       state.operator = data.operator;
       localStorage.setItem('jm_token', data.token);
       showApp();
-      navigate('dashboard');
+      navigate(initialPage());
     } catch (ex) {
       err.textContent = ex.message;
       err.classList.remove('hidden');
@@ -105,7 +105,10 @@
   });
 
   const titles = {
-    dashboard: 'Overview',
+    hub: 'All Vendo',
+    'empty-bottle': 'Empty Bottle',
+    hotspot: 'Cloud Hotspot',
+    dashboard: 'Hotspot Overview',
     vendos: 'Mga Vendo',
     devices: 'Devices',
     sessions: 'Sessions',
@@ -120,6 +123,13 @@
     $$('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + page));
     $('#page-title').textContent = titles[page] || page;
 
+    // Keep module= in URL for deep links from main portal
+    const url = new URL(location.href);
+    if (page === 'empty-bottle' || page === 'hotspot' || page === 'hub') {
+      url.searchParams.set('module', page === 'hub' ? 'hub' : page);
+    }
+    history.replaceState(null, '', url);
+
     const loaders = {
       dashboard: loadDashboard,
       vendos: loadVendos,
@@ -130,6 +140,14 @@
       reports: loadReports
     };
     if (loaders[page]) await loaders[page]();
+  }
+
+  function initialPage() {
+    const mod = new URLSearchParams(location.search).get('module');
+    if (mod === 'empty-bottle') return 'empty-bottle';
+    if (mod === 'hotspot') return 'hotspot';
+    if (mod === 'hub') return 'hub';
+    return 'hub';
   }
 
   // ── Dashboard ──
