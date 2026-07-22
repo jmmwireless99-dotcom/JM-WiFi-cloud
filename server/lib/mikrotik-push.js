@@ -175,10 +175,12 @@ async function uploadLoginHtml(api, siteId, cloudBase) {
   for (const extra of attempts) {
     try {
       await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
-      await new Promise((r) => setTimeout(r, 2500));
-      const files = await api.call(['/file/print']);
-      const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
-      if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const files = await api.call(['/file/print']);
+        const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
+        if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
+      }
     } catch (e) {
       console.log('[mikrotik-push] fetch login warn:', e.message);
     }
@@ -186,16 +188,41 @@ async function uploadLoginHtml(api, siteId, cloudBase) {
   return { ok: false, error: 'login.html hindi na-upload sa MikroTik' };
 }
 
+async function ensureIfaceIp(api, iface, ip, comment, steps) {
+  const addr = `${ip}/24`;
+  const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
+  const subnetPrefix = ip.split('.').slice(0, 3).join('.');
+  const existing = addrs.find((a) => String(a.address || '').startsWith(`${subnetPrefix}.`));
+  if (existing && existing.address !== addr) {
+    await api.call(['/ip/address/set', `=.id=${existing['.id']}`, `=address=${addr}`, `=comment=${comment}`]);
+    steps.push(`VLAN gateway ${ip} on ${iface}`);
+  } else if (!addrs.some((a) => a.address === addr)) {
+    await safeAdd(api, '/ip/address/add', { address: addr, interface: iface, comment });
+    steps.push(`VLAN gateway ${ip} on ${iface}`);
+  }
+}
+
 async function ensurePortalIp(api, iface, portalAddress, steps) {
   const portalAddr = `${portalAddress}/24`;
   const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
-  if (!addrs.some((a) => a.address === portalAddr)) {
+  if (!addrs.some((a) => String(a.address || '').startsWith(`${portalAddress.split('.').slice(0, 3).join('.')}.`))) {
     await safeAdd(api, '/ip/address/add', {
       address: portalAddr,
       interface: iface,
       comment: 'JM Hotspot captive portal'
     });
     steps.push(`Portal IP ${portalAddress} on ${iface}`);
+  }
+}
+
+async function detachVlanFromBridge(api, vname, bridgeName) {
+  const ports = await api.call(['/interface/bridge/port/print', `?interface=${vname}`]);
+  for (const p of ports) {
+    if (p.bridge === bridgeName) {
+      try {
+        await api.call(['/interface/bridge/port/remove', `=.id=${p['.id']}`]);
+      } catch {}
+    }
   }
 }
 
@@ -257,21 +284,24 @@ async function pushHotspotServer(server, options = {}) {
   const bridgeLocal = options.bridgeLocal || 'bridge-local';
 
   const central = isCentralHotspot(site);
-  const hsName = central ? 'CENTRAL' : (server.name || 'CENTRAL');
-  const iface = server.interface_name || 'bridge-hotspot';
+  const vlanIds = parseVlanIds(server);
+  const vlanNet = parseGateway(server.hs_address || CENTRAL_GATEWAY);
+  const portalAddress = central ? CENTRAL_GATEWAY : vlanNet.gw;
+  const perVlanL3 = central && vlanIds.length === 1 && vlanNet.gw !== CENTRAL_GATEWAY;
+  const bridgeName = server.interface_name || 'bridge-hotspot';
+  const hsName = perVlanL3 ? (server.name || `VLAN${vlanIds[0]}`) : (central ? 'CENTRAL' : (server.name || 'CENTRAL'));
+  const hsIface = perVlanL3 ? `VLAN${vlanIds[0]}` : bridgeName;
   const profileName = server.profile_name || 'jmwifi';
   const dnsName = server.dns_name || 'jmwifi.local';
   const htmlDir = server.html_directory || 'hotspot';
   const loginBy = server.login_by || 'http-pap,cookie';
-  const vlanIds = parseVlanIds(server);
-  const portalAddress = central ? CENTRAL_GATEWAY : parseGateway(server.hs_address).gw;
-  const ifaceGw = central ? CENTRAL_GATEWAY : parseGateway(server.hs_address).gw;
-  const extraIp = central && server.hs_address && parseGateway(server.hs_address).gw !== CENTRAL_GATEWAY
-    ? parseGateway(server.hs_address).gw
-    : null;
-  const { network, pool } = parseGateway(central ? CENTRAL_GATEWAY : server.hs_address);
-  const poolName = central ? 'pool-central' : `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-  const dhcpName = central ? 'dhcp-central' : `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const { gw: vlanGw, network, pool } = vlanNet;
+  const poolName = perVlanL3
+    ? `pool-vlan${vlanIds[0]}`
+    : (vlanGw === CENTRAL_GATEWAY ? 'pool-central' : `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase());
+  const dhcpName = perVlanL3
+    ? `dhcp-vlan${vlanIds[0]}`
+    : (vlanGw === CENTRAL_GATEWAY ? 'dhcp-central' : `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase());
 
   const api = new RouterOS(host, port);
   const steps = [];
@@ -289,9 +319,9 @@ async function pushHotspotServer(server, options = {}) {
       steps.push(`WARN: ${login.error || 'login.html upload failed'}`);
     }
 
-    await ensureOrSet(api, '/interface/bridge', 'name', iface, {
-      name: iface,
-      comment: `JM Hotspot ${hsName}`
+    await ensureOrSet(api, '/interface/bridge', 'name', bridgeName, {
+      name: bridgeName,
+      comment: 'JM Hotspot bridge'
     });
 
     for (const vid of vlanIds) {
@@ -302,43 +332,38 @@ async function pushHotspotServer(server, options = {}) {
         interface: bridgeLocal,
         comment: `JM Hotspot ${hsName}`
       });
-      const ports = await api.call(['/interface/bridge/port/print', `?interface=${vname}`]);
-      if (!ports.length) {
-        await safeAdd(api, '/interface/bridge/port/add', {
-          bridge: iface,
-          interface: vname,
-          comment: `HS ${hsName}`
-        });
-      } else if (ports[0].bridge !== iface) {
-        await api.call([
-          '/interface/bridge/port/set',
-          `=.id=${ports[0]['.id']}`,
-          `=bridge=${iface}`,
-          `=comment=HS ${hsName}`
-        ]);
+      if (perVlanL3) {
+        await detachVlanFromBridge(api, vname, bridgeName);
+        steps.push(`${vname} L3 mode · client subnet ${network}`);
+      } else {
+        const ports = await api.call(['/interface/bridge/port/print', `?interface=${vname}`]);
+        if (!ports.length) {
+          await safeAdd(api, '/interface/bridge/port/add', {
+            bridge: bridgeName,
+            interface: vname,
+            comment: `HS ${hsName}`
+          });
+        } else if (ports[0].bridge !== bridgeName) {
+          await api.call([
+            '/interface/bridge/port/set',
+            `=.id=${ports[0]['.id']}`,
+            `=bridge=${bridgeName}`,
+            `=comment=HS ${hsName}`
+          ]);
+        }
       }
     }
-    steps.push(`VLANs: ${vlanIds.join(', ')} → ${iface}`);
+    if (!perVlanL3) steps.push(`VLANs: ${vlanIds.join(', ')} → ${bridgeName}`);
 
     await ensureOrSet(api, '/ip/pool', 'name', poolName, { name: poolName, ranges: pool });
 
-    await ensurePortalIp(api, iface, portalAddress, steps);
-
-    if (extraIp) {
-      const extraAddr = `${extraIp}/24`;
-      const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
-      if (!addrs.some((a) => a.address === extraAddr)) {
-        await safeAdd(api, '/ip/address/add', {
-          address: extraAddr,
-          interface: iface,
-          comment: `JM Hotspot ${server.name || 'extra'}`
-        });
-        steps.push(`Extra interface IP ${extraIp} on ${iface}`);
-      }
+    await ensureIfaceIp(api, hsIface, vlanGw, `JM VLAN ${hsName}`, steps);
+    if (portalAddress !== vlanGw) {
+      await ensurePortalIp(api, hsIface, portalAddress, steps);
     }
-    steps.push(`Captive portal ${portalAddress} · DHCP ${network}`);
+    steps.push(`Client DHCP ${network} gw ${vlanGw} · portal ${portalAddress}`);
 
-    const existingDhcp = await api.call(['/ip/dhcp-server/print', `?interface=${iface}`]);
+    const existingDhcp = await api.call(['/ip/dhcp-server/print', `?interface=${hsIface}`]);
     if (existingDhcp.length && existingDhcp[0].name !== dhcpName) {
       await api.call([
         '/ip/dhcp-server/set',
@@ -350,26 +375,25 @@ async function pushHotspotServer(server, options = {}) {
     } else {
       await ensureOrSet(api, '/ip/dhcp-server', 'name', dhcpName, {
         name: dhcpName,
-        interface: iface,
+        interface: hsIface,
         'address-pool': poolName,
         'lease-time': '30m'
       });
     }
 
     const nets = await api.call(['/ip/dhcp-server/network/print', `?address=${network}`]);
-    const dhcpGw = central ? portalAddress : ifaceGw;
     if (nets.length) {
       await api.call([
         '/ip/dhcp-server/network/set',
         `=.id=${nets[0]['.id']}`,
-        `=gateway=${dhcpGw}`,
-        `=dns-server=${dhcpGw}`
+        `=gateway=${vlanGw}`,
+        `=dns-server=${vlanGw}`
       ]);
     } else {
       await safeAdd(api, '/ip/dhcp-server/network/add', {
         address: network,
-        gateway: dhcpGw,
-        'dns-server': dhcpGw
+        gateway: vlanGw,
+        'dns-server': vlanGw
       });
     }
 
@@ -389,11 +413,11 @@ async function pushHotspotServer(server, options = {}) {
     });
     steps.push(`Profile ${profileName} hotspot-address=${portalAddress}`);
 
-    if (central) await removeExtraHotspots(api, iface, hsName);
+    if (central && !perVlanL3) await removeExtraHotspots(api, hsIface, hsName);
 
     await ensureOrSet(api, '/ip/hotspot', 'name', hsName, {
       name: hsName,
-      interface: iface,
+      interface: hsIface,
       'address-pool': poolName,
       profile: profileName,
       'idle-timeout': 'none',
@@ -408,13 +432,12 @@ async function pushHotspotServer(server, options = {}) {
       }
     }
 
-    const natComment = central ? 'JM Hotspot NAT' : `JM Hotspot NAT ${hsName}`;
-    const natNet = central ? '10.0.0.0/24' : network;
+    const natComment = `JM Hotspot NAT ${hsName}`;
     const nat = await api.call(['/ip/firewall/nat/print', `?comment=${natComment}`]);
     if (!nat.length) {
       await safeAdd(api, '/ip/firewall/nat/add', {
         chain: 'srcnat',
-        'src-address': natNet,
+        'src-address': network,
         action: 'masquerade',
         comment: natComment
       });
@@ -422,21 +445,22 @@ async function pushHotspotServer(server, options = {}) {
       await api.call([
         '/ip/firewall/nat/set',
         `=.id=${nat[0]['.id']}`,
-        `=src-address=${natNet}`
+        `=src-address=${network}`
       ]);
     }
 
     await ensurePauseProfile(api, site, cloud, steps);
 
     const hs = await api.call(['/ip/hotspot/print', `?name=${hsName}`]);
-    steps.push(`Hotspot ${hsName} active on ${iface}`);
+    steps.push(`Hotspot ${hsName} on ${hsIface}`);
 
     api.close();
     return {
       success: true,
       host,
       identity: identity[0]?.name,
-      gateway: central ? portalAddress : ifaceGw,
+      gateway: vlanGw,
+      client_network: network,
       hotspot_address: portalAddress,
       vlans: vlanIds,
       hotspot: hs[0]?.name || hsName,
