@@ -47,6 +47,7 @@ app.use(`${BASE_PATH}/empty-bottle`, express.static(path.join(__dirname, '../emp
 // Site-specific MikroTik login.html (for /tool fetch upload)
 app.get(`${BASE_PATH}/mikrotik/login-:siteId.html`, (req, res) => {
   const { getPublicBaseUrl } = require('./lib/public-url');
+  res.set('X-JM-Portal-Build', 'full-v2');
   res.type('html').send(buildMikrotikLoginHtml(req.params.siteId, {
     apiBase: `${getPublicBaseUrl()}/api`
   }));

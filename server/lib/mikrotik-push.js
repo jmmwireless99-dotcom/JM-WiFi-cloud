@@ -4,6 +4,11 @@
 const net = require('net');
 const db = require('../db');
 const { getPublicBaseUrl, getLoginHtmlUrl, getWalledGardenHosts } = require('./public-url');
+const {
+  uploadHotspotPortal,
+  ensureWalledGardenIps,
+  ensureHotspotRunning
+} = require('./mikrotik-files');
 
 const CENTRAL_GATEWAY = '10.0.0.1';
 
@@ -92,7 +97,7 @@ class RouterOS {
   connect() {
     return new Promise((resolve, reject) => {
       this.sock = net.createConnection({ host: this.host, port: this.port }, () => resolve());
-      this.sock.setTimeout(25000);
+      this.sock.setTimeout(90000);
       this.sock.on('error', reject);
       this.sock.on('timeout', () => reject(new Error('socket timeout')));
       this.sock.on('data', (c) => { this.buf = Buffer.concat([this.buf, c]); });
@@ -103,7 +108,7 @@ class RouterOS {
     try { this.sock?.destroy(); } catch {}
   }
 
-  async readReply(timeoutMs = 15000) {
+  async readReply(timeoutMs = 90000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const sentences = decodeSentences(this.buf);
@@ -166,27 +171,8 @@ async function ensureOrSet(api, menuPath, key, value, props) {
   return null;
 }
 
-async function uploadLoginHtml(api, siteId, options = {}) {
-  const url = getLoginHtmlUrl(siteId, options);
-  const attempts = [
-    ['=mode=https', '=check-certificate=no'],
-    ['=mode=http'],
-    []
-  ];
-  for (const extra of attempts) {
-    try {
-      await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
-      for (let i = 0; i < 6; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        const files = await api.call(['/file/print']);
-        const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
-        if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size, url };
-      }
-    } catch (e) {
-      console.log('[mikrotik-push] fetch login warn:', e.message, url);
-    }
-  }
-  return { ok: false, error: `login.html hindi na-upload sa MikroTik. Sinubukan: ${url}`, url };
+async function uploadLoginHtml(api, site, siteId, options = {}) {
+  return uploadHotspotPortal(api, site, siteId, options);
 }
 
 async function ensureIfaceIp(api, iface, ip, comment, steps) {
@@ -364,16 +350,16 @@ async function pushHotspotServer(server, options = {}) {
     const identity = await api.call(['/system/identity/print']);
     steps.push(`Connected: ${identity[0]?.name || host}`);
 
-    const login = await uploadLoginHtml(api, site.id, options);
+    const login = await uploadLoginHtml(api, site, site.id, options);
     if (login.ok) {
-      steps.push(`login.html uploaded (${login.size} bytes) from ${login.url}`);
+      steps.push(...(login.steps || [`login.html uploaded (${login.size} bytes) via ${login.method}`]));
     } else {
       steps.push(`ERROR: ${login.error || 'login.html upload failed'}`);
+      if (login.steps) steps.push(...login.steps);
       api.close();
       return {
         success: false,
-        error: login.error || 'login.html hindi na-upload — walang captive portal',
-        login_url: login.url,
+        error: login.error || 'login.html hindi na-upload — walang captive portal sa http://10.0.0.1',
         steps
       };
     }
@@ -471,6 +457,7 @@ async function pushHotspotServer(server, options = {}) {
         await safeAdd(api, '/ip/hotspot/walled-garden/add', { 'dst-host': dst, comment: 'JM WiFi Cloud' });
       }
     }
+    await ensureWalledGardenIps(api, options, steps);
     steps.push('Walled garden updated for cloud portal');
 
     const natComment = `JM Hotspot NAT ${hsName}`;
@@ -492,8 +479,10 @@ async function pushHotspotServer(server, options = {}) {
 
     await ensurePauseProfile(api, site, cloud, steps);
 
+    await ensureHotspotRunning(api, hsName, steps);
+
     const hs = await api.call(['/ip/hotspot/print', `?name=${hsName}`]);
-    steps.push(`Hotspot ${hsName} on ${hsIface}`);
+    steps.push(`Hotspot ${hsName} on ${hsIface} · open http://10.0.0.1`);
 
     api.close();
     return {
