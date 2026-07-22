@@ -2622,7 +2622,12 @@ function App() {
   const [gasSales,setGasSales]=useState([]);
   const [gasDevices,setGasDevices]=useState([]);
   const [gasOwners,setGasOwners]=useState([]);
-  const [tab,setTab]=useState('browse'); // browse | wall | dash | vpn | zerotier | gas | cctv | server | accounts
+  const [vendoData,setVendoData]=useState({
+    total_revenue_today:0, active_devices:0,
+    wifi:{coins_today:0,minutes_today:0,sessions_today:0,revenue_today:0,sites_count:0},
+    sites:[], recent_coins:[]
+  });
+  const [tab,setTab]=useState('browse'); // browse | wall | dash | vpn | zerotier | gas | allvendo | cctv | server | accounts
   const [wallBrand,setWallBrand]=useState('all');
   const [sideOpen,setSideOpen]=useState(false);
   const dashPref = useRef(false);
@@ -2660,6 +2665,21 @@ function App() {
             }));
           }
         }).catch(()=>{});
+        api('/vendo/overview').then(d=>{
+          setVendoData({
+            total_revenue_today: d.total_revenue_today||0,
+            active_devices: d.active_devices||0,
+            wifi: {
+              coins_today: d.wifi?.coins_today||0,
+              minutes_today: d.wifi?.minutes_today||0,
+              sessions_today: d.wifi?.sessions_today||0,
+              revenue_today: d.wifi?.revenue_today||0,
+              sites_count: d.wifi?.sites_count||0,
+            },
+            sites: d.sites||[],
+            recent_coins: d.recent_coins||[],
+          });
+        }).catch(()=>{});
       }
     } catch (e) {
       console.error(e);
@@ -2682,6 +2702,7 @@ function App() {
   const pageTitles = {
     dash:'Dashboard', browse: isManager?'Locations':'My Barangays', wall:'Live Wall',
     map:'Fleet Map', vpn:'VPN Clients', zerotier:'ZeroTier', gas:'Gasoline Vendo',
+    allvendo:'ALL VENDO',
     cctv:'CCTV Clients', server:'VPN Server', settings:'Settings', accounts:'Accounts',
   };
   const pageTitle = nav.stationId && isManager ? 'Station Detail' : (pageTitles[tab] || 'Portal');
@@ -2751,6 +2772,7 @@ function App() {
     <div class="section-head"><div><h3>Quick actions</h3><div class="sub">Jump to a workspace</div></div></div>
     <div class="quick-grid">
       <div class="quick" onClick=${()=>goTab('gas')}><b>Record Sale</b><span>Gasoline vendo</span></div>
+      <div class="quick" onClick=${()=>goTab('allvendo')}><b>ALL VENDO</b><span>WiFi · Bottle · Hotspot</span></div>
       <div class="quick" onClick=${()=>goTab('vpn')}><b>VPN Clients</b><span>Manage SSTP routers</span></div>
       <div class="quick" onClick=${()=>goTab('cctv')}><b>CCTV Clients</b><span>Cameras & tunnels</span></div>
       <div class="quick" onClick=${()=>goTab('zerotier')}><b>ZeroTier</b><span>Network members</span></div>
@@ -3081,6 +3103,124 @@ function App() {
       </tbody></table></div>
     </div>`;
   }
+  // ---- ALL VENDO (WiFi hotspot, bottle, overview) ----
+  else if (tab==='allvendo' && isManager) {
+    const wifi = vendoData.wifi || {};
+    const shownSites = (vendoData.sites||[]).filter(s => match(
+      (s.name||'')+(s.id||'')+String(s.devices||'')+String(s.coins_today||'')
+    ));
+    const shownCoins = (vendoData.recent_coins||[]).filter(c => match(
+      (c.site_name||'')+(c.voucher_code||'')+String(c.coins||'')+String(c.minutes_granted||'')
+    ));
+    body = html`<div>
+      <div class="dash-grid" style=${{marginBottom:'14px'}}>
+        <div class="metric">
+          <div class="ml">Today ₱</div>
+          <div class="mv">₱${Number(vendoData.total_revenue_today||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+          <div class="ms">WiFi hotspot vendo</div>
+        </div>
+        <div class="metric">
+          <div class="ml">Coins today</div>
+          <div class="mv">${wifi.coins_today||0}</div>
+          <div class="ms">${wifi.minutes_today||0} min granted</div>
+        </div>
+        <div class="metric">
+          <div class="ml">Active devices</div>
+          <div class="mv">${vendoData.active_devices||0}</div>
+          <div class="ms">${wifi.sites_count||0} hotspot sites</div>
+        </div>
+        <div class="metric">
+          <div class="ml">Sessions today</div>
+          <div class="mv">${wifi.sessions_today||0}</div>
+          <div class="ms">WiFi logins</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div><h3>Vendo types</h3><div class="sub">Cloud Hotspot, Empty Bottle, at Gasoline — isang portal</div></div>
+        <button class="ghost" onClick=${loadAll}>↻ Refresh</button>
+      </div>
+      <div class="grid g-devices" style=${{marginBottom:'22px'}}>
+        <div class="tile device-card" style=${{cursor:'default'}}>
+          <div class="dev-id">📶 Cloud Hotspot</div>
+          <div class="dev-name">MikroTik + ESP8266 coin machine</div>
+          <div class="dev-meta">
+            <span class="badge ${(vendoData.active_devices||0)>0?'b-ok':'b-warn'}">${(vendoData.active_devices||0)>0?'online':'no devices'}</span>
+            <div style=${{marginTop:'8px'}}>
+              <b>${wifi.coins_today||0}</b> coins · <b>${wifi.sessions_today||0}</b> sessions · <b>₱${Number(wifi.revenue_today||0).toLocaleString()}</b>
+            </div>
+            <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>
+              Captive portal: <a href="/portal/" target="_blank" rel="noopener">/portal/</a>
+            </div>
+          </div>
+        </div>
+        <div class="tile device-card" style=${{cursor:'default'}}>
+          <div class="dev-id">♻️ Empty Bottle</div>
+          <div class="dev-name">Smart bottle vendo + GCash/Maya</div>
+          <div class="dev-meta">
+            <span class="badge b-warn">Coming soon</span>
+            <div class="dim" style=${{fontSize:'11px',marginTop:'8px'}}>
+              GCash/Maya pay, cloud sales, online monitoring
+            </div>
+          </div>
+        </div>
+        <div class="tile device-card" style=${{cursor:'pointer'}} onClick=${()=>goTab('gas')}>
+          <div class="dev-id">⛽ Gasoline Vendo</div>
+          <div class="dev-name">GCash/Maya QR · ESP32 kiosks</div>
+          <div class="dev-meta">
+            <span class="badge b-ok">active</span>
+            <div style=${{marginTop:'8px'}}>
+              Today: <b>₱${Number(gasSummary.todayAmount||0).toLocaleString()}</b> · ${gasSummary.todayCount||0} tx
+            </div>
+            <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>Click to open Gasoline Vendo →</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div><h3>Cloud Hotspot sites</h3><div class="sub">WiFi vendo locations · MikroTik VLAN hotspot</div></div>
+      </div>
+      <div class="table-wrap" style=${{marginBottom:'22px'}}>
+        <table><thead><tr>
+          <th>Site</th><th>Devices</th><th>Sessions</th><th>Coins today</th><th>Rate</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${shownSites.map(s=>html`<tr key=${s.id}>
+            <td><b>${s.name}</b></td>
+            <td>${s.devices||0} <span class="dim">(${s.online_devices||0} online)</span></td>
+            <td>${s.active_sessions||0}</td>
+            <td class="mono">${s.coins_today||0}</td>
+            <td class="dim mono">₱${s.rate_per_hour||'—'}/hr · ${s.minutes_per_coin||'—'}m/coin</td>
+            <td><span class="badge ${(s.online_devices||0)>0?'b-ok':'b-warn'}">${(s.online_devices||0)>0?'online':'offline'}</span></td>
+          </tr>`)}
+          ${shownSites.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'16px'}}>
+            Walang hotspot site pa — gumawa via JM WiFi Cloud API.
+          </td></tr>`}
+        </tbody></table>
+      </div>
+
+      <div class="section-head">
+        <div><h3>Coin transactions</h3><div class="sub">ESP8266 coin inserts → WiFi minutes</div></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>When</th><th>Site</th><th>Coins</th><th>Minutes</th><th>Voucher</th>
+        </tr></thead>
+        <tbody>
+          ${shownCoins.map(c=>html`<tr key=${c.id||c.created_at+c.voucher_code}>
+            <td class="dim">${fmt(c.created_at)}</td>
+            <td><b>${c.site_name||'—'}</b></td>
+            <td class="mono">${c.coins||0}</td>
+            <td class="mono">${c.minutes_granted||0}</td>
+            <td class="mono dim">${c.voucher_code||'—'}</td>
+          </tr>`)}
+          ${shownCoins.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'28px'}}>
+            Walang coin transaction pa.
+          </td></tr>`}
+        </tbody></table>
+      </div>
+    </div>`;
+  }
   // ---- Accounts tab (staff + client viewers) ----
   else if (tab==='accounts' && isManager) {
     body = html`<div>
@@ -3213,6 +3353,7 @@ function App() {
         ${isManager && html`<button class=${tab==='vpn'&&!nav.stationId?'act':''} onClick=${()=>goTab('vpn')}>VPN Clients</button>`}
         ${isManager && html`<button class=${tab==='zerotier'&&!nav.stationId?'act':''} onClick=${()=>goTab('zerotier')}>ZeroTier</button>`}
         ${isManager && html`<button class=${tab==='gas'&&!nav.stationId?'act':''} onClick=${()=>goTab('gas')}>Gasoline Vendo</button>`}
+        ${isManager && html`<button class=${tab==='allvendo'&&!nav.stationId?'act':''} onClick=${()=>goTab('allvendo')}>ALL VENDO</button>`}
         ${isManager && html`<a class="nav-ext" href="/shop" target="_blank" rel="noopener">JM Market</a>`}
         ${isManager && html`<button class=${tab==='settings'&&!nav.stationId?'act':''} onClick=${()=>goTab('settings')}>Settings</button>`}
         ${isManager && html`<button class=${tab==='accounts'&&!nav.stationId?'act':''} onClick=${()=>goTab('accounts')}>Accounts</button>`}

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const apiRoutes = require('./routes/api');
+const vendoRoutes = require('./routes/vendo');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // API routes
 app.use('/api', apiRoutes);
+app.use('/api/vendo', vendoRoutes);
 
 // MikroTik captive portal (hotspot login page)
 app.use('/portal', express.static(path.join(__dirname, '../portal')));

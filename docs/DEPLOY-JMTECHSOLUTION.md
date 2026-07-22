@@ -1,4 +1,4 @@
-# jmtechsolution.cloud — Alisin ang All Vendo / Empty Bottle / Cloud Hotspot
+# jmtechsolution.cloud — Portal update (ALL VENDO button)
 
 Ang fix ay nasa GitHub na, pero kailangan i-run sa **VPS** (72.62.73.235) — hindi automatic ang update.
 
@@ -14,26 +14,22 @@ curl -sL https://raw.githubusercontent.com/jmmwireless99-dotcom/JM-WiFi-cloud/cu
 # 1. SSH sa VPS
 ssh root@72.62.73.235
 
-# 2. Hanapin ang portal file
-grep -r "Empty Bottle" /var/www /opt /home 2>/dev/null | head -3
+# 2. Backup at palitan
+cp /opt/mrp/public/index.html /opt/mrp/public/index.html.bak
+curl -fsSL "https://raw.githubusercontent.com/jmmwireless99-dotcom/JM-WiFi-cloud/cursor/jmwifi-hotspot-system-3173/site/monitoring/index.html" -o /opt/mrp/public/index.html
 
-# 3. Backup at palitan (palitan ang PATH)
-PATH="/var/www/.../index.html"
-cp "$PATH" "$PATH.bak"
-curl -fsSL "https://raw.githubusercontent.com/jmmwireless99-dotcom/JM-WiFi-cloud/cursor/jmwifi-hotspot-system-3173/site/monitoring/index.html" -o "$PATH"
+# 3. Restart app
+systemctl restart mrp-backend.service
 
-# 4. Restart app
-pm2 restart all
-# o: systemctl restart jmtech
-
-# 5. Browser: Ctrl+Shift+R
+# 4. Browser: Ctrl+Shift+R
 ```
 
 ## Pagkatapos i-deploy, sidebar dapat:
 
 ```
 Gasoline Vendo
-JM Market        ← diretso, walang All Vendo section
+ALL VENDO        ← bagong button (tulad ng Gasoline Vendo)
+JM Market
 Settings
 ...
 ```
