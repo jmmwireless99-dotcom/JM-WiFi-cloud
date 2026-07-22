@@ -5,12 +5,12 @@ After=network.target
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/jmtechsolution
+WorkingDirectory=/opt/jm-wifi-cloud
 ExecStart=/usr/bin/node server/index.js
 Restart=on-failure
 RestartSec=10
 Environment=NODE_ENV=production
-EnvironmentFile=/opt/jmtechsolution/.env
+EnvironmentFile=/opt/jm-wifi-cloud/.env
 
 [Install]
 WantedBy=multi-user.target
