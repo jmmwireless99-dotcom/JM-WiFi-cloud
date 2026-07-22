@@ -124,6 +124,21 @@ Default: **1 coin = 5 minutes**. Adjustable per site:
 UPDATE sites SET minutes_per_coin = 10 WHERE id = 'your-site-id';
 ```
 
+## Admin Portal (ALL VENDO)
+
+Monitoring dashboard na tumutugma sa jmtechsolution.cloud portal:
+
+```
+https://jmwifi.jmtechsolution.cloud/admin/
+```
+
+Sidebar may **ALL VENDO** button sa Operations section — central hub para sa:
+- WiFi Hotspot Vendo (MikroTik + ESP8266)
+- Gasoline Vendo
+- Empty Bottle Vendo (planned)
+
+Direct link: `/admin/#allvendo`
+
 ## Project Structure
 
 ```
