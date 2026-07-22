@@ -166,31 +166,77 @@ async function ensureOrSet(api, menuPath, key, value, props) {
   return null;
 }
 
-function fetchLoginHtml(host, user, pass, siteId, cloudBase) {
-  return new Promise((resolve) => {
-    const url = `${cloudBase.replace(/\/$/, '')}/mikrotik/login-${siteId}.html`;
-    const req = http.request(
-      {
-        host,
-        port: 80,
-        path: `/rest/tool/fetch`,
-        method: 'POST',
-        timeout: 8000,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64')
-        }
-      },
-      (res) => {
-        res.resume();
-        resolve(res.statusCode < 400);
-      }
-    );
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-    req.write(JSON.stringify({ url, 'dst-path': 'hotspot/login.html' }));
-    req.end();
+async function uploadLoginHtml(api, siteId, cloudBase) {
+  const url = `${cloudBase.replace(/\/$/, '')}/mikrotik/login-${siteId}.html`;
+  const attempts = [
+    ['=mode=https', '=check-certificate=no'],
+    ['=mode=http'],
+    []
+  ];
+  for (const extra of attempts) {
+    try {
+      await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
+      const files = await api.call(['/file/print', '?name=login.html']);
+      const hit = files.find((f) => String(f.name || '').includes('login.html'));
+      if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
+    } catch (e) {
+      console.log('[mikrotik-push] fetch login warn:', e.message);
+    }
+  }
+  return { ok: false, error: 'login.html hindi na-upload sa MikroTik' };
+}
+
+async function ensurePortalIp(api, iface, portalAddress, steps) {
+  const portalAddr = `${portalAddress}/24`;
+  const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
+  if (!addrs.some((a) => a.address === portalAddr)) {
+    await safeAdd(api, '/ip/address/add', {
+      address: portalAddr,
+      interface: iface,
+      comment: 'JM Hotspot captive portal'
+    });
+    steps.push(`Portal IP ${portalAddress} on ${iface}`);
+  }
+}
+
+async function ensurePauseProfile(api, site, cloud, steps) {
+  await ensureOrSet(api, '/ip/hotspot/user/profile', 'name', 'jmwifi-pause', {
+    name: 'jmwifi-pause',
+    'shared-users': '1',
+    'rate-limit': '2M/5M',
+    'keepalive-timeout': '2m',
+    'idle-timeout': 'none',
+    'status-autorefresh': '30s',
+    'add-mac-cookie': 'yes',
+    'mac-cookie-timeout': '1d',
+    'transparent-proxy': 'no',
+    comment: 'JM WiFi pause — no validity'
   });
+  if (site?.api_key) {
+    const onLogout =
+      `/tool fetch url="${cloud}/api/session/pause" http-method=post ` +
+      `http-data="{\\"mac\\":\\"$mac-address\\"}" ` +
+      `http-header-field="Content-Type: application/json,X-API-Key: ${site.api_key}" keep-result=no`;
+    try {
+      await api.call([
+        '/ip/hotspot/user/profile/set',
+        '=numbers=jmwifi-pause',
+        `=on-logout=${onLogout}`
+      ]);
+      steps.push('jmwifi-pause profile ready');
+    } catch {}
+  }
+}
+
+async function removeExtraHotspots(api, iface, keepName) {
+  const all = await api.call(['/ip/hotspot/print', `?interface=${iface}`]);
+  for (const hs of all) {
+    if (hs.name && hs.name !== keepName) {
+      try {
+        await api.call(['/ip/hotspot/remove', `=.id=${hs['.id']}`]);
+      } catch {}
+    }
+  }
 }
 
 /**
@@ -211,17 +257,21 @@ async function pushHotspotServer(server, options = {}) {
   const bridgeLocal = options.bridgeLocal || 'bridge-local';
 
   const central = isCentralHotspot(site);
-  const hsName = server.name || 'CENTRAL';
-  const iface = server.interface_name || (central ? 'bridge-hotspot' : 'bridge-hotspot');
+  const hsName = central ? 'CENTRAL' : (server.name || 'CENTRAL');
+  const iface = server.interface_name || 'bridge-hotspot';
   const profileName = server.profile_name || 'jmwifi';
   const dnsName = server.dns_name || 'jmwifi.local';
   const htmlDir = server.html_directory || 'hotspot';
   const loginBy = server.login_by || 'http-pap,cookie';
   const vlanIds = parseVlanIds(server);
-  const { gw, network, pool } = parseGateway(server.hs_address);
-  const portalAddress = central ? CENTRAL_GATEWAY : gw;
-  const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-  const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const portalAddress = central ? CENTRAL_GATEWAY : parseGateway(server.hs_address).gw;
+  const ifaceGw = central ? CENTRAL_GATEWAY : parseGateway(server.hs_address).gw;
+  const extraIp = central && server.hs_address && parseGateway(server.hs_address).gw !== CENTRAL_GATEWAY
+    ? parseGateway(server.hs_address).gw
+    : null;
+  const { network, pool } = parseGateway(central ? CENTRAL_GATEWAY : server.hs_address);
+  const poolName = central ? 'pool-central' : `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const dhcpName = central ? 'dhcp-central' : `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
 
   const api = new RouterOS(host, port);
   const steps = [];
@@ -232,8 +282,12 @@ async function pushHotspotServer(server, options = {}) {
     const identity = await api.call(['/system/identity/print']);
     steps.push(`Connected: ${identity[0]?.name || host}`);
 
-    await fetchLoginHtml(host, user, pass, site.id, cloud);
-    steps.push('login.html fetched');
+    const login = await uploadLoginHtml(api, site.id, cloud);
+    if (login.ok) {
+      steps.push(`login.html uploaded (${login.size} bytes)`);
+    } else {
+      steps.push(`WARN: ${login.error || 'login.html upload failed'}`);
+    }
 
     await ensureOrSet(api, '/interface/bridge', 'name', iface, {
       name: iface,
@@ -268,51 +322,54 @@ async function pushHotspotServer(server, options = {}) {
 
     await ensureOrSet(api, '/ip/pool', 'name', poolName, { name: poolName, ranges: pool });
 
-    const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
-    const gwAddr = `${gw}/24`;
-    const existing = addrs.find((a) => String(a.address || '').startsWith(`${gw.split('.').slice(0, 3).join('.')}.`));
-    if (existing && existing.address !== gwAddr) {
-      await api.call(['/ip/address/set', `=.id=${existing['.id']}`, `=address=${gwAddr}`]);
-    } else if (!addrs.some((a) => a.address === gwAddr)) {
-      await safeAdd(api, '/ip/address/add', {
-        address: gwAddr,
-        interface: iface,
-        comment: `JM Hotspot ${hsName}`
-      });
-    }
-    if (central && portalAddress !== gw) {
-      const portalAddr = `${portalAddress}/24`;
-      if (!addrs.some((a) => a.address === portalAddr)) {
+    await ensurePortalIp(api, iface, portalAddress, steps);
+
+    if (extraIp) {
+      const extraAddr = `${extraIp}/24`;
+      const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
+      if (!addrs.some((a) => a.address === extraAddr)) {
         await safeAdd(api, '/ip/address/add', {
-          address: portalAddr,
+          address: extraAddr,
           interface: iface,
-          comment: 'JM Hotspot captive portal'
+          comment: `JM Hotspot ${server.name || 'extra'}`
         });
-        steps.push(`Portal IP ${portalAddress} on ${iface}`);
+        steps.push(`Extra interface IP ${extraIp} on ${iface}`);
       }
     }
-    steps.push(`Interface IP ${gw} on ${iface}`);
+    steps.push(`Captive portal ${portalAddress} · DHCP ${network}`);
 
-    await ensureOrSet(api, '/ip/dhcp-server', 'name', dhcpName, {
-      name: dhcpName,
-      interface: iface,
-      'address-pool': poolName,
-      'lease-time': '30m'
-    });
+    const existingDhcp = await api.call(['/ip/dhcp-server/print', `?interface=${iface}`]);
+    if (existingDhcp.length && existingDhcp[0].name !== dhcpName) {
+      await api.call([
+        '/ip/dhcp-server/set',
+        `=.id=${existingDhcp[0]['.id']}`,
+        `=name=${dhcpName}`,
+        `=address-pool=${poolName}`,
+        '=lease-time=30m'
+      ]);
+    } else {
+      await ensureOrSet(api, '/ip/dhcp-server', 'name', dhcpName, {
+        name: dhcpName,
+        interface: iface,
+        'address-pool': poolName,
+        'lease-time': '30m'
+      });
+    }
 
     const nets = await api.call(['/ip/dhcp-server/network/print', `?address=${network}`]);
+    const dhcpGw = central ? portalAddress : ifaceGw;
     if (nets.length) {
       await api.call([
         '/ip/dhcp-server/network/set',
         `=.id=${nets[0]['.id']}`,
-        `=gateway=${gw}`,
-        `=dns-server=${gw}`
+        `=gateway=${dhcpGw}`,
+        `=dns-server=${dhcpGw}`
       ]);
     } else {
       await safeAdd(api, '/ip/dhcp-server/network/add', {
         address: network,
-        gateway: gw,
-        'dns-server': gw
+        gateway: dhcpGw,
+        'dns-server': dhcpGw
       });
     }
 
@@ -332,6 +389,8 @@ async function pushHotspotServer(server, options = {}) {
     });
     steps.push(`Profile ${profileName} hotspot-address=${portalAddress}`);
 
+    if (central) await removeExtraHotspots(api, iface, hsName);
+
     await ensureOrSet(api, '/ip/hotspot', 'name', hsName, {
       name: hsName,
       interface: iface,
@@ -349,12 +408,13 @@ async function pushHotspotServer(server, options = {}) {
       }
     }
 
-    const natComment = `JM Hotspot NAT ${hsName}`;
+    const natComment = central ? 'JM Hotspot NAT' : `JM Hotspot NAT ${hsName}`;
+    const natNet = central ? '10.0.0.0/24' : network;
     const nat = await api.call(['/ip/firewall/nat/print', `?comment=${natComment}`]);
     if (!nat.length) {
       await safeAdd(api, '/ip/firewall/nat/add', {
         chain: 'srcnat',
-        'src-address': network,
+        'src-address': natNet,
         action: 'masquerade',
         comment: natComment
       });
@@ -362,23 +422,11 @@ async function pushHotspotServer(server, options = {}) {
       await api.call([
         '/ip/firewall/nat/set',
         `=.id=${nat[0]['.id']}`,
-        `=src-address=${network}`
+        `=src-address=${natNet}`
       ]);
     }
 
-    if (site.api_key) {
-      const onLogout =
-        `/tool fetch url="${cloud}/api/session/pause" http-method=post ` +
-        `http-data="{\\"mac\\":\\"$mac-address\\"}" ` +
-        `http-header-field="Content-Type: application/json,X-API-Key: ${site.api_key}" keep-result=no`;
-      try {
-        await api.call([
-          '/ip/hotspot/user/profile/set',
-          '=numbers=jmwifi-pause',
-          `=on-logout=${onLogout}`
-        ]);
-      } catch {}
-    }
+    await ensurePauseProfile(api, site, cloud, steps);
 
     const hs = await api.call(['/ip/hotspot/print', `?name=${hsName}`]);
     steps.push(`Hotspot ${hsName} active on ${iface}`);
@@ -388,7 +436,7 @@ async function pushHotspotServer(server, options = {}) {
       success: true,
       host,
       identity: identity[0]?.name,
-      gateway: gw,
+      gateway: central ? portalAddress : ifaceGw,
       hotspot_address: portalAddress,
       vlans: vlanIds,
       hotspot: hs[0]?.name || hsName,
