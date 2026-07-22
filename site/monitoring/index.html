@@ -1,0 +1,3270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JM TECH SOLUTION</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzPCf9ltuBAm9dVaHd/sfpsz+8=" crossorigin="" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htm/3.1.1/htm.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  :root {
+    --bg:#0a101c; --bg2:#0d1524; --side:#0c1422; --card:#121a2b; --card2:#162235;
+    --line:#1e2a3d; --line2:#2a3a52; --txt:#e8eef6; --dim:#8b9cb3;
+    --acc:#3b82f6; --acc2:#2563eb; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    --shadow:0 8px 28px rgba(0,0,0,.35); --r:12px; --side-w:248px;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body {
+    min-height:100vh; color:var(--txt);
+    font:14.5px/1.5 "IBM Plex Sans",Segoe UI,sans-serif;
+    background:var(--bg);
+  }
+  .shell { display:flex; min-height:100vh; background:var(--bg); }
+  .sidebar {
+    width:var(--side-w); flex-shrink:0; background:var(--side);
+    border-right:1px solid var(--line); display:flex; flex-direction:column;
+    position:sticky; top:0; height:100vh; z-index:40; padding:18px 14px;
+  }
+  .sidebar .side-brand { display:flex; align-items:center; gap:10px; padding:4px 8px 18px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+  .sidebar .side-brand img { height:36px; width:auto; object-fit:contain; }
+  .sidebar .side-brand .sb-t { font-size:13px; font-weight:700; letter-spacing:.02em; line-height:1.25; }
+  .sidebar .side-brand .sb-s { font-size:11px; color:var(--dim); font-weight:500; }
+  .nav { display:flex; flex-direction:column; gap:4px; flex:1; overflow:auto; }
+  .nav button {
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:transparent; color:var(--dim); border:0; border-radius:10px;
+    padding:10px 12px 10px 14px; font-weight:600; font-size:13px; position:relative;
+    box-shadow:none; transform:none; filter:none;
+  }
+  .nav button:hover:not(:disabled) {
+    color:var(--txt); background:rgba(255,255,255,.04); transform:none; filter:none;
+  }
+  .nav button.act {
+    color:var(--txt); background:rgba(59,130,246,.12);
+    box-shadow:none;
+  }
+  .nav button.act::before {
+    content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px;
+    border-radius:0 3px 3px 0; background:var(--acc);
+  }
+  .nav .nav-sec {
+    font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim);
+    padding:14px 12px 6px; font-weight:650;
+  }
+  .nav a.nav-ext {
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    color:var(--dim); border-radius:10px; padding:10px 12px 10px 14px;
+    font-weight:600; font-size:13px; text-decoration:none;
+  }
+  .nav a.nav-ext:hover { color:var(--txt); background:rgba(255,255,255,.04); }
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .main > .topbar {
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; gap:14px;
+    padding:12px 22px; background:rgba(10,16,28,.92);
+    border-bottom:1px solid var(--line); backdrop-filter:blur(10px);
+  }
+  .menu-btn {
+    display:none; background:rgba(59,130,246,.1); color:var(--txt);
+    border:1px solid var(--line2); border-radius:8px; padding:8px 10px; font-size:16px;
+  }
+  .menu-btn:hover:not(:disabled) { filter:none; transform:none; background:rgba(59,130,246,.18); }
+  .top-search {
+    flex:1; max-width:420px; margin:0 auto;
+    background:rgba(18,26,43,.9) !important; border:1px solid var(--line) !important;
+    border-radius:999px !important; padding:10px 18px !important; text-align:center;
+  }
+  .top-search:focus { border-color:var(--acc) !important; box-shadow:0 0 0 3px rgba(59,130,246,.18) !important; }
+  .topbar-right { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .avatar {
+    width:34px; height:34px; border-radius:50%;
+    background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff;
+  }
+  .content { padding:22px 24px 40px; max-width:1400px; width:100%; margin:0 auto; }
+  .page-head { margin-bottom:18px; }
+  .page-head h1 { font-size:22px; font-weight:700; letter-spacing:-.02em; }
+  .page-head .crumb { color:var(--dim); font-size:12.5px; margin-top:4px; }
+  .dash-grid {
+    display:grid; grid-template-columns:repeat(12,1fr); gap:14px; margin-bottom:18px;
+  }
+  .metric {
+    grid-column:span 3; background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px;
+    box-shadow:0 4px 16px rgba(0,0,0,.2); position:relative; overflow:hidden;
+  }
+  .metric.wide { grid-column:span 6; }
+  .metric .ml { color:var(--dim); font-size:12px; font-weight:600; }
+  .metric .mv { font-size:28px; font-weight:750; letter-spacing:-.03em; margin:6px 0 4px; }
+  .metric .ms { font-size:12px; color:var(--dim); }
+  .trend.up { color:var(--ok); }
+  .trend.down { color:var(--bad); }
+  .spark {
+    height:36px; margin-top:10px; display:flex; align-items:flex-end; gap:3px;
+  }
+  .spark i {
+    flex:1; display:block; border-radius:2px 2px 0 0;
+    background:linear-gradient(180deg,rgba(59,130,246,.55),rgba(59,130,246,.15));
+    height:var(--h,40%);
+  }
+  .bars {
+    display:flex; align-items:flex-end; gap:4px; height:40px; margin-top:10px;
+  }
+  .bars span {
+    flex:1; border-radius:3px 3px 0 0;
+    background:rgba(34,197,94,.35); height:var(--h,50%);
+  }
+  .quick-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  .quick {
+    background:linear-gradient(165deg,rgba(28,45,66,.95),rgba(15,26,40,.98));
+    border:1px solid var(--line); border-radius:14px; padding:16px; cursor:pointer;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .quick:hover { border-color:rgba(59,130,246,.55); transform:translateY(-2px); }
+  .quick b { display:block; font-size:14px; margin-bottom:4px; }
+  .quick span { color:var(--dim); font-size:12px; }
+  .login-wrap {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:24px; background:
+      radial-gradient(800px 400px at 20% 0%, rgba(59,130,246,.12), transparent 55%),
+      radial-gradient(600px 360px at 90% 10%, rgba(34,197,94,.06), transparent 50%),
+      var(--bg);
+  }
+  h1 { font-size:20px; font-weight:700; letter-spacing:-.01em; }
+  h3 { font-size:15px; font-weight:650; letter-spacing:-.01em; }
+  .panel {
+    background:linear-gradient(180deg, rgba(22,34,53,.92), rgba(18,26,43,.96));
+    border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+    box-shadow:var(--shadow); backdrop-filter:blur(8px);
+  }
+  .card {
+    background:linear-gradient(180deg, var(--card2), var(--card));
+    border:1px solid var(--line); border-radius:var(--r); padding:16px;
+    box-shadow:0 4px 16px rgba(0,0,0,.16);
+  }
+  .grid { display:grid; gap:14px; }
+  .g-tiles { grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+  .g-vpn { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+  .g-cams { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+  .tile.vpn-sq {
+    aspect-ratio:1/1; display:flex; flex-direction:column; justify-content:space-between;
+    min-height:0; padding:18px;
+  }
+  .tile.vpn-sq .n { font-size:15px; word-break:break-word; line-height:1.25; }
+  .tile.vpn-sq .c { font-size:11.5px; line-height:1.45; }
+  .tile.vpn-sq .vpn-actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; flex-wrap:wrap; }
+  .g-devices { grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+  .tile.device-card {
+    min-height:140px; display:flex; flex-direction:column; cursor:default;
+    border:1px solid var(--line); background:var(--card);
+  }
+  .tile.device-card .dev-id { font-size:11px; color:var(--dim); letter-spacing:.06em; text-transform:uppercase; }
+  .tile.device-card .dev-name { font-size:16px; font-weight:700; color:var(--acc); margin:4px 0 8px; word-break:break-word; }
+  .tile.device-card .dev-meta { font-size:12px; color:var(--dim); line-height:1.45; }
+  .tile.device-card .dev-actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; flex-wrap:wrap; }
+  .table-wrap { overflow-x:auto; border-radius:var(--r); border:1px solid var(--line); background:var(--card); }
+  table { width:100%; border-collapse:collapse; min-width:720px; }
+  th,td { text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  th {
+    color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; background:rgba(10,16,28,.55); position:sticky; top:0;
+  }
+  tbody tr:hover td { background:rgba(59,130,246,.04); }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace; font-size:12.5px; }
+  .badge {
+    display:inline-flex; align-items:center; gap:4px; padding:3px 9px;
+    border-radius:999px; font-size:11px; font-weight:600; letter-spacing:.02em;
+  }
+  .b-active,.b-ok { background:rgba(34,197,94,.14); color:var(--ok); border:1px solid rgba(34,197,94,.25); }
+  .b-expired,.b-bad { background:rgba(239,68,68,.14); color:var(--bad); border:1px solid rgba(239,68,68,.25); }
+  .b-disabled,.b-warn { background:rgba(245,158,11,.14); color:var(--warn); border:1px solid rgba(245,158,11,.25); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+  .on { background:var(--ok); box-shadow:0 0 8px rgba(34,197,94,.7); }
+  .off { background:#4a5c73; }
+  button {
+    background:linear-gradient(180deg, #60a5fa, var(--acc2));
+    color:#fff; border:0; border-radius:8px; padding:8px 14px;
+    font-weight:650; cursor:pointer; font-size:13px; font-family:inherit;
+    transition:transform .12s ease, filter .12s ease, opacity .12s ease;
+  }
+  button:hover:not(:disabled) { filter:brightness(1.06); transform:translateY(-1px); }
+  button.ghost {
+    background:rgba(59,130,246,.08); color:#93c5fd; border:1px solid var(--line2);
+  }
+  button.ghost:hover:not(:disabled) { border-color:var(--acc); background:rgba(59,130,246,.14); }
+  button.danger { background:transparent; color:var(--bad); border:1px solid rgba(239,68,68,.35); }
+  button.danger:hover:not(:disabled) { background:rgba(239,68,68,.1); }
+  button:disabled { opacity:.45; cursor:default; transform:none; }
+  input,select {
+    background:rgba(10,16,28,.72); color:var(--txt); border:1px solid var(--line);
+    border-radius:8px; padding:9px 11px; font-size:14px; width:100%; font-family:inherit;
+  }
+  input:focus,select:focus { outline:none; border-color:var(--acc); box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+  .row { display:flex; gap:10px; align-items:center; }
+  .crumbs {
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    margin:0 0 14px; color:var(--dim); font-size:13px;
+  }
+  .crumbs a { color:#93c5fd; cursor:pointer; text-decoration:none; font-weight:500; }
+  .crumbs a:hover { text-decoration:underline; }
+  .tile {
+    background:linear-gradient(165deg, rgba(28,45,66,.95), rgba(15,26,40,.98));
+    border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px;
+    cursor:pointer; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 4px 14px rgba(0,0,0,.18);
+  }
+  .tile:hover {
+    border-color:rgba(59,130,246,.55); transform:translateY(-2px);
+    box-shadow:0 10px 24px rgba(0,0,0,.28), 0 0 0 1px rgba(59,130,246,.12);
+  }
+  .tile .n { font-weight:700; margin-bottom:6px; font-size:14.5px; }
+  .tile .c { color:var(--dim); font-size:12px; }
+  .section-head {
+    display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+    flex-wrap:wrap; margin-bottom:14px;
+  }
+  .section-head h3 { margin:0; }
+  .section-head .sub { color:var(--dim); font-size:12.5px; font-weight:400; margin-top:2px; }
+  .fleet-map {
+    height:min(70vh, 640px); min-height:420px; width:100%; border-radius:var(--r);
+    border:1px solid var(--line); overflow:hidden; background:#0d1524;
+  }
+  .fleet-map .leaflet-container { height:100%; width:100%; background:#0d1524; font:inherit; }
+  .map-legend { display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 0; font-size:12.5px; color:var(--dim); }
+  .map-legend span { display:inline-flex; align-items:center; gap:6px; }
+  .map-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .map-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .map-filters label { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--dim); cursor:pointer; user-select:none; }
+  .map-filters input { accent-color:var(--acc); }
+  .empty {
+    grid-column:1/-1; text-align:center; color:var(--dim);
+    padding:36px 16px; border:1px dashed var(--line); border-radius:14px;
+    background:rgba(10,16,28,.28);
+  }
+  .cam {
+    background:linear-gradient(180deg, var(--card2), var(--card));
+    border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+  .cam .vid {
+    position:relative; aspect-ratio:16/9; background:#02060b; display:flex;
+    align-items:center; justify-content:center; cursor:pointer;
+  }
+  .cam video { width:100%; height:100%; object-fit:contain; }
+  .cam .meta {
+    padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px;
+    border-top:1px solid var(--line);
+  }
+  .cam .meta .nm { font-weight:650; font-size:13.5px; }
+  .cam .meta .loc { color:var(--dim); font-size:11.5px; margin-top:2px; }
+  .playbtn {
+    width:54px; height:54px; border-radius:50%;
+    background:linear-gradient(180deg, #60a5fa, var(--acc2));
+    display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;
+    box-shadow:0 8px 20px rgba(37,99,235,.35);
+  }
+  .vstat {
+    position:absolute; bottom:10px; left:10px; font-size:11px; background:rgba(0,0,0,.62);
+    padding:3px 9px; border-radius:6px; border:1px solid rgba(255,255,255,.08);
+  }
+  .modal-bg {
+    position:fixed; inset:0; background:rgba(2,8,14,.72); display:flex;
+    align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(4px);
+  }
+  .modal {
+    background:linear-gradient(180deg, #1a2a3d, #121a2b);
+    border:1px solid var(--line2); border-radius:16px;
+    padding:24px; width:min(640px,94vw); max-height:90vh; overflow:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+  }
+  .modal h2 { font-size:17px; margin-bottom:8px; }
+  label { display:block; color:var(--dim); font-size:12px; margin:12px 0 5px; font-weight:500; }
+  pre {
+    background:rgba(10,16,28,.7); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; overflow:auto; font-size:12px; white-space:pre-wrap;
+    font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  }
+  .copy { float:right; font-size:11px; padding:4px 9px; }
+  .content .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; position:static; background:transparent; border:0; padding:0; backdrop-filter:none; }
+  .login {
+    max-width:400px; width:100%; margin:0 auto; padding:28px 26px;
+    background:linear-gradient(180deg, rgba(28,45,66,.95), rgba(14,24,38,.98));
+    border:1px solid var(--line2); border-radius:18px; box-shadow:var(--shadow);
+  }
+  .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand img { height:48px; width:auto; object-fit:contain; }
+  .brand .title { line-height:1.2; min-width:0; }
+  .brand .title b { display:block; font-size:17px; letter-spacing:.01em; }
+  .brand .title span { color:var(--dim); font-size:12px; }
+  .login-brand { text-align:center; margin-bottom:20px; }
+  .login-brand img { height:112px; width:auto; max-width:100%; object-fit:contain; margin:0 auto 10px; display:block; }
+  .login-brand .name { font-size:21px; font-weight:750; letter-spacing:.03em; }
+  .login-brand .tag { color:var(--dim); font-size:12.5px; margin-top:4px; }
+
+  /* ── Public landing (ads / products) ── */
+  .land {
+    min-height:100vh; color:var(--txt);
+    background:
+      radial-gradient(ellipse 90% 60% at 10% -10%, rgba(34,197,94,.18), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 95% 20%, rgba(59,130,246,.16), transparent 50%),
+      linear-gradient(165deg, #061018 0%, #0a1624 45%, #0c1a14 100%);
+  }
+  .land-top {
+    position:fixed; inset:0 0 auto 0; z-index:30;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; pointer-events:none;
+  }
+  .land-top .land-logo {
+    pointer-events:auto; display:flex; align-items:center; gap:10px;
+    text-decoration:none; color:var(--txt);
+  }
+  .land-top .land-logo img { height:40px; width:auto; }
+  .land-top .land-logo b {
+    font-family:Syne,IBM Plex Sans,sans-serif; font-size:15px; font-weight:700;
+    letter-spacing:.02em;
+  }
+  .land-login-btn {
+    pointer-events:auto; position:fixed; top:50%; right:0; z-index:40;
+    transform:translateY(-50%);
+    writing-mode:vertical-rl; text-orientation:mixed;
+    background:linear-gradient(180deg,#22c55e,#16a34a);
+    color:#052e16; border:0; border-radius:10px 0 0 10px;
+    padding:18px 10px; font-weight:800; font-size:13px; letter-spacing:.12em;
+    box-shadow:-4px 0 24px rgba(34,197,94,.35); cursor:pointer;
+  }
+  .land-login-btn:hover { filter:brightness(1.08); }
+  .land-hero {
+    min-height:100vh; display:flex; flex-direction:column; justify-content:flex-end;
+    padding:100px 24px 56px; max-width:1100px; margin:0 auto;
+    position:relative;
+  }
+  .land-hero::before {
+    content:""; position:absolute; inset:8% 5% auto auto; width:min(420px,50vw); height:min(420px,50vw);
+    border-radius:50%; background:radial-gradient(circle, rgba(251,191,36,.12), transparent 70%);
+    pointer-events:none;
+  }
+  .land-hero .eyebrow {
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#86efac; font-weight:600;
+    margin-bottom:14px;
+  }
+  .land-hero h1 {
+    font-family:Syne,IBM Plex Sans,sans-serif;
+    font-size:clamp(36px,7vw,64px); font-weight:800; line-height:1.05;
+    letter-spacing:-.02em; max-width:14ch; margin:0 0 16px;
+  }
+  .land-hero .lead {
+    font-size:clamp(15px,2.2vw,18px); color:#b8c9db; max-width:36ch; margin:0 0 28px; line-height:1.45;
+  }
+  .land-cta { display:flex; flex-wrap:wrap; gap:12px; }
+  .land-cta a, .land-cta button {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:12px 20px; border-radius:999px; font-weight:700; font-size:14px;
+    text-decoration:none; border:0; cursor:pointer;
+  }
+  .land-cta .pri { background:#fbbf24; color:#1a1200; }
+  .land-cta .sec { background:rgba(255,255,255,.08); color:#e8eef6; border:1px solid rgba(255,255,255,.18); }
+  .land-sec {
+    padding:64px 24px; max-width:1100px; margin:0 auto;
+  }
+  .land-hero-top {
+    min-height:auto; justify-content:flex-start;
+    padding:72px 24px 12px; max-width:1100px; margin:0 auto;
+  }
+  .land-hero-top h1 {
+    max-width:none; font-size:clamp(32px,8vw,56px);
+  }
+  .land-hero-top .lead { margin-bottom:12px; max-width:48ch; }
+  .land-sec-products {
+    padding-top:8px; padding-bottom:32px;
+  }
+  .land-sec-contact {
+    padding-top:0; padding-bottom:40px; scroll-margin-top:72px;
+  }
+  .land-sec h2 {
+    font-family:Syne,IBM Plex Sans,sans-serif; font-size:clamp(24px,4vw,34px);
+    font-weight:700; margin:0 0 8px;
+  }
+  .land-sec .sub { color:var(--dim); margin:0 0 28px; max-width:42ch; }
+  .land-prods {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px;
+    align-items:stretch;
+  }
+  .land-prod {
+    display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    padding:0; border-radius:16px; overflow:hidden; height:100%;
+    background:linear-gradient(160deg, rgba(22,34,48,.9), rgba(10,18,28,.95));
+    border:1px solid rgba(255,255,255,.08);
+    transition:transform .2s, border-color .2s;
+  }
+  .land-prod:hover { transform:translateY(-3px); border-color:rgba(34,197,94,.45); }
+  .land-prod .thumb {
+    width:100%; height:120px; overflow:hidden; background:#0a1219;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .land-prod .thumb img {
+    width:100%; height:100%; object-fit:contain; display:block;
+  }
+  .land-prod .body {
+    padding:14px 16px 16px; flex:1; display:flex; flex-direction:column;
+  }
+  .land-prod .ico {
+    width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
+    font-size:22px; margin-bottom:14px;
+    background:rgba(34,197,94,.12);
+  }
+  .land-prod h3 {
+    font-size:15px; font-weight:700; margin:0 0 6px; font-family:Syne,sans-serif;
+    line-height:1.35; min-height:2.7em;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .land-prod .plink { display:block; font-size:11px; color:#7dd3fc; margin:0 0 6px; }
+  .land-prod p {
+    margin:0; margin-top:auto; font-size:12.5px; color:var(--dim); line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .land-contact-card {
+    padding:28px 24px; border-radius:18px;
+    background:linear-gradient(160deg, rgba(22,34,48,.92), rgba(10,18,28,.98));
+    border:1px solid rgba(34,197,94,.22);
+  }
+  .land-contact-card h2 {
+    font-family:Syne,IBM Plex Sans,sans-serif; font-size:clamp(22px,3.5vw,28px);
+    font-weight:700; margin:0 0 6px;
+  }
+  .land-contact-card .owner {
+    font-size:18px; font-weight:700; color:#86efac; margin:0 0 18px;
+  }
+  .land-contact-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 20px;
+  }
+  .land-contact-item { font-size:14px; line-height:1.5; }
+  .land-contact-item .lbl {
+    display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--dim); margin-bottom:4px; font-weight:600;
+  }
+  .land-contact-item a { color:#7dd3fc; text-decoration:none; word-break:break-word; }
+  .land-contact-item a:hover { text-decoration:underline; color:#bae6fd; }
+  .land-contact-item span { color:var(--text, #e2e8f0); }
+  .land-contact-wide { grid-column:1 / -1; }
+  .land-foot {
+    padding:32px 24px 110px; text-align:center; color:var(--dim); font-size:12px;
+    border-top:1px solid rgba(255,255,255,.06);
+  }
+  .chat-fab {
+    position:fixed; right:18px; bottom:18px; z-index:45;
+    width:56px; height:56px; border-radius:50%; border:0; cursor:pointer;
+    background:linear-gradient(145deg,#3b82f6,#1d4ed8); color:#fff;
+    font-size:24px; box-shadow:0 8px 28px rgba(37,99,235,.45);
+  }
+  .chat-panel {
+    position:fixed; right:18px; bottom:86px; z-index:45;
+    width:min(340px,calc(100vw - 28px)); height:420px;
+    display:flex; flex-direction:column;
+    background:#0f172a; border:1px solid var(--line2); border-radius:16px;
+    box-shadow:0 16px 48px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .chat-panel header {
+    padding:12px 14px; background:rgba(59,130,246,.15); font-weight:700; font-size:13px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .chat-panel header button { background:transparent; border:0; color:var(--dim); cursor:pointer; font-size:18px; }
+  .chat-msgs { flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .chat-bubble {
+    max-width:88%; padding:8px 11px; border-radius:12px; font-size:13px; line-height:1.4;
+  }
+  .chat-bubble.bot { align-self:flex-start; background:#1e293b; color:#e2e8f0; }
+  .chat-bubble.me { align-self:flex-end; background:#2563eb; color:#fff; }
+  .chat-quick { display:flex; flex-wrap:wrap; gap:6px; padding:0 12px 8px; }
+  .chat-quick button {
+    font-size:11px; padding:5px 9px; border-radius:999px; cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid var(--line2); color:var(--txt);
+  }
+  .chat-input {
+    display:flex; gap:6px; padding:10px; border-top:1px solid var(--line);
+  }
+  .chat-input input {
+    flex:1; background:#0a101c; border:1px solid var(--line2); border-radius:8px;
+    color:var(--txt); padding:8px 10px; font-size:13px;
+  }
+  .chat-input button {
+    background:var(--acc); color:#fff; border:0; border-radius:8px; padding:8px 12px;
+    font-weight:700; cursor:pointer;
+  }
+  .login-drawer-bg {
+    position:fixed; inset:0; z-index:50; background:rgba(2,8,14,.65);
+    backdrop-filter:blur(4px);
+  }
+  .login-drawer {
+    position:fixed; top:0; right:0; bottom:0; z-index:51;
+    width:min(400px,100vw); padding:28px 22px;
+    background:linear-gradient(180deg,#122033,#0a121c);
+    border-left:1px solid var(--line2);
+    box-shadow:-12px 0 40px rgba(0,0,0,.45);
+    overflow:auto;
+  }
+  .login-drawer .close-x {
+    position:absolute; top:14px; left:14px; background:transparent; border:0;
+    color:var(--dim); font-size:22px; cursor:pointer;
+  }
+  @media (max-width:640px) {
+    .land-login-btn { padding:12px 7px; font-size:10px; letter-spacing:.08em; }
+    .land-hero-top { padding:64px 16px 8px; }
+    .land-hero-top h1 { font-size:clamp(28px,9vw,40px); }
+    .land-sec { padding:40px 16px; }
+    .land-sec-products { padding-top:4px; padding-bottom:24px; }
+    .land-prods { grid-template-columns:1fr; gap:14px; }
+    .land-prod .thumb { height:108px; }
+    .land-prod h3 { min-height:auto; font-size:14px; }
+    .land-contact-card { padding:22px 18px; }
+    .land-contact-grid { grid-template-columns:1fr; gap:12px; }
+    .land-foot { padding:28px 16px 120px; }
+  }
+  .err { color:var(--bad); font-size:13px; margin-top:8px; }
+  .dim { color:var(--dim); }
+  .statbar {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+    gap:12px; margin:0 0 16px;
+  }
+  .stat {
+    background:linear-gradient(180deg, var(--card2), var(--card));
+    border:1px solid var(--line); border-radius:12px;
+    padding:14px 12px; text-align:center;
+  }
+  .stat .v { font-size:22px; font-weight:750; color:var(--acc); letter-spacing:-.02em; }
+  .stat .l { font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+  details.adv { margin-top:12px; }
+  details.adv summary { color:var(--dim); font-size:12px; cursor:pointer; }
+  .role-chip {
+    display:inline-flex; align-items:center; padding:5px 10px; border-radius:999px;
+    background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.22);
+    color:#93c5fd; font-size:12px; font-weight:600; white-space:nowrap;
+  }
+  .search { width:190px; background:rgba(10,16,28,.65) !important; }
+  .side-backdrop {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:35;
+  }
+  @media (max-width:900px) {
+    .sidebar {
+      position:fixed; left:0; top:0; transform:translateX(-105%);
+      transition:transform .2s ease; box-shadow:0 0 40px rgba(0,0,0,.5);
+    }
+    .sidebar.open { transform:translateX(0); }
+    .menu-btn { display:inline-flex; }
+    .side-backdrop.show { display:block; }
+    .metric, .metric.wide { grid-column:span 6; }
+    .g-vpn { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+  }
+  @media (max-width:560px) {
+    .metric, .metric.wide { grid-column:span 12; }
+    .content { padding:16px 14px 28px; }
+    .top-search { max-width:none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const { useState, useEffect, useRef, useCallback } = React;
+const html = htm.bind(React.createElement);
+
+let TOKEN = sessionStorage.getItem('cctv_token') || '';
+/** Empty = site root (https://jmtechsolution.cloud/). Legacy /cctv still works if proxied. */
+const BASE = (() => {
+  const m = location.pathname.match(/^(\/cctv)(?:\/|$)/);
+  return m ? m[1] : '';
+})();
+const LOGO = BASE + '/logo.png';
+const payUrl = (deviceId) => location.origin + BASE + '/pay/' + deviceId;
+
+function BrandMark({ large }) {
+  if (large) return html`<div class="login-brand">
+    <img src=${LOGO} alt="JM TECH SOLUTION" />
+    <div class="name">JM TECH SOLUTION</div>
+    <div class="tag">CCTV · VPN · Remote Monitoring</div>
+  </div>`;
+  return html`<div class="brand">
+    <img src=${LOGO} alt="JM TECH SOLUTION" />
+    <div class="title"><b>JM TECH SOLUTION</b><span>Remote Monitoring Portal</span></div>
+  </div>`;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(BASE + '/api' + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN, ...(opts.headers||{}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (res.status === 401 && path !== '/login') { TOKEN=''; sessionStorage.removeItem('cctv_token'); sessionStorage.removeItem('cctv_user'); location.reload(); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+const fmt = d => d ? new Date(d).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}) : 'Never';
+async function copyTxt(text) {
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (!ok) throw new Error('copy failed');
+  };
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallback();
+    }
+    return true;
+  } catch {
+    try { fallback(); return true; } catch { alert('Copy failed — select the text in the box and press Ctrl+C'); return false; }
+  }
+}
+async function copyScript(text) {
+  if (await copyTxt(text)) alert('Script copied to clipboard!');
+}
+const upSec = s => { const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  return (d?d+'d ':'')+(h?h+'h ':'')+m+'m'; };
+
+async function delGeo(level, id, label, reload) {
+  if (!confirm(`Delete "${label}"?\n\nKasama LAHAT ng cities, municipals, barangays, at CCTV sa loob.`)) return;
+  try {
+    await api('/geo/'+level+'/'+id, { method: 'DELETE' });
+    await reload();
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+function LatLngFields({ lat, lng, onChange, hint }) {
+  return html`<div>
+    <label>Map location <span class="dim">(lat, lng)</span></label>
+    <div class="row">
+      <div style=${{flex:1}}>
+        <input class="mono" value=${lat ?? ''} placeholder="11.0050"
+          onInput=${e=>onChange({ lat: e.target.value, lng })} />
+      </div>
+      <div style=${{flex:1}}>
+        <input class="mono" value=${lng ?? ''} placeholder="122.7500"
+          onInput=${e=>onChange({ lat, lng: e.target.value })} />
+      </div>
+    </div>
+    <p class="dim" style=${{margin:'4px 0 0',fontSize:'12px'}}>
+      ${hint || 'Right-click sa Google Maps → copy coordinates. Blanko = walang pin.'}
+    </p>
+  </div>`;
+}
+
+function parseFormLatLng(lat, lng) {
+  const a = String(lat ?? '').trim();
+  const b = String(lng ?? '').trim();
+  if (!a && !b) return { lat: null, lng: null };
+  return { lat: a === '' ? null : Number(a), lng: b === '' ? null : Number(b) };
+}
+
+let _gmapsPromise = null;
+function loadGoogleMaps(key) {
+  if (!key) return Promise.resolve(null);
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (_gmapsPromise) return _gmapsPromise;
+  _gmapsPromise = new Promise((resolve, reject) => {
+    const cb = '__jmGmapsReady';
+    window[cb] = () => resolve(window.google.maps);
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&callback=' + cb;
+    s.onerror = () => { _gmapsPromise = null; reject(new Error('Google Maps failed to load')); };
+    document.head.appendChild(s);
+  });
+  return _gmapsPromise;
+}
+
+const MAP_COLORS = { vendo:'#f59e0b', cctv:'#3b82f6', vpn:'#22c55e' };
+
+function FleetMap({ stations = [], cameras = [], vendos = [], onOpenStation, onOpenWall }) {
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const [layers, setLayers] = useState({ vendo:true, cctv:true, vpn:true });
+  const [engine, setEngine] = useState('loading'); // google | leaflet | error
+  const [cfg, setCfg] = useState(null);
+  const [err, setErr] = useState('');
+
+  const markers = [];
+  if (layers.vpn) {
+    for (const s of stations) {
+      if (s.lat == null || s.lng == null) continue;
+      markers.push({
+        id: 'vpn-'+s.id, type:'vpn', title: s.name,
+        subtitle: 'VPN · ' + (s.online ? 'online' : 'offline') + ' · ' + (s.cameraCount||0) + ' cam',
+        lat: Number(s.lat), lng: Number(s.lng), online: !!s.online,
+        action: () => onOpenStation?.(s.id),
+      });
+    }
+  }
+  if (layers.cctv) {
+    for (const c of cameras) {
+      if (c.lat == null || c.lng == null) continue;
+      markers.push({
+        id: 'cam-'+c.id, type:'cctv', title: c.name,
+        subtitle: [c.brand, c.barangay, c.station].filter(Boolean).join(' · '),
+        lat: Number(c.lat), lng: Number(c.lng), online: !!c.live,
+        action: () => onOpenWall?.(),
+      });
+    }
+  }
+  if (layers.vendo) {
+    for (const v of vendos) {
+      if (v.lat == null || v.lng == null) continue;
+      markers.push({
+        id: 'gas-'+v.id, type:'vendo', title: v.name,
+        subtitle: 'Gasoline · ' + (v.deviceId||'') + (v.online ? ' · online' : ''),
+        lat: Number(v.lat), lng: Number(v.lng), online: !!v.online,
+        action: null,
+      });
+    }
+  }
+
+  const missing = {
+    vpn: stations.filter(s => s.lat == null || s.lng == null).length,
+    cctv: cameras.filter(c => c.lat == null || c.lng == null).length,
+    vendo: vendos.filter(v => v.lat == null || v.lng == null).length,
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const m = await api('/settings/maps');
+        if (cancelled) return;
+        setCfg(m);
+        if (m.configured && m.googleMapsApiKey) {
+          try {
+            await loadGoogleMaps(m.googleMapsApiKey);
+            if (!cancelled) setEngine('google');
+          } catch {
+            if (!cancelled) setEngine('leaflet');
+          }
+        } else {
+          setEngine('leaflet');
+        }
+      } catch (e) {
+        if (!cancelled) { setErr(e.message); setEngine('leaflet'); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (engine === 'loading' || !mapEl.current) return;
+    const center = cfg?.defaultCenter || { lat: 11.0, lng: 122.5 };
+    const zoom = cfg?.defaultZoom || 7;
+
+    // teardown previous
+    if (mapRef.current?.kind === 'google') {
+      mapRef.current = null;
+      mapEl.current.innerHTML = '';
+    } else if (mapRef.current?.kind === 'leaflet') {
+      mapRef.current.map.remove();
+      mapRef.current = null;
+      mapEl.current.innerHTML = '';
+    }
+
+    if (engine === 'google' && window.google?.maps) {
+      const map = new google.maps.Map(mapEl.current, {
+        center, zoom, mapTypeControl: false, streetViewControl: false,
+        fullscreenControl: true, styles: [{ featureType:'poi', stylers:[{ visibility:'off' }] }],
+      });
+      const bounds = new google.maps.LatLngBounds();
+      const gMarkers = [];
+      for (const m of markers) {
+        const marker = new google.maps.Marker({
+          position: { lat: m.lat, lng: m.lng },
+          map,
+          title: m.title,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: MAP_COLORS[m.type],
+            fillOpacity: 1,
+            strokeColor: '#0a101c',
+            strokeWeight: 2,
+          },
+        });
+        const info = new google.maps.InfoWindow({
+          content: `<div style="color:#111;font:13px/1.4 sans-serif;max-width:220px">
+            <b>${m.title}</b><br/><span style="color:#555">${m.subtitle||''}</span>
+            <div style="margin-top:6px;font-size:11px;color:#888">${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</div>
+          </div>`,
+        });
+        marker.addListener('click', () => {
+          info.open({ map, anchor: marker });
+          m.action?.();
+        });
+        gMarkers.push(marker);
+        bounds.extend(marker.getPosition());
+      }
+      if (markers.length) map.fitBounds(bounds, 48);
+      mapRef.current = { kind:'google', map, gMarkers };
+    } else if (window.L) {
+      const map = L.map(mapEl.current, { scrollWheelZoom: true }).setView([center.lat, center.lng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(map);
+      const group = [];
+      for (const m of markers) {
+        const pin = L.circleMarker([m.lat, m.lng], {
+          radius: 9, color: '#0a101c', weight: 2,
+          fillColor: MAP_COLORS[m.type], fillOpacity: 1,
+        }).addTo(map);
+        pin.bindPopup(`<b>${m.title}</b><br/>${m.subtitle||''}<br/><small>${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</small>`);
+        pin.on('click', () => m.action?.());
+        group.push(pin);
+      }
+      if (group.length) {
+        const g = L.featureGroup(group);
+        map.fitBounds(g.getBounds().pad(0.2));
+      }
+      mapRef.current = { kind:'leaflet', map };
+      setTimeout(() => map.invalidateSize(), 80);
+    }
+    return () => {
+      if (mapRef.current?.kind === 'leaflet') {
+        mapRef.current.map.remove();
+        mapRef.current = null;
+      } else if (mapRef.current?.kind === 'google') {
+        mapRef.current = null;
+        if (mapEl.current) mapEl.current.innerHTML = '';
+      }
+    };
+  }, [engine, cfg, layers.vendo, layers.cctv, layers.vpn, stations, cameras, vendos]);
+
+  const pinned = markers.length;
+  const total = stations.length + cameras.length + vendos.length;
+
+  return html`<div>
+    <div class="section-head">
+      <div>
+        <h3>Fleet Map</h3>
+        <div class="sub">${pinned} pinned · ${total} assets ·
+          ${engine==='google'?'Google Maps':engine==='leaflet'?'OpenStreetMap (add Google Maps API key in Settings)':engine}
+        </div>
+      </div>
+      <div class="map-filters">
+        <label><input type="checkbox" checked=${layers.vendo} onChange=${e=>setLayers({...layers,vendo:e.target.checked})} /> Vendo</label>
+        <label><input type="checkbox" checked=${layers.cctv} onChange=${e=>setLayers({...layers,cctv:e.target.checked})} /> CCTV</label>
+        <label><input type="checkbox" checked=${layers.vpn} onChange=${e=>setLayers({...layers,vpn:e.target.checked})} /> VPN</label>
+      </div>
+    </div>
+    ${err && html`<div class="err" style=${{marginBottom:'10px'}}>${err}</div>`}
+    <div class="fleet-map" ref=${mapEl}></div>
+    <div class="map-legend">
+      <span><i class="map-dot" style=${{background:MAP_COLORS.vendo}}></i> Gasoline vendo</span>
+      <span><i class="map-dot" style=${{background:MAP_COLORS.cctv}}></i> CCTV</span>
+      <span><i class="map-dot" style=${{background:MAP_COLORS.vpn}}></i> VPN client</span>
+      ${(missing.vendo||missing.cctv||missing.vpn) ? html`<span style=${{marginLeft:'auto'}}>
+        Walang coords: ${missing.vendo?missing.vendo+' vendo ':''}${missing.cctv?missing.cctv+' cctv ':''}${missing.vpn?missing.vpn+' vpn':''}
+        — i-set ang lat/lng sa Edit.
+      </span>` : ''}
+    </div>
+  </div>`;
+}
+
+function MapsSettingsPanel({ isSuperAdmin }) {
+  const [key,setKey]=useState('');
+  const [masked,setMasked]=useState('');
+  const [configured,setConfigured]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [err,setErr]=useState('');
+  const load = useCallback(async()=>{
+    try {
+      const d = await api('/settings/maps');
+      setConfigured(!!d.configured);
+      setMasked(d.googleMapsApiKeyMasked||'');
+      setKey('');
+    } catch(e){ setErr(e.message); }
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+  return html`<div class="card" style=${{marginBottom:'18px'}}>
+    <h3 style=${{margin:'0 0 8px'}}>Google Maps</h3>
+    <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+      API key para sa Fleet Map tab. Restrict sa Google Cloud → HTTP referrers:
+      <span class="mono">jmtechsolution.cloud/*</span>
+    </p>
+    <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+      Status: ${configured ? html`<span class="badge b-ok">configured ${masked}</span>` : html`<span class="badge b-warn">not set — using OpenStreetMap</span>`}
+    </p>
+    ${isSuperAdmin ? html`
+      <label>Google Maps API key</label>
+      <input class="mono" value=${key} onInput=${e=>setKey(e.target.value)} placeholder=${configured?'•••• leave blank to keep':'AIza…'} />
+      ${err && html`<div class="err">${err}</div>`}
+      ${msg && html`<div class="dim" style=${{color:'var(--ok)',marginTop:'8px'}}>${msg}</div>`}
+      <div class="row" style=${{marginTop:'12px',justifyContent:'flex-end',gap:'8px'}}>
+        <button class="ghost" disabled=${busy||!configured} onClick=${async()=>{
+          setBusy(true); setErr(''); setMsg('');
+          try {
+            await api('/settings/maps',{method:'PUT',body:{googleMapsApiKey:''}});
+            setMsg('Cleared — Map uses OpenStreetMap');
+            await load();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>Clear key</button>
+        <button disabled=${busy||!key.trim()} onClick=${async()=>{
+          setBusy(true); setErr(''); setMsg('');
+          try {
+            await api('/settings/maps',{method:'PUT',body:{googleMapsApiKey:key.trim()}});
+            setMsg('Saved');
+            setKey('');
+            await load();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save Maps key'}</button>
+      </div>
+    ` : html`<p class="dim">Super admin lang ang pwedeng mag-set ng API key.</p>`}
+  </div>`;
+}
+
+// ---------- Live player ----------
+function Player({ cam }) {
+  const vidRef = useRef(null);
+  const hlsRef = useRef(null);
+  const [state, setState] = useState('idle');
+  const stop = useCallback(() => { hlsRef.current?.destroy(); hlsRef.current=null; setState('idle'); }, []);
+  const play = () => {
+    if (!cam.live) return;
+    setState('loading');
+    const video = vidRef.current;
+    if (Hls.isSupported()) {
+      const hls = new Hls({ liveDurationInfinity:true, manifestLoadingMaxRetry:4 });
+      hlsRef.current = hls;
+      hls.loadSource(cam.hlsUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); setState('playing'); });
+      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) { stop(); setState('error'); } });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = cam.hlsUrl; video.play().then(()=>setState('playing')).catch(()=>setState('error'));
+    }
+  };
+  useEffect(() => stop, [stop]);
+  const brandLabel = (CAM_BRANDS.find(b=>b.id===cam.brand)||{}).label || cam.brand || '';
+  return html`<div class="cam">
+    <div class="vid" onClick=${() => state==='idle'||state==='error' ? play() : null}>
+      <video ref=${vidRef} muted playsInline controls=${state==='playing'}
+             style=${{display: state==='playing'||state==='loading' ? 'block':'none'}}></video>
+      ${state==='idle' && html`<div class="playbtn">${cam.live ? '▶' : '✕'}</div>`}
+      ${state==='loading' && html`<div class="vstat">Connecting…</div>`}
+      ${state==='error' && html`<div class="vstat" style=${{color:'var(--bad)'}}>Stream error — tap to retry</div>`}
+      ${!cam.live && state==='idle' && html`<div class="vstat">station offline/disabled</div>`}
+      ${state==='playing' && html`<button class="ghost" style=${{position:'absolute',top:'8px',right:'8px',fontSize:'11px',padding:'3px 8px'}}
+        onClick=${e => { e.stopPropagation(); stop(); }}>stop</button>`}
+      ${brandLabel && html`<span style=${{position:'absolute',top:'8px',left:'8px',fontSize:'10px',padding:'2px 7px',
+        background:'rgba(0,0,0,.55)',borderRadius:'4px',letterSpacing:'.04em'}}>${brandLabel}</span>`}
+    </div>
+    <div class="meta">
+      <div>
+        <div class="nm">${cam.name}</div>
+        <div class="loc">${[cam.station, cam.barangay, cam.municipality, cam.city, cam.province].filter(Boolean).join(' • ')}</div>
+      </div>
+      <span class="dot ${cam.live ? 'on':'off'}"></span>
+    </div>
+  </div>`;
+}
+
+const CAM_BRANDS = [
+  { id:'dahua', label:'Dahua / NVR', port:554, path:'/cam/realmonitor?channel=1&subtype=0', hint:'Dahua / generic NVR' },
+  { id:'hikvision', label:'Hikvision', port:554, path:'/Streaming/Channels/101', hint:'Hikvision NVR/IPC' },
+  { id:'v380', label:'V380 / V380 Pro', port:554, path:'/live/ch00_1', hint:'V380 WiFi cam (RTSP ON)' },
+  { id:'other', label:'Other RTSP', port:554, path:'/', hint:'Custom RTSP path' },
+];
+
+function applyCamBrand(brandId, setF, f) {
+  const b = CAM_BRANDS.find(x => x.id === brandId) || CAM_BRANDS[0];
+  setF({ ...f, brand: b.id, rtspPort: b.port, rtspPath: b.path });
+}
+
+function BrgyMultiSelect({ geo, value, onChange }) {
+  const ids = (value || []).map(Number).filter(Boolean);
+  const selected = new Set(ids);
+  const toggle = id => {
+    const n = new Set(selected);
+    const num = Number(id);
+    if (n.has(num)) n.delete(num); else n.add(num);
+    onChange([...n]);
+  };
+  const barangays = geo?.barangays || [];
+  const municipalities = geo?.municipalities || [];
+  const cities = geo?.cities || [];
+  const provinces = geo?.provinces || [];
+  return html`<div style=${{maxHeight:'220px',overflow:'auto',border:'1px solid var(--line)',borderRadius:'8px',padding:'8px'}}>
+    ${barangays.map(b => {
+      const m = municipalities.find(x=>x.id===b.municipality_id);
+      const c = cities.find(x=>x.id===m?.city_id);
+      const p = provinces.find(x=>x.id===c?.province_id);
+      return html`<label key=${b.id} style=${{display:'block',margin:'4px 0',cursor:'pointer',fontSize:'13px'}}>
+        <input type="checkbox" checked=${selected.has(Number(b.id))} onChange=${()=>toggle(b.id)} />
+        ${' '}${[p?.name,c?.name,m?.name,b.name].filter(Boolean).join(' / ')}
+      </label>`;
+    })}
+    ${!barangays.length && html`<div class="dim">Wala pang barangay — gumawa muna sa Locations tab.</div>`}
+  </div>`;
+}
+
+function brgyLabels(geo, ids) {
+  return (ids||[]).map(id => {
+    const b = geo?.barangays?.find(x=>x.id===id);
+    if (!b) return '#'+id;
+    const m = geo.municipalities.find(x=>x.id===b.municipality_id);
+    const c = geo.cities.find(x=>x.id===m?.city_id);
+    return [c?.name, m?.name, b.name].filter(Boolean).join(' / ');
+  }).join('; ') || '—';
+}
+
+// ---------- Public landing + login drawer + chatbot ----------
+const FB_CONTACT = 'https://www.facebook.com/joel.madera.495380';
+const FB_PAGE = 'https://www.facebook.com/profile.php?id=61591114514853';
+const OWNER_CONTACT = {
+  name: 'JOEL MADERA',
+  phone: '09636895526',
+  phoneTel: '+639636895526',
+  fb: FB_CONTACT,
+  fbPage: FB_PAGE,
+  email: 'jmm.wireless99@gmail.com',
+  address: 'Candelaria, Uson, Masbate',
+};
+const LAND_PRODUCTS = [
+  {
+    id: 'fuel',
+    ico: '⛽',
+    title: 'GASOLINE VENDO',
+    blurb: 'GCash/Maya QR pay, cloud rates, per-board sales.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'bottlevendo',
+    ico: '♻️',
+    title: 'EMPTY BOTTLE VENDO · Internet',
+    blurb: 'Smart empty-bottle vendo with GCash/Maya pay, cloud sales, and online monitoring.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'wifi',
+    ico: '📶',
+    title: 'JM WIFI',
+    link: 'jmwifi.pro/apply',
+    blurb: 'Mag-apply para sa JM WIFI service.',
+    href: 'https://jmwifi.pro/apply',
+    external: true,
+  },
+  {
+    id: 'cctv',
+    ico: '📹',
+    title: 'HIGH BRID CCTV, NETWORK CCTV installation',
+    blurb: 'Remote live view, multi-site wall, barangay & station maps.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'vpn',
+    ico: '🔐',
+    title: 'VPN / Remote Access',
+    blurb: 'SSTP VPN clients, Winbox & MikroTik API for field routers.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'forex',
+    ico: '📈',
+    title: 'Forex Trading',
+    link: 'jmtechsolution.cloud/forex',
+    blurb: 'Client login — bawat account may sariling trading strategies.',
+    href: '/forex',
+    external: true,
+  },
+  {
+    id: 'shop',
+    ico: '🛒',
+    title: 'JM Shop',
+    blurb: 'Marketplace for gear & services from JM TECH partners.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'webdev',
+    ico: '💻',
+    title: 'WEB Development',
+    blurb: 'Custom websites, portals, dashboards, and business web apps.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'netauto',
+    ico: '⚙️',
+    title: 'NETWORK Automation',
+    blurb: 'MikroTik scripts, provisioning, billing sync, and smart ops.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'billauto',
+    ico: '🧾',
+    title: 'BILLING System Automation',
+    blurb: 'ISP billing, hotspot, vendo tracking, payments, and reports.',
+    href: FB_CONTACT,
+    external: true,
+  },
+  {
+    id: 'netdesign',
+    ico: '🌐',
+    title: 'NETWORK Design · Customise any website',
+    blurb: 'Site planning, VLAN/WiFi design, and tailored web solutions.',
+    href: FB_CONTACT,
+    external: true,
+  },
+];
+
+function preferEnglish(q) {
+  const t = String(q || '').toLowerCase();
+  const tl = /\b(ano|paano|magkano|salamat|kumusta|po|ba|ngayon|gusto|kailangan|tungkol|pwede|meron|wala|salamat|magtanong|magkano)\b/.test(t);
+  const en = /\b(what|how|much|price|tell|about|please|hello|can|you|the|is|are|do|does|want|need|cost|where|when)\b/.test(t);
+  return en && !tl;
+}
+
+function chatReply(q) {
+  const t = String(q || '').toLowerCase();
+  const en = preferEnglish(q);
+
+  if (/fuel|gas|vendo|bankero|gasoline|gasolina/.test(t)) {
+    return en
+      ? 'GASOLINE VENDO: pay via GCash/Maya QR at /pay/DEVICE_ID. Owners manage rates & sales at /vendo-admin (LOGIN on the side). Ask me anything about pricing, setup, or boards.'
+      : 'GASOLINE VENDO: magbayad via GCash/Maya QR sa /pay/DEVICE_ID. May-ari: rates at sales sa /vendo-admin (LOGIN sa gilid). Magtanong ka lang tungkol sa presyo, setup, o board.';
+  }
+  if (/wifi|jmwifi|internet|piso/.test(t)) {
+    return en
+      ? 'JM WIFI: apply at https://jmwifi.pro/apply — the JM WIFI card also opens that site.'
+      : 'JM WIFI: mag-apply sa https://jmwifi.pro/apply — pindutin din ang JM WIFI card para doon ka mapunta.';
+  }
+  if (/cctv|camera|cam|live|monitor/.test(t)) {
+    return en
+      ? 'CCTV Monitoring: live wall, multi-site stations, and barangay maps after staff LOGIN. Ask about cameras, sites, or remote view.'
+      : 'CCTV Monitoring: live wall, multi-site stations, at barangay map pagkatapos ng staff LOGIN. Magtanong tungkol sa camera, site, o remote view.';
+  }
+  if (/vpn|sstp|mikrotik|winbox|router/.test(t)) {
+    return en
+      ? 'VPN / Remote Access: SSTP clients, Winbox & MikroTik API after LOGIN. Ask how to connect field routers or get client credentials.'
+      : 'VPN / Remote Access: SSTP clients, Winbox at MikroTik API pagkatapos mag-LOGIN. Magtanong kung paano mag-connect ng field router o kumuha ng client credentials.';
+  }
+  if (/forex|trading|trade|fx/.test(t)) {
+    return en
+      ? 'Forex Trading: tools & signals desk from JM TECH SOLUTION. Tell me if you want setup info, mentoring, or partnership.'
+      : 'Forex Trading: tools at signals desk mula sa JM TECH SOLUTION. Sabihin mo kung setup, mentoring, o partnership ang kailangan mo.';
+  }
+  if (/shop|bili|store|market|benta/.test(t)) {
+    return en
+      ? 'JM Shop: marketplace for gear & partner services. Ask what you need — we can point you to /shop after LOGIN, or take your inquiry here.'
+      : 'JM Shop: marketplace para sa gear at services ng partners. Sabihin mo kung ano ang kailangan — /shop pagkatapos mag-LOGIN, o mag-inquire dito.';
+  }
+  if (/login|password|account|admin|staff/.test(t)) {
+    return en
+      ? 'Use the green LOGIN button on the right for staff/admin. Gasoline owners: /vendo-admin.'
+      : 'Pindutin ang green LOGIN sa kanan para sa staff/admin. May-ari ng vendo: /vendo-admin.';
+  }
+  if (/price|presyo|bayad|cost|magkano|contact|tawag|hello|hi|kumusta|thanks|salamat/.test(t)) {
+    return en
+      ? 'Hi! Ask in English or Tagalog about GASOLINE VENDO, CCTV, VPN, Forex, or Shop. For JM WIFI, open the JM WIFI card → jmwifi.pro/apply.'
+      : 'Kumusta! Magtanong sa English o Tagalog tungkol sa GASOLINE VENDO, CCTV, VPN, Forex, o Shop. Para sa JM WIFI, pindutin ang JM WIFI card → jmwifi.pro/apply.';
+  }
+  return en
+    ? 'Sorry, I am not sure. Try: gasoline vendo, CCTV, VPN, forex, or shop — English or Tagalog is fine. Staff? Use LOGIN.'
+    : 'Pasensya, hindi ko sure. Subukan: gasoline vendo, CCTV, VPN, forex, o shop — English o Tagalog OK. Staff ka? Pindutin LOGIN.';
+}
+
+function LandingChat() {
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState([
+    { who: 'bot', text: 'Hi! / Kumusta! Ako ang JM TECH assistant. Magtanong sa English o Tagalog tungkol sa gasoline vendo, CCTV, VPN, forex, o shop. (JM WIFI → jmwifi.pro/apply)' },
+  ]);
+  const [text, setText] = useState('');
+  const box = useRef(null);
+  useEffect(() => {
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [msgs, open]);
+  useEffect(() => {
+    const onOpen = (ev) => {
+      const topic = String(ev.detail?.topic || '').trim();
+      setOpen(true);
+      if (!topic) return;
+      setMsgs((m) => [
+        ...m,
+        { who: 'me', text: topic },
+        { who: 'bot', text: chatReply(topic) },
+      ]);
+    };
+    window.addEventListener('jmtech-chat', onOpen);
+    return () => window.removeEventListener('jmtech-chat', onOpen);
+  }, []);
+  const send = (q) => {
+    const v = String(q || text).trim();
+    if (!v) return;
+    setMsgs((m) => [...m, { who: 'me', text: v }, { who: 'bot', text: chatReply(v) }]);
+    setText('');
+  };
+  return html`
+    ${open && html`<div class="chat-panel" id="chat">
+      <header>
+        <span>Ask JM TECH · EN / TL</span>
+        <button type="button" onClick=${() => setOpen(false)} aria-label="Close">×</button>
+      </header>
+      <div class="chat-msgs" ref=${box}>
+        ${msgs.map((m, i) => html`<div key=${i} class=${'chat-bubble ' + m.who}>${m.text}</div>`)}
+      </div>
+      <div class="chat-quick">
+        ${['Gasoline vendo', 'CCTV', 'VPN', 'Forex', 'Shop', 'Magkano?'].map((q) => html`
+          <button type="button" key=${q} onClick=${() => send(q)}>${q}</button>
+        `)}
+      </div>
+      <form class="chat-input" onSubmit=${(e) => { e.preventDefault(); send(); }}>
+        <input value=${text} onInput=${(e) => setText(e.target.value)} placeholder="English or Tagalog…" />
+        <button type="submit">Send</button>
+      </form>
+    </div>`}
+    <button type="button" class="chat-fab" onClick=${() => setOpen((o) => !o)} title="Chat">${open ? '×' : '💬'}</button>
+  `;
+}
+
+function LoginDrawer({ onOk, onClose }) {
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
+  const [err, setErr] = useState('');
+  const go = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api('/login', { method: 'POST', body: { username: u, password: p } });
+      TOKEN = r.token;
+      sessionStorage.setItem('cctv_token', r.token);
+      sessionStorage.setItem('cctv_user', JSON.stringify({ role: r.role, displayName: r.displayName }));
+      onOk(r);
+    } catch (ex) {
+      setErr(ex.message);
+    }
+  };
+  return html`
+    <div class="login-drawer-bg" onClick=${onClose}></div>
+    <div class="login-drawer" role="dialog" aria-label="Staff login">
+      <button type="button" class="close-x" onClick=${onClose}>←</button>
+      <div style=${{ marginTop: '28px' }}>
+        <${BrandMark} large />
+        <form onSubmit=${go}>
+          <label>Username</label>
+          <input value=${u} onInput=${(e) => setU(e.target.value)} autoFocus />
+          <label>Password</label>
+          <input type="password" value=${p} onInput=${(e) => setP(e.target.value)} />
+          ${err && html`<div class="err">${err}</div>`}
+          <div style=${{ marginTop: '18px' }}>
+            <button style=${{ width: '100%', padding: '11px 14px' }}>Sign in</button>
+          </div>
+        </form>
+        <p class="dim" style=${{ marginTop: '14px', fontSize: '12px', textAlign: 'center' }}>
+          Staff / admin portal. Vendo may-ari: ${' '}
+          <a href=${BASE + '/vendo-admin'} style=${{ color: '#86efac' }}>/vendo-admin</a>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function PublicLanding({ onLoginOk }) {
+  const [showLogin, setShowLogin] = useState(false);
+  return html`<div class="land">
+    <div class="land-top">
+      <a class="land-logo" href="/">
+        <img src=${LOGO} alt="" />
+        <b>JM TECH SOLUTION</b>
+      </a>
+    </div>
+    <button type="button" class="land-login-btn" onClick=${() => setShowLogin(true)}>LOGIN</button>
+
+    <section class="land-hero land-hero-top">
+      <div class="eyebrow">Products inside this cloud</div>
+      <h1>JM TECH SOLUTION</h1>
+      <p class="lead">Gasoline vendo, CCTV, VPN, forex, at iba pa — isang network para sa field at office.</p>
+    </section>
+
+    <section class="land-sec land-sec-products" id="products">
+      <h2>Aming products</h2>
+      <p class="sub">Pindutin ang card — karamihan ay pupunta sa Facebook page namin. JM WIFI → jmwifi.pro/apply. Staff LOGIN sa gilid.</p>
+      <div class="land-prods">
+        ${LAND_PRODUCTS.map((p) => html`
+          <a class="land-prod" key=${p.id}
+            href=${p.external ? p.href : '#chat'}
+            target=${p.external ? '_blank' : undefined}
+            rel=${p.external ? 'noopener noreferrer' : undefined}
+            onClick=${(e) => {
+              if (p.external) return;
+              e.preventDefault();
+              window.dispatchEvent(new CustomEvent('jmtech-chat', { detail: { topic: p.title } }));
+            }}>
+            <div class="thumb">
+              <img src=${'/products/' + p.id + '.svg'} alt=${p.title} loading="lazy" />
+            </div>
+            <div class="body">
+              <h3>${p.title}</h3>
+              ${p.link ? html`<span class="plink">${p.link}</span>` : null}
+              <p>${p.blurb}</p>
+            </div>
+          </a>
+        `)}
+      </div>
+    </section>
+
+    <section class="land-sec land-sec-contact" id="contact">
+      <h2>Contact us</h2>
+      <p class="sub">JOEL MADERA — tawag, email, o message sa Facebook. Please follow ang FB page.</p>
+      <div class="land-contact-card">
+        <p class="owner">${OWNER_CONTACT.name}</p>
+        <div class="land-contact-grid">
+          <div class="land-contact-item">
+            <span class="lbl">Mobile</span>
+            <a href=${'tel:' + OWNER_CONTACT.phoneTel}>${OWNER_CONTACT.phone}</a>
+          </div>
+          <div class="land-contact-item">
+            <span class="lbl">Gmail</span>
+            <a href=${'mailto:' + OWNER_CONTACT.email}>${OWNER_CONTACT.email}</a>
+          </div>
+          <div class="land-contact-item">
+            <span class="lbl">Facebook</span>
+            <a href=${OWNER_CONTACT.fb} target="_blank" rel="noopener noreferrer">Joel Madera</a>
+          </div>
+          <div class="land-contact-item">
+            <span class="lbl">FB Page — please follow</span>
+            <a href=${OWNER_CONTACT.fbPage} target="_blank" rel="noopener noreferrer">JM TECH Facebook Page</a>
+          </div>
+          <div class="land-contact-item land-contact-wide">
+            <span class="lbl">Address</span>
+            <span>${OWNER_CONTACT.address}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="land-foot">
+      © ${new Date().getFullYear()} JM TECH SOLUTION · jmtechsolution.cloud · ${OWNER_CONTACT.name}
+    </footer>
+
+    <${LandingChat} />
+    ${showLogin && html`<${LoginDrawer}
+      onClose=${() => setShowLogin(false)}
+      onOk=${(r) => { setShowLogin(false); onLoginOk(r); }}
+    />`}
+  </div>`;
+}
+
+// ---------- Login (legacy full-page — kept for deep links) ----------
+function Login({ onOk }) {
+  const [u,setU]=useState(''); const [p,setP]=useState(''); const [err,setErr]=useState('');
+  const go = async e => {
+    e.preventDefault();
+    try {
+      const r = await api('/login',{method:'POST',body:{username:u,password:p}});
+      TOKEN = r.token;
+      sessionStorage.setItem('cctv_token', r.token);
+      sessionStorage.setItem('cctv_user', JSON.stringify({ role:r.role, displayName:r.displayName }));
+      onOk(r);
+    } catch(e){ setErr(e.message); }
+  };
+  return html`<div class="login-wrap"><div class="card login">
+    <${BrandMark} large />
+    <form onSubmit=${go}>
+      <label>Username</label><input value=${u} onInput=${e=>setU(e.target.value)} autoFocus />
+      <label>Password</label><input type="password" value=${p} onInput=${e=>setP(e.target.value)} />
+      ${err && html`<div class="err">${err}</div>`}
+      <div style=${{marginTop:'18px'}}><button style=${{width:'100%',padding:'11px 14px'}}>Sign in</button></div>
+    </form>
+    <p class="dim" style=${{marginTop:'14px',fontSize:'12px',textAlign:'center'}}>Super admin, staff, o barangay viewer — staff may full access sa portal.</p>
+  </div></div>`;
+}
+
+function ClientAccountModal({ geo, client, onClose, onDone }) {
+  const [f,setF]=useState({
+    username: client?.username||'',
+    password: '',
+    displayName: client?.displayName||'',
+    barangayIds: client?.barangayIds||[],
+    isActive: client?.isActive!==false,
+  });
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const set = k => e => setF({...f,[k]:e.target.type==='checkbox'?e.target.checked:e.target.value});
+  const save = async () => {
+    setErr('');
+    setBusy(true);
+    try {
+      if (client) {
+        const body = { displayName:f.displayName, barangayIds:f.barangayIds, isActive:f.isActive };
+        if (f.password) body.password = f.password;
+        await api('/clients/'+client.id,{method:'PATCH',body});
+      } else {
+        await api('/clients',{method:'POST',body:{
+          username:f.username.trim().toLowerCase(), password:f.password,
+          displayName:f.displayName, barangayIds:f.barangayIds,
+        }});
+      }
+      onDone();
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>${client?'Edit Client Account':'Add Client Account'}</h2>
+      ${!client && html`<div>
+        <label>Username</label><input value=${f.username} onInput=${set('username')} class="mono" placeholder="brgy-candelaria" />
+        <label>Password</label><input type="password" value=${f.password} onInput=${set('password')} placeholder="min 8 chars" />
+      </div>`}
+      ${client && html`<div>
+        <label>New password <span class="dim">(blanko = hindi palitan)</span></label>
+        <input type="password" value=${f.password} onInput=${set('password')} />
+      </div>`}
+      <label>Display name</label><input value=${f.displayName} onInput=${set('displayName')} placeholder="Brgy Candelaria Viewer" />
+      <label>Barangay access <span class="dim">(CCTV dito lang makikita)</span></label>
+      <${BrgyMultiSelect} geo=${geo} value=${f.barangayIds} onChange=${ids=>setF({...f,barangayIds:ids})} />
+      ${client && html`<label style=${{display:'flex',alignItems:'center',gap:'8px',marginTop:'12px'}}>
+        <input type="checkbox" checked=${f.isActive} onChange=${set('isActive')} /> Active
+      </label>`}
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button onClick=${save} disabled=${busy}>${busy?'Saving…':'Save'}</button>
+      </div>
+    </div>  </div>`;
+}
+
+function StaffAccountModal({ staff, hub, onClose, onDone }) {
+  const [f,setF]=useState({
+    username: staff?.username||'',
+    password: '',
+    displayName: staff?.displayName||'',
+    isActive: staff?.isActive!==false,
+    vpnEnabled: staff?.vpnEnabled!==false,
+  });
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [created,setCreated]=useState(null);
+  const set = k => e => setF({...f,[k]:e.target.type==='checkbox'?e.target.checked:e.target.value});
+  const save = async () => {
+    setErr('');
+    setBusy(true);
+    try {
+      if (staff) {
+        const body = { displayName:f.displayName, isActive:f.isActive, vpnEnabled:f.vpnEnabled };
+        if (f.password) body.password = f.password;
+        await api('/staff/'+staff.id,{method:'PATCH',body});
+        onDone();
+      } else {
+        const r = await api('/staff',{method:'POST',body:{
+          username:f.username.trim().toLowerCase(), password:f.password,
+          displayName:f.displayName, vpnEnabled:f.vpnEnabled,
+        }});
+        setCreated(r);
+      }
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  if (created) return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onDone()}>
+    <div class="modal"><h2>Staff account created ✓</h2>
+      <p class="dim">I-save ang credentials — hindi na muling ipapakita ang portal password.</p>
+      <label>Portal login</label>
+      <pre>${created.username} / ${created.portalPassword||'(set mo na)'}</pre>
+      ${created.vpnSetup && html`<>
+        <label>SSTP VPN <span class="dim">(staff remote access)</span></label>
+        <pre>${created.vpnSetup}</pre>
+        <button class="ghost" style=${{marginTop:'8px'}} onClick=${()=>copyTxt(created.vpnSetup).then(ok=>ok&&alert('VPN setup copied!'))}>Copy VPN setup</button>
+      </>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button onClick=${onDone}>Done</button>
+      </div>
+    </div></div>`;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>${staff?'Edit Staff Account':'Add Staff Account'}</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>Portal + optional SSTP VPN para sa remote staff.</p>
+      ${!staff && html`<div>
+        <label>Portal username</label><input value=${f.username} onInput=${set('username')} class="mono" placeholder="staff-juan" />
+        <label>Portal password</label><input type="password" value=${f.password} onInput=${set('password')} placeholder="min 8 chars" />
+      </div>`}
+      ${staff && html`<div>
+        <label>Portal username</label><input value=${f.username} disabled class="mono dim" />
+        <label>New portal password <span class="dim">(blanko = hindi palitan)</span></label>
+        <input type="password" value=${f.password} onInput=${set('password')} />
+      </div>`}
+      <label>Display name</label><input value=${f.displayName} onInput=${set('displayName')} placeholder="Juan — Admin Staff" />
+      <label style=${{display:'flex',alignItems:'center',gap:'8px',marginTop:'12px'}}>
+        <input type="checkbox" checked=${f.vpnEnabled} onChange=${set('vpnEnabled')} /> SSTP VPN access
+      </label>
+      ${staff && html`<label style=${{display:'flex',alignItems:'center',gap:'8px',marginTop:'8px'}}>
+        <input type="checkbox" checked=${f.isActive} onChange=${set('isActive')} /> Portal active
+      </label>`}
+      ${staff?.vpnUsername && html`<div class="dim" style=${{fontSize:'12px',marginTop:'8px'}}>
+        VPN user: <span class="mono">${staff.vpnUsername}</span>
+        ${staff.vpnIp ? html` · IP ${staff.vpnIp}` : ''}
+        ${staff.vpnOnline ? html` · <span style=${{color:'var(--ok)'}}>online</span>` : ''}
+      </div>`}
+      ${staff?.vpnUsername && html`<button class="ghost" style=${{marginTop:'8px',fontSize:'12px'}}
+        onClick=${async()=>{try{const r=await api('/staff/'+staff.id,{method:'PATCH',body:{regenerateVpnPassword:true}}); await copyTxt(r.vpnSetup); alert('Bagong VPN password — naka-copy na sa clipboard'); onDone();}catch(e){setErr(e.message);}}}>
+        Regenerate VPN password
+      </button>`}
+      ${staff?.vpnSetup && html`<button class="ghost" style=${{marginTop:'8px',fontSize:'12px',marginLeft:'8px'}}
+        onClick=${()=>copyTxt(staff.vpnSetup).then(ok=>ok&&alert('VPN setup copied!'))}>Copy VPN setup</button>`}
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button onClick=${save} disabled=${busy}>${busy?'Saving…':'Save'}</button>
+      </div>
+    </div></div>`;
+}
+
+function StaffAccountsPanel({ onChanged }) {
+  const [list,setList]=useState([]);
+  const [edit,setEdit]=useState(null);
+  const load = useCallback(async()=>{
+    const rows = await api('/staff').catch(()=>[]);
+    setList(rows);
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+  const openEdit = async (s) => {
+    try {
+      const detail = await api('/staff/'+s.id);
+      setEdit(detail);
+    } catch {
+      setEdit(s);
+    }
+  };
+  return html`<div>
+    <div class="topbar" style=${{marginBottom:'10px'}}>
+      <h3>Admin Staff (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— portal + SSTP VPN</span></h3>
+      <button onClick=${()=>setEdit({})}>+ Add Staff Account</button>
+    </div>
+    <div class="card" style=${{padding:0,overflowX:'auto'}}>
+      <table><thead><tr><th>Portal</th><th>Name</th><th>VPN User</th><th>VPN IP</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.map(s=>html`<tr key=${s.id}>
+        <td class="mono">${s.username}</td>
+        <td>${s.displayName||'—'}</td>
+        <td class="mono dim">${s.vpnEnabled ? (s.vpnUsername||'pending') : '—'}</td>
+        <td class="mono dim">${s.vpnIp||'—'} ${s.vpnOnline?html`<span class="dot on" style=${{display:'inline-block',marginLeft:'4px'}}></span>`:''}</td>
+        <td><span class="badge ${s.isActive?'b-ok':'b-disabled'}">${s.isActive?'active':'disabled'}</span></td>
+        <td class="row">
+          <button class="ghost" onClick=${()=>openEdit(s)}>Edit</button>
+          <button class="danger" onClick=${async()=>{if(confirm('Delete staff '+s.username+'?')){await api('/staff/'+s.id,{method:'DELETE'}); load(); onChanged();}}}>✕</button>
+        </td></tr>`)}
+        ${list.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang staff account.</td></tr>`}
+      </tbody></table>
+    </div>
+    ${edit && html`<${StaffAccountModal} staff=${edit.id?edit:null} hub=${null}
+      onClose=${()=>setEdit(null)} onDone=${()=>{setEdit(null); load(); onChanged();}} />`}
+  </div>`;
+}
+
+function ClientAccountsPanel({ geo, onChanged }) {
+  const [list,setList]=useState([]);
+  const [edit,setEdit]=useState(null);
+  const load = useCallback(()=>api('/clients').then(setList).catch(()=>setList([])),[]);
+  useEffect(()=>{ load(); },[load]);
+  return html`<div>
+    <div class="topbar" style=${{marginBottom:'10px'}}>
+      <h3>Client Accounts (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— barangay CCTV viewers lang</span></h3>
+      <button onClick=${()=>setEdit({})}>+ Add Client Account</button>
+    </div>
+    <div class="card" style=${{padding:0,overflowX:'auto'}}>
+      <table><thead><tr><th>Username</th><th>Name</th><th>Barangays</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.map(c=>html`<tr key=${c.id}>
+        <td class="mono">${c.username}</td>
+        <td>${c.displayName||'—'}</td>
+        <td class="dim" style=${{whiteSpace:'normal',maxWidth:'320px'}}>${brgyLabels(geo,c.barangayIds)}</td>
+        <td><span class="badge ${c.isActive?'b-ok':'b-disabled'}">${c.isActive?'active':'disabled'}</span></td>
+        <td class="row">
+          <button class="ghost" onClick=${()=>setEdit(c)}>Edit</button>
+          <button class="danger" onClick=${async()=>{if(confirm('Delete client '+c.username+'?')){await api('/clients/'+c.id,{method:'DELETE'}); load(); onChanged();}}}>✕</button>
+        </td></tr>`)}
+        ${list.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang client account.</td></tr>`}
+      </tbody></table>
+    </div>
+    ${edit && html`<${ClientAccountModal} geo=${geo} client=${edit.id?edit:null}
+      onClose=${()=>setEdit(null)} onDone=${()=>{setEdit(null); load(); onChanged();}} />`}
+  </div>`;
+}
+
+function ForexClientModal({ client, strategies, onClose, onDone }) {
+  const [f,setF]=useState({
+    username: client?.username||'',
+    password: '',
+    displayName: client?.displayName||'',
+    notes: client?.notes||'',
+    strategyIds: client?.strategyIds||[],
+    isActive: client?.isActive!==false,
+  });
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const toggleStrategy = (id) => {
+    const n = Number(id);
+    setF(s => ({
+      ...s,
+      strategyIds: s.strategyIds.includes(n)
+        ? s.strategyIds.filter(x => x !== n)
+        : [...s.strategyIds, n],
+    }));
+  };
+  const save = async () => {
+    setErr('');
+    setBusy(true);
+    try {
+      if (client?.id) {
+        const body = {
+          displayName: f.displayName,
+          notes: f.notes,
+          strategyIds: f.strategyIds,
+          isActive: f.isActive,
+        };
+        if (f.password) body.password = f.password;
+        await api('/forex/clients/'+client.id, { method:'PATCH', body });
+      } else {
+        await api('/forex/clients', {
+          method:'POST',
+          body: {
+            username: f.username.trim().toLowerCase(),
+            password: f.password,
+            displayName: f.displayName,
+            notes: f.notes,
+            strategyIds: f.strategyIds,
+          },
+        });
+      }
+      onDone();
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>${client?.id?'Edit Forex Client':'Add Forex Client'}</h2>
+      ${!client?.id && html`<div>
+        <label>Username or Gmail</label>
+        <input value=${f.username} onInput=${e=>setF({...f,username:e.target.value})} class="mono" placeholder="fx-client1 or name@gmail.com" />
+        <p class="dim" style=${{fontSize:'12px',margin:'6px 0 0'}}>Ito ang gagamitin sa /forex Login.</p>
+      </div>`}
+      <div><label>Display name</label><input value=${f.displayName} onInput=${e=>setF({...f,displayName:e.target.value})} /></div>
+      <div><label>${client?.id?'New password (optional)':'Password'}</label>
+        <input type="password" value=${f.password} onInput=${e=>setF({...f,password:e.target.value})} /></div>
+      <div><label>Admin notes</label>
+        <textarea style=${{width:'100%',minHeight:'64px'}} value=${f.notes}
+          onInput=${e=>setF({...f,notes:e.target.value})}></textarea></div>
+      <div style=${{marginTop:'12px'}}>
+        <label>Assigned strategies (iba-iba bawat client)</label>
+        <div style=${{display:'grid',gap:'6px',marginTop:'8px',maxHeight:'180px',overflow:'auto'}}>
+          ${(strategies||[]).map(s=>html`<label key=${s.id} style=${{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}>
+            <input type="checkbox" checked=${f.strategyIds.includes(s.id)}
+              onChange=${()=>toggleStrategy(s.id)} />
+            <span>${s.name}</span>
+            <span class="dim" style=${{fontSize:'11px'}}>${s.timeframe||''}</span>
+          </label>`)}
+          ${!(strategies||[]).length && html`<span class="dim">Walang strategy — i-add muna sa list sa ibaba.</span>`}
+        </div>
+      </div>
+      ${client?.id && html`<label style=${{display:'flex',alignItems:'center',gap:'8px',marginTop:'12px'}}>
+        <input type="checkbox" checked=${f.isActive} onChange=${e=>setF({...f,isActive:e.target.checked})} /> Active account
+      </label>`}
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px'}}>
+        <button onClick=${save} disabled=${busy}>${busy?'Saving…':'Save'}</button>
+        <button class="ghost" onClick=${onClose}>Cancel</button>
+      </div>
+      ${client?.id && html`<p class="dim" style=${{marginTop:'12px',fontSize:'12px'}}>
+        Client login/logout: <a href="/forex" target="_blank" rel="noopener">/forex</a>
+        ${client.lastLoginAt ? html` · last login ${new Date(client.lastLoginAt).toLocaleString()}` : null}
+        ${client.lastLogoutAt ? html` · last logout ${new Date(client.lastLogoutAt).toLocaleString()}` : null}
+      </p>`}
+    </div></div>`;
+}
+
+function ForexAccountsPanel({ onChanged }) {
+  const [clients,setClients]=useState([]);
+  const [strategies,setStrategies]=useState([]);
+  const [edit,setEdit]=useState(null);
+  const [newStrat,setNewStrat]=useState({ name:'', slug:'', description:'', timeframe:'', riskLevel:'' });
+  const load = useCallback(async()=>{
+    const [c,s] = await Promise.all([
+      api('/forex/clients').catch(()=>[]),
+      api('/forex/strategies').catch(()=>[]),
+    ]);
+    setClients(c);
+    setStrategies(s);
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+  const stratName = (id) => (strategies.find(s=>s.id===id)||{}).name || id;
+  const fmtWhen = (v) => {
+    if (!v) return '—';
+    try {
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleString();
+    } catch { return '—'; }
+  };
+  const addStrategy = async () => {
+    const name = String(newStrat.name||'').trim();
+    if (!name) return alert('Strategy name required');
+    const slug = String(newStrat.slug||name).trim().toLowerCase().replace(/[^a-z0-9_-]+/g,'-');
+    await api('/forex/strategies', { method:'POST', body: { ...newStrat, name, slug } });
+    setNewStrat({ name:'', slug:'', description:'', timeframe:'', riskLevel:'' });
+    load();
+  };
+  return html`<div>
+    <div class="topbar" style=${{marginBottom:'10px'}}>
+      <h3>Forex Client Accounts (${clients.length})
+        <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}> — login/logout sa /forex · iba-iba ang strategy</span></h3>
+      <button onClick=${()=>setEdit({})}>+ Add Forex Client</button>
+    </div>
+    <div class="card" style=${{padding:0,overflowX:'auto'}}>
+      <table><thead><tr>
+        <th>Gmail / User</th><th>Name</th><th>Strategies</th><th>Active</th>
+        <th>Last login</th><th>Last logout</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody>${clients.map(c=>html`<tr key=${c.id}>
+        <td class="mono">${c.email||c.username}</td>
+        <td>${c.displayName||'—'} ${c.selfRegistered?html`<span class="dim" style=${{fontSize:'10px'}}> (Gmail signup)</span>`:null}</td>
+        <td class="dim" style=${{whiteSpace:'normal',maxWidth:'220px'}}>
+          ${(c.strategyIds||[]).map(id=>stratName(id)).join(', ')||'—'}
+        </td>
+        <td class="dim">${c.activeStrategyName||'—'}</td>
+        <td class="dim" style=${{fontSize:'12px',whiteSpace:'nowrap'}}>${fmtWhen(c.lastLoginAt)}</td>
+        <td class="dim" style=${{fontSize:'12px',whiteSpace:'nowrap'}}>${fmtWhen(c.lastLogoutAt)}</td>
+        <td><span class="badge ${c.isActive?'b-ok':'b-disabled'}">${c.isActive?'active':'disabled'}</span></td>
+        <td class="row">
+          <button class="ghost" onClick=${()=>setEdit(c)}>Edit</button>
+          <button class="ghost" title="Clear trade history (admin only)" onClick=${async()=>{
+            if(!confirm('Clear ALL trade history for '+ (c.email||c.username) +'? Hindi na mare-recover.')) return;
+            try {
+              const r = await api('/forex/clients/'+c.id+'/trades',{method:'DELETE'});
+              alert('Cleared '+(r.deleted||0)+' trade log(s).');
+            } catch(e){ alert(e.message); }
+          }}>Clear trades</button>
+          <button class="danger" onClick=${async()=>{
+            if(confirm('Delete forex client '+c.username+'?')){
+              await api('/forex/clients/'+c.id,{method:'DELETE'});
+              load(); onChanged();
+            }
+          }}>✕</button>
+        </td></tr>`)}
+        ${clients.length===0 && html`<tr><td colSpan="8" class="dim" style=${{textAlign:'center',padding:'24px'}}>
+          Wala pang forex client — i-click ang “+ Add Forex Client”.
+        </td></tr>`}
+      </tbody></table>
+    </div>
+    <div class="card" style=${{marginTop:'18px'}}>
+      <h3 style=${{margin:'0 0 10px',fontSize:'15px'}}>Trading Strategies (${strategies.length})</h3>
+      <div class="dim" style=${{fontSize:'12px',marginBottom:'10px'}}>I-assign ang strategies per client sa Edit modal.</div>
+      <table style=${{width:'100%',fontSize:'13px'}}><thead><tr><th>Name</th><th>Timeframe</th><th>Risk</th><th>Status</th></tr></thead>
+      <tbody>${strategies.map(s=>html`<tr key=${s.id}>
+        <td>${s.name}</td><td class="dim">${s.timeframe||'—'}</td><td class="dim">${s.riskLevel||'—'}</td>
+        <td><span class="badge ${s.isActive?'b-ok':'b-disabled'}">${s.isActive?'on':'off'}</span></td>
+      </tr>`)}</tbody></table>
+      <div style=${{marginTop:'14px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:'8px'}}>
+        <input placeholder="Strategy name" value=${newStrat.name} onInput=${e=>setNewStrat({...newStrat,name:e.target.value})} />
+        <input placeholder="Timeframe (e.g. M15/H1)" value=${newStrat.timeframe}
+          onInput=${e=>setNewStrat({...newStrat,timeframe:e.target.value})} />
+        <input placeholder="Risk level" value=${newStrat.riskLevel}
+          onInput=${e=>setNewStrat({...newStrat,riskLevel:e.target.value})} />
+        <button class="ghost" onClick=${addStrategy}>+ Add Strategy</button>
+      </div>
+    </div>
+    ${edit && html`<${ForexClientModal} client=${edit.id?edit:null} strategies=${strategies}
+      onClose=${()=>setEdit(null)} onDone=${()=>{setEdit(null); load(); onChanged();}} />`}
+  </div>`;
+}
+
+// ---------- Barangay selector (province / city / municipal / barangay) ----------
+function BrgySelect({ geo, value, onChange }) {
+  return html`<select value=${value||''} onChange=${e=>onChange(Number(e.target.value)||null)}>
+    <option value="">— piliin ang barangay —</option>
+    ${geo.provinces.map(p => geo.cities.filter(c=>c.province_id===p.id).map(c =>
+      geo.municipalities.filter(m=>m.city_id===c.id).map(m =>
+        geo.barangays.filter(b=>b.municipality_id===m.id).map(b =>
+          html`<option key=${b.id} value=${b.id}>${p.name} / ${c.name} / ${m.name} / ${b.name}</option>`))))}
+  </select>`;
+}
+
+// ---------- Modals ----------
+function NameModal({ title, onClose, onSave }) {
+  const [name,setName]=useState(''); const [err,setErr]=useState('');
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>${title}</h2>
+      <label>Name</label><input value=${name} onInput=${e=>setName(e.target.value)} autoFocus />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose}>Cancel</button>
+        <button disabled=${!name.trim()} onClick=${async()=>{try{await onSave(name.trim());}catch(e){setErr(e.message);}}}>Save</button>
+      </div></div></div>`;
+}
+
+// Add VPN client — standalone, walang location
+function StationModal({ hub, onClose, onDone }) {
+  const [f,setF]=useState({name:'',days:'',username:'',password:'',winboxPort:'',apiUser:'admin',apiPassword:'',lat:'',lng:''});
+  const [err,setErr]=useState(''); const [made,setMade]=useState(null);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  if (made) return html`<div class="modal-bg"><div class="modal">
+    <h2>VPN client created ✓</h2>
+    <table><tbody>
+      <tr><td class="dim">Client name</td><td>${made.name}</td></tr>
+      <tr><td class="dim">SSTP server IP</td><td class="mono">${made.sstpServer}</td></tr>
+      <tr><td class="dim">SSTP port</td><td class="mono">${made.sstpPort}</td></tr>
+      <tr><td class="dim">SSTP username</td><td class="mono">${made.username}</td></tr>
+      <tr><td class="dim">SSTP password</td><td class="mono">${made.password}</td></tr>
+      <tr><td class="dim">Tunnel IP</td><td class="mono">${made.vpnIp}</td></tr>
+      <tr><td class="dim">Winbox address</td><td class="mono">${made.vpnAddress}</td></tr>
+      <tr><td class="dim">Billing API</td><td class="mono">${made.apiAddress}</td></tr>
+      <tr><td class="dim">API username</td><td class="mono">${made.apiUser||'admin'}</td></tr>
+      <tr><td class="dim">API password</td><td class="mono">${made.apiPassword||'—'}</td></tr>
+    </tbody></table>
+    <h3 style=${{marginTop:'16px'}}>MikroTik SSTP script <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>copy all</button></h3>
+    <pre>${made.routerosScript}</pre>
+    <p class="dim" style=${{marginTop:'8px',fontSize:'12px'}}>I-paste ang script sa MikroTik terminal para mag-connect ang SSTP VPN client.</p>
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+      <button type="button" class="ghost" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>Copy script</button>
+      <button onClick=${onDone}>Done</button>
+    </div></div></div>`;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Add VPN Client</h2>
+      <label>Client name</label><input value=${f.name} onInput=${set('name')} placeholder="e.g. Brgy Hall Router" autoFocus />
+      <div class="row">
+        <div style=${{flex:1}}><label>SSTP server IP</label><input value=${hub?.sstpServer||''} disabled class="mono" /></div>
+        <div style=${{flex:1}}><label>SSTP port</label><input value=${hub?.sstpPort||4443} disabled class="mono" /></div>
+      </div>
+      <label>Expiration days <span class="dim">(blanko = walang expiry)</span></label>
+      <input type="number" value=${f.days} onInput=${set('days')} placeholder="never" />
+      <div class="row">
+        <div style=${{flex:1}}><label>MikroTik API username <span class="dim">(billing)</span></label><input value=${f.apiUser} onInput=${set('apiUser')} placeholder="admin" class="mono" /></div>
+        <div style=${{flex:1}}><label>MikroTik API password</label><input value=${f.apiPassword} onInput=${set('apiPassword')} placeholder="RouterOS API pass" class="mono" /></div>
+      </div>
+      <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})} />
+      <details class="adv"><summary>Manual SSTP credentials (optional — auto-generate kung blanko)</summary>
+        <div class="row">
+          <div style=${{flex:1}}><label>SSTP username</label><input value=${f.username} onInput=${set('username')} placeholder="auto random" class="mono" /></div>
+          <div style=${{flex:1}}><label>SSTP password</label><input value=${f.password} onInput=${set('password')} placeholder="auto random (min 8)" class="mono" /></div>
+        </div>
+        <label>Winbox public port (1024-65535)</label>
+        <input type="number" value=${f.winboxPort} onInput=${set('winboxPort')} placeholder="auto" style=${{width:'200px'}} />
+      </details>
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose}>Cancel</button>
+        <button disabled=${!f.name.trim()} onClick=${async()=>{
+          try{
+            const daysNum = Number(f.days);
+            const coords = parseFormLatLng(f.lat, f.lng);
+            setMade(await api('/stations',{method:'POST',body:{
+            name:f.name, days:Number.isFinite(daysNum)&&daysNum>0?daysNum:null,
+            username:f.username||undefined, password:f.password||undefined,
+            apiUser:f.apiUser||undefined, apiPassword:f.apiPassword||undefined,
+            winboxPort:f.winboxPort?Number(f.winboxPort):undefined,
+            lat: coords.lat, lng: coords.lng }})); }
+          catch(e){ setErr(e.message); }}}>Create VPN Client</button>
+      </div></div></div>`;
+}
+
+function ZeroTierModal({ hub, onClose, onDone }) {
+  const [f,setF]=useState({name:'',nodeId:'',ztIp:'',notes:''});
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Add ZeroTier Client</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Network: <span class="mono">${hub?.zerotierNetworkId||'(set sa .env)'}</span> — i-join muna ng device ang network, tapos ilagay ang Node ID dito.
+      </p>
+      <label>Client name</label><input value=${f.name} onInput=${set('name')} placeholder="e.g. San Ramon Laptop" autoFocus />
+      <label>Node ID <span class="dim">(10 hex — ZeroTier address)</span></label>
+      <input value=${f.nodeId} onInput=${set('nodeId')} class="mono" placeholder="a1b2c3d4e5" />
+      <label>ZeroTier IP <span class="dim">(optional)</span></label>
+      <input value=${f.ztIp} onInput=${set('ztIp')} class="mono" placeholder="10.147.20.10" />
+      <label>Notes</label><input value=${f.notes} onInput=${set('notes')} placeholder="staff PC / MikroTik / NVR" />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy||!f.name.trim()||!f.nodeId.trim()} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await api('/zerotier/clients',{method:'POST',body:{
+              name:f.name.trim(), nodeId:f.nodeId.trim().toLowerCase(),
+              ztIp:f.ztIp.trim()||undefined, notes:f.notes.trim()||undefined, authorized:true,
+            }});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Add Client'}</button>
+      </div>
+    </div></div>`;
+}
+
+function GasSaleModal({ onClose, onDone }) {
+  const [f,setF]=useState({
+    vendor:'Gasoline Vendo', fuelType:'Regular', liters:'', pricePerLiter:'',
+    payment:'Cash', notes:'', soldAt:'',
+  });
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  const liters = Number(f.liters);
+  const ppl = Number(f.pricePerLiter);
+  const amount = (Number.isFinite(liters) && Number.isFinite(ppl) && liters>0 && ppl>=0)
+    ? Math.round(liters * ppl * 100) / 100 : 0;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Record Gasoline Sale</h2>
+      <label>Vendo / pump</label>
+      <input value=${f.vendor} onInput=${set('vendor')} placeholder="Gasoline Vendo" autoFocus />
+      <label>Fuel type</label>
+      <select value=${f.fuelType} onChange=${set('fuelType')}>
+        <option>Regular</option><option>Premium</option><option>Diesel</option><option>Kerosene</option>
+      </select>
+      <div class="row" style=${{gap:'10px'}}>
+        <div style=${{flex:1}}><label>Liters</label>
+          <input type="number" step="0.001" min="0" value=${f.liters} onInput=${set('liters')} placeholder="10.5" /></div>
+        <div style=${{flex:1}}><label>Price / liter (₱)</label>
+          <input type="number" step="0.01" min="0" value=${f.pricePerLiter} onInput=${set('pricePerLiter')} placeholder="65.00" /></div>
+      </div>
+      <label>Amount <span class="dim">(auto)</span></label>
+      <input class="mono" value=${amount ? '₱ '+amount.toLocaleString(undefined,{minimumFractionDigits:2}) : '—'} disabled />
+      <label>Payment</label>
+      <select value=${f.payment} onChange=${set('payment')}>
+        <option>Cash</option><option>GCash</option><option>Maya</option><option>Card</option><option>Charge</option>
+      </select>
+      <label>Notes</label>
+      <input value=${f.notes} onInput=${set('notes')} placeholder="optional" />
+      <label>Sold at <span class="dim">(optional — defaults to now)</span></label>
+      <input type="datetime-local" value=${f.soldAt} onInput=${set('soldAt')} />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy||!(liters>0)||!(ppl>=0)||!Number.isFinite(ppl)} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await api('/gasoline/sales',{method:'POST',body:{
+              vendor:f.vendor.trim()||'Gasoline Vendo',
+              fuelType:f.fuelType, liters, pricePerLiter:ppl, amount, payment:f.payment,
+              notes:f.notes.trim()||undefined,
+              soldAt: f.soldAt ? new Date(f.soldAt).toISOString() : undefined,
+            }});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Record Sale'}</button>
+      </div>
+    </div></div>`;
+}
+
+function EspRatesBlock({ priceEdit, setPriceEdit, presets, setPresets, newAmt, setNewAmt }) {
+  return html`<div style=${{marginTop:'14px',padding:'12px',border:'1px solid rgba(96,165,250,.35)',borderRadius:'10px'}}>
+    <div style=${{fontWeight:700,marginBottom:'4px'}}>Today's rate (₱/L)</div>
+    <div class="dim" style=${{fontSize:'12px',marginBottom:'10px'}}>
+      Admin sets price per liter. Sa phone pay page, client mismo magta-type ng amount → PAY → QR.
+    </div>
+    <label>Price per liter (₱/L)</label>
+    <input type="number" step="0.01" min="1" max="500" value=${priceEdit}
+      onInput=${e=>setPriceEdit(e.target.value)} placeholder="65.00"
+      style=${{fontSize:'18px',fontWeight:700}} />
+  </div>`;
+}
+
+function EspAddModal({ onClose, onDone, initialPrice, initialPresets, owners = [] }) {
+  const [f,setF]=useState({name:'JM GASOLINE QR code', deviceId:'', board:'JC3248W535', notes:'', ownerId:'', lat:'', lng:''});
+  const [priceEdit,setPriceEdit]=useState(String(initialPrice ?? 65));
+  const [presets,setPresets]=useState(Array.isArray(initialPresets) && initialPresets.length ? [...initialPresets] : [50,100,200,500]);
+  const [newAmt,setNewAmt]=useState('');
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const [created,setCreated]=useState(null);
+  const set = k => e => setF({...f,[k]:e.target.value});
+
+  useEffect(()=>{
+    api('/gasoline/price').then(p=>{
+      if (p?.pricePerLiter != null) setPriceEdit(String(p.pricePerLiter));
+      if (Array.isArray(p?.presets) && p.presets.length) setPresets(p.presets.map(Number));
+    }).catch(()=>{});
+  },[]);
+
+  const saveRates = async () => {
+    const n = Number(priceEdit);
+    if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error('Price per liter ₱1–500');
+    const keep = (presets && presets.length) ? presets : [50, 100, 200, 500];
+    return api('/gasoline/price',{method:'PUT',body:{pricePerLiter:n, presets: keep}});
+  };
+
+  if (created) {
+    return html`<div class="modal-bg"><div class="modal">
+      <h2>ESP32 added ✓</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        I-save ang Device ID at API key sa firmware (N16R8 / JC3248W535). Ipakita lang once ang API key.
+      </p>
+      <label>Device ID</label>
+      <div class="row" style=${{gap:'8px'}}>
+        <input class="mono" readonly value=${created.deviceId} style=${{flex:1}} />
+        <button class="ghost" type="button" onClick=${()=>copyTxt(created.deviceId)}>Copy</button>
+      </div>
+      <label>Name</label><input readonly value=${created.name} />
+      <label>API key</label>
+      <div class="row" style=${{gap:'8px'}}>
+        <input class="mono" readonly value=${created.apiKey||''} style=${{flex:1}} />
+        <button class="ghost" type="button" onClick=${()=>copyTxt(created.apiKey||'')}>Copy</button>
+      </div>
+      <label>MQTT topic</label><input class="mono" readonly value=${created.mqttTopic||''} />
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button onClick=${()=>onDone()}>Done</button>
+      </div>
+    </div></div>`;
+  }
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal" style=${{maxWidth:'480px'}}><h2>Add ESP32 Kiosk</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Board: Guition <span class="mono">JC3248W535</span> (ESP32-S3 N16R8 + touch LCD). Blank Device ID = auto-generate.
+      </p>
+      <label>Name <span class="dim">(pwede palitan later)</span></label>
+      <input value=${f.name} onInput=${set('name')} placeholder="JM GASOLINE QR code" autoFocus />
+      <label>Device ID <span class="dim">(optional)</span></label>
+      <input class="mono" value=${f.deviceId} onInput=${set('deviceId')} placeholder="e.g. GBC8XP or leave blank" />
+      <label>Board</label>
+      <input class="mono" value=${f.board} onInput=${set('board')} />
+      <label>Notes</label>
+      <input value=${f.notes} onInput=${set('notes')} placeholder="pump A / San Ramon" />
+      <label>May-ari (vendo owner)</label>
+      <select value=${f.ownerId} onChange=${set('ownerId')}>
+        <option value="">— none —</option>
+        ${owners.map(o=>html`<option key=${o.id} value=${String(o.id)}>
+          ${o.displayName||o.username} (${o.username})
+        </option>`)}
+      </select>
+      <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})} />
+
+      <${EspRatesBlock} priceEdit=${priceEdit} setPriceEdit=${setPriceEdit}
+        presets=${presets} setPresets=${setPresets} newAmt=${newAmt} setNewAmt=${setNewAmt} />
+
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end',gap:'8px',flexWrap:'wrap'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button class="ghost" disabled=${busy} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            const r = await saveRates();
+            setPriceEdit(String(r.pricePerLiter));
+            setPresets(r.presets||presets);
+            alert('Na-save ang rates — Lalabas sa ESP32 (home/reboot).');
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>Save rates only</button>
+        <button disabled=${busy||!f.name.trim()} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await saveRates();
+            const d = await api('/gasoline/devices',{method:'POST',body:{
+              name:f.name.trim(),
+              deviceId:f.deviceId.trim()||undefined,
+              board:f.board.trim()||'JC3248W535',
+              notes:f.notes.trim()||undefined,
+              ownerId: f.ownerId ? Number(f.ownerId) : null,
+              ...parseFormLatLng(f.lat, f.lng),
+            }});
+            setCreated(d);
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Add ESP32'}</button>
+      </div>
+    </div></div>`;
+}
+
+function EspRatesModal({ onClose, onDone, initialPrice, initialPresets }) {
+  const [priceEdit,setPriceEdit]=useState(String(initialPrice ?? 65));
+  const [presets,setPresets]=useState(Array.isArray(initialPresets) && initialPresets.length ? [...initialPresets] : [50,100,200,500]);
+  const [newAmt,setNewAmt]=useState('');
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    api('/gasoline/price').then(p=>{
+      if (p?.pricePerLiter != null) setPriceEdit(String(p.pricePerLiter));
+      if (Array.isArray(p?.presets) && p.presets.length) setPresets(p.presets.map(Number));
+    }).catch(()=>{});
+  },[]);
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal" style=${{maxWidth:'460px'}}>
+      <h2>Today's rate</h2>
+      <p class="dim" style=${{margin:'0 0 8px',fontSize:'13px'}}>
+        I-set ang ₱/L. Client sa phone magta-type ng amount at mag-PAY para sa QR.
+      </p>
+      <${EspRatesBlock} priceEdit=${priceEdit} setPriceEdit=${setPriceEdit}
+        presets=${presets} setPresets=${setPresets} newAmt=${newAmt} setNewAmt=${setNewAmt} />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end',gap:'8px'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            const n = Number(priceEdit);
+            if (!Number.isFinite(n) || n < 1 || n > 500) throw new Error('Price ₱1–500');
+            const keep = (presets && presets.length) ? presets : [50, 100, 200, 500];
+            await api('/gasoline/price',{method:'PUT',body:{pricePerLiter:n, presets: keep}});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save rates'}</button>
+      </div>
+    </div></div>`;
+}
+
+function EspRenameModal({ device, onClose, onDone, owners = [] }) {
+  const [name,setName]=useState(device?.name||'');
+  const [notes,setNotes]=useState(device?.notes||'');
+  const [ownerId,setOwnerId]=useState(device?.ownerId != null ? String(device.ownerId) : '');
+  const [lat,setLat]=useState(device?.lat != null ? String(device.lat) : '');
+  const [lng,setLng]=useState(device?.lng != null ? String(device.lng) : '');
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Edit ESP32</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Device ID: <span class="mono">${device?.deviceId}</span> · ${device?.board||'JC3248W535'}
+      </p>
+      <label>Name</label>
+      <input value=${name} onInput=${e=>setName(e.target.value)} autoFocus />
+      <label>Notes</label>
+      <input value=${notes} onInput=${e=>setNotes(e.target.value)} />
+      <label>May-ari (vendo owner)</label>
+      <select value=${ownerId} onChange=${e=>setOwnerId(e.target.value)}>
+        <option value="">— none —</option>
+        ${owners.map(o=>html`<option key=${o.id} value=${String(o.id)}>
+          ${o.displayName||o.username} (${o.username})
+        </option>`)}
+      </select>
+      <${LatLngFields} lat=${lat} lng=${lng} onChange=${({lat:a,lng:b})=>{setLat(a);setLng(b);}} />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy||!name.trim()} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await api('/gasoline/devices/'+device.id,{method:'PATCH',body:{
+              name:name.trim(), notes:notes.trim(),
+              ownerId: ownerId ? Number(ownerId) : null,
+              ...parseFormLatLng(lat, lng),
+            }});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save'}</button>
+      </div>
+    </div></div>`;
+}
+
+function GasOwnerModal({ onClose, onDone }) {
+  const [f,setF]=useState({username:'',displayName:'',password:''});
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Create vendo owner</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        May-ari account para sa SoftAP-style admin:
+        <a href="/vendo-admin" target="_blank" rel="noopener">/vendo-admin</a>
+      </p>
+      <label>Username</label>
+      <input value=${f.username} onInput=${set('username')} placeholder="estre" autoFocus autocomplete="off" />
+      <label>Display name</label>
+      <input value=${f.displayName} onInput=${set('displayName')} placeholder="Estre Gasoline" />
+      <label>Password (min 8)</label>
+      <input type="password" value=${f.password} onInput=${set('password')} minLength="8" />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end',gap:'8px'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy||!f.username.trim()||f.password.length<8} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await api('/gasoline/owners',{method:'POST',body:{
+              username:f.username.trim(),
+              displayName:f.displayName.trim()||undefined,
+              password:f.password,
+            }});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Creating…':'Create owner'}</button>
+      </div>
+    </div></div>`;
+}
+
+// CCTV camera — may location (barangay) + VPN client (station)
+function CameraModal({ barangay, geo, stations, onClose, onDone }) {
+  const [f,setF]=useState({
+    name:'', brand:'dahua', lanIp:'', rtspPort:554,
+    rtspPath:'/cam/realmonitor?channel=1&subtype=0', rtspUser:'admin', rtspPass:'',
+    lat:'', lng:'',
+  });
+  const [brgyId,setBrgyId]=useState(barangay?.id||null);
+  const [stId,setStId]=useState(null);
+  const [err,setErr]=useState(''); const [result,setResult]=useState(null);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  if (result) return html`<div class="modal-bg"><div class="modal">
+    <h2>CCTV camera added ✓</h2>
+    <p class="dim">I-paste ang rule na ito sa MikroTik VPN client para dumaloy ang stream:</p>
+    <pre>${result.routerosRule}</pre>
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+      <button type="button" class="ghost" onClick=${e=>{e.stopPropagation(); copyScript(result.routerosRule);}}>Copy rule</button>
+      <button onClick=${onDone}>Done</button>
+    </div></div></div>`;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Add CCTV Camera</h2>
+      ${!barangay && html`<label>Location (barangay)</label><${BrgySelect} geo=${geo} value=${brgyId} onChange=${setBrgyId} />`}
+      ${barangay && html`<p class="dim" style=${{marginBottom:'8px'}}>Location: <b>${barangay.name}</b></p>`}
+      <label>VPN Client (MikroTik tunnel)</label>
+      <select value=${stId||''} onChange=${e=>setStId(Number(e.target.value)||null)}>
+        <option value="">— piliin ang VPN client —</option>
+        ${stations.map(s=>html`<option key=${s.id} value=${s.id}>${s.name} (${s.username})</option>`)}
+      </select>
+      <label>Camera name</label><input value=${f.name} onInput=${set('name')} placeholder="Cam 1 - Intersection" autoFocus />
+      <label>Camera type</label>
+      <select value=${f.brand} onChange=${e=>applyCamBrand(e.target.value, setF, f)}>
+        ${CAM_BRANDS.map(b=>html`<option key=${b.id} value=${b.id}>${b.label}</option>`)}
+      </select>
+      ${f.brand==='v380' && html`<p class="dim" style=${{margin:'0 0 10px',fontSize:'12px',lineHeight:1.45}}>
+        V380: i-enable muna ang RTSP (SD card <span class="mono">ceshi.ini</span> → <span class="mono">rtsp=1</span>).
+        Test sa VLC: <span class="mono">rtsp://user:pass@IP:554/live/ch00_1</span>.
+        Cloud-only V380 (walang RTSP) hindi kaya sa portal.
+      </p>`}
+      <div class="row">
+        <div style=${{flex:2}}><label>LAN IP ng camera</label><input value=${f.lanIp} onInput=${set('lanIp')} placeholder="192.168.1.64" /></div>
+        <div style=${{flex:1}}><label>RTSP port</label><input type="number" value=${f.rtspPort} onInput=${set('rtspPort')} /></div>
+      </div>
+      <label>RTSP path</label>
+      <input value=${f.rtspPath} onInput=${set('rtspPath')} class="mono" />
+      <div class="row">
+        <div style=${{flex:1}}><label>RTSP username</label><input value=${f.rtspUser} onInput=${set('rtspUser')} /></div>
+        <div style=${{flex:1}}><label>RTSP password</label><input value=${f.rtspPass} onInput=${set('rtspPass')} /></div>
+      </div>
+      <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})}
+        hint="Optional. Blank = gamitin ang VPN client location kung naka-set." />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose}>Cancel</button>
+        <button disabled=${!f.name.trim()||!f.lanIp||!brgyId||!stId} onClick=${async()=>{
+          try{
+            const coords = parseFormLatLng(f.lat, f.lng);
+            setResult(await api('/cameras',{method:'POST',body:{...f,barangayId:brgyId,stationId:stId,rtspPort:Number(f.rtspPort),lat:coords.lat,lng:coords.lng}}));
+          }
+          catch(e){ setErr(e.message); }}}>Add Camera</button>
+      </div></div></div>`;
+}
+
+function CameraEditModal({ cam, onClose, onDone }) {
+  const [f,setF]=useState({
+    name: cam.name||'', brand: cam.brand||'dahua', lanIp: cam.lanIp||'', rtspPort: cam.rtspPort||554,
+    rtspPath: cam.rtspPath||'/cam/realmonitor?channel=1&subtype=0',
+    rtspUser: cam.rtspUser||'admin', rtspPass: '',
+    lat: cam.latOwn != null ? String(cam.latOwn) : (cam.lat != null ? String(cam.lat) : ''),
+    lng: cam.lngOwn != null ? String(cam.lngOwn) : (cam.lng != null ? String(cam.lng) : ''),
+  });
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false); const [rule,setRule]=useState('');
+  const set = k => e => setF({...f,[k]:e.target.value});
+  const save = async () => {
+    setErr(''); setBusy(true);
+    try {
+      const coords = parseFormLatLng(f.lat, f.lng);
+      const body = {
+        name: f.name.trim(), brand: f.brand, lanIp: f.lanIp.trim(), rtspPort: Number(f.rtspPort),
+        rtspPath: f.rtspPath.trim(), rtspUser: f.rtspUser.trim(),
+        lat: coords.lat, lng: coords.lng,
+      };
+      if (f.rtspPass.trim()) body.rtspPass = f.rtspPass.trim();
+      const r = await api('/cameras/'+cam.id,{method:'PATCH',body});
+      if (r.routerosRule) setRule(r.routerosRule);
+      else onDone();
+    } catch(e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  if (rule) return html`<div class="modal-bg"><div class="modal">
+    <h2>Camera updated ✓</h2>
+    <p class="dim">Kung wala pa sa MikroTik, i-paste ang NAT rule na ito sa terminal ng <b>${cam.station}</b>:</p>
+    <pre>${rule}</pre>
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+      <button type="button" class="ghost" onClick=${()=>copyScript(rule)}>Copy rule</button>
+      <button onClick=${onDone}>Done</button>
+    </div></div></div>`;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Edit Camera — ${cam.name}</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>${cam.barangay} · VPN: ${cam.station} · tunnel :${cam.tunnelPort}</p>
+      <label>Camera name</label><input value=${f.name} onInput=${set('name')} />
+      <label>Camera type</label>
+      <select value=${f.brand} onChange=${e=>applyCamBrand(e.target.value, setF, f)}>
+        ${CAM_BRANDS.map(b=>html`<option key=${b.id} value=${b.id}>${b.label}</option>`)}
+      </select>
+      ${f.brand==='v380' && html`<p class="dim" style=${{margin:'0 0 10px',fontSize:'12px'}}>
+        Path HD: <span class="mono">/live/ch00_1</span> · SD: <span class="mono">/live/ch00_0</span>
+      </p>`}
+      <div class="row">
+        <div style=${{flex:2}}><label>LAN IP</label><input value=${f.lanIp} onInput=${set('lanIp')} class="mono" /></div>
+        <div style=${{flex:1}}><label>RTSP port</label><input type="number" value=${f.rtspPort} onInput=${set('rtspPort')} /></div>
+      </div>
+      <label>RTSP path</label>
+      <input value=${f.rtspPath} onInput=${set('rtspPath')} class="mono" />
+      <div class="row">
+        <div style=${{flex:1}}><label>RTSP username</label><input value=${f.rtspUser} onInput=${set('rtspUser')} /></div>
+        <div style=${{flex:1}}><label>RTSP password <span class="dim">(blanko = hindi palitan)</span></label><input value=${f.rtspPass} onInput=${set('rtspPass')} placeholder="NVR password" /></div>
+      </div>
+      <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})} />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button onClick=${save} disabled=${busy||!f.name.trim()||!f.lanIp}>${busy?'Saving…':'Save & resync stream'}</button>
+      </div></div></div>`;
+}
+
+// ---------- Station detail ----------
+function StationDetail({ id, onBack, onChanged }) {
+  const [s,setS]=useState(null); const [days,setDays]=useState(30);
+  const [apiUser,setApiUser]=useState('admin'); const [apiPassword,setApiPassword]=useState('');
+  const [apiBusy,setApiBusy]=useState(false); const [apiErr,setApiErr]=useState('');
+  const [lat,setLat]=useState(''); const [lng,setLng]=useState('');
+  const [locBusy,setLocBusy]=useState(false); const [locErr,setLocErr]=useState('');
+  const load = useCallback(()=>api('/stations/'+id).then(d=>{
+    setS(d);
+    setApiUser(d.apiUser||'admin');
+    setApiPassword('');
+    setLat(d.lat != null ? String(d.lat) : '');
+    setLng(d.lng != null ? String(d.lng) : '');
+  }).catch(()=>onBack()),[id]);
+  useEffect(()=>{ load(); },[load]);
+  if (!s) return html`<div class="dim">Loading…</div>`;
+  const act = async (p,b) => { await api(`/stations/${id}${p}`,{method:'POST',body:b}); await load(); onChanged(); };
+  const saveApi = async () => {
+    setApiErr('');
+    setApiBusy(true);
+    try {
+      const body = { apiUser: apiUser.trim() || 'admin' };
+      if (apiPassword.trim()) body.apiPassword = apiPassword.trim();
+      await api('/stations/'+id,{method:'PATCH',body});
+      setApiPassword('');
+      await load();
+      onChanged();
+    } catch(e) { setApiErr(e.message); }
+    finally { setApiBusy(false); }
+  };
+  const saveLoc = async () => {
+    setLocErr(''); setLocBusy(true);
+    try {
+      await api('/stations/'+id,{method:'PATCH',body: parseFormLatLng(lat, lng)});
+      await load(); onChanged();
+    } catch(e) { setLocErr(e.message); }
+    finally { setLocBusy(false); }
+  };
+  const camsAsLive = s.cameras.map(c=>({...c, live: c.enabled && s.status==='active', station:s.name}));
+  return html`<div>
+    <div class="topbar">
+      <h1><a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${onBack}>←</a> ${s.name}
+        <span class="badge b-${s.status}" style=${{marginLeft:'8px'}}>${s.status}</span>
+        <span class="dot ${s.online?'on':'off'}" style=${{marginLeft:'8px'}}></span><span class="dim" style=${{fontSize:'12px'}}>${s.online?'online':'offline'}</span></h1>
+      <div class="row">
+        <input type="number" style=${{width:'80px'}} value=${days} onInput=${e=>setDays(e.target.value)} />
+        <button class="ghost" onClick=${()=>act('/extend',{days:Number(days)})}>Extend</button>
+        <button class="ghost" onClick=${()=>act('/extend',{days:null})}>No expiry</button>
+        ${s.status==='active'
+          ? html`<button class="danger" onClick=${()=>act('/disable')}>Disable</button>`
+          : html`<button onClick=${()=>act('/enable').catch(()=>alert('Expired — use Extend'))}>Enable</button>`}
+      </div>
+    </div>
+    <div class="crumbs">
+      <span>Winbox: <b class="mono" style=${{color:'var(--txt)'}}>${s.vpnAddress}</b>
+      <button class="ghost copy" onClick=${()=>copyTxt(s.vpnAddress)}>copy</button></span>
+      <span>• Billing API: <b class="mono" style=${{color:'var(--txt)'}}>${s.apiAddress}</b>
+      <button class="ghost copy" onClick=${()=>copyTxt(s.apiAddress)}>copy</button></span>
+      <span>• API user: <b class="mono" style=${{color:'var(--txt)'}}>${s.apiUser||'admin'}</b></span>
+      <span>• Expires: ${fmt(s.expiration)}</span>
+      ${s.lat!=null&&s.lng!=null?html`<span>• Map: <b class="mono" style=${{color:'var(--txt)'}}>${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}</b></span>`:html`<span class="dim">• Map: not set</span>`}
+    </div>
+    <div class="card" style=${{marginBottom:'16px'}}>
+      <h3>Map location</h3>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>Lalabas sa Fleet Map. CCTV sa VPN na ito ay pwedeng gumamit ng location na ito kung walang sariling coords.</p>
+      <${LatLngFields} lat=${lat} lng=${lng} onChange=${({lat:a,lng:b})=>{setLat(a);setLng(b);}} />
+      ${locErr && html`<div class="err">${locErr}</div>`}
+      <div class="row" style=${{marginTop:'12px',justifyContent:'flex-end'}}>
+        <button onClick=${saveLoc} disabled=${locBusy}>${locBusy?'Saving…':'Save location'}</button>
+      </div>
+    </div>
+    <div class="card" style=${{marginBottom:'16px'}}>
+      <h3>Billing API credentials</h3>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>Ilagay ang MikroTik RouterOS API user/password para sa JM billing — konekta sa <span class="mono">${s.apiAddress}</span></p>
+      <div class="row">
+        <div style=${{flex:1}}><label>API username</label><input value=${apiUser} onInput=${e=>setApiUser(e.target.value)} class="mono" /></div>
+        <div style=${{flex:1}}><label>API password <span class="dim">(blanko = hindi palitan)</span></label><input value=${apiPassword} onInput=${e=>setApiPassword(e.target.value)} placeholder=${s.apiPassword ? '••••••••' : 'hindi pa naka-set'} class="mono" /></div>
+      </div>
+      ${apiErr && html`<div class="err">${apiErr}</div>`}
+      <div class="row" style=${{marginTop:'12px',justifyContent:'flex-end'}}>
+        <button onClick=${saveApi} disabled=${apiBusy}>${apiBusy?'Saving…':'Save API credentials'}</button>
+      </div>
+    </div>
+    <div class="card" style=${{marginBottom:'16px'}}>
+      <h3>MikroTik SSTP VPN script <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(s.routerosScript);}}>copy all</button></h3>
+      <pre>${s.routerosScript}</pre>
+      <div class="dim" style=${{fontSize:'12px'}}>SSTP: <span class="mono">${s.sstpServer}:${s.sstpPort}</span> · User: <span class="mono">${s.username}</span> · Pass: <span class="mono">${s.password}</span> · Tunnel IP: <span class="mono">${s.vpnIp}</span></div>
+    </div>
+    <div class="topbar" style=${{marginBottom:'10px'}}>
+      <h3>Cameras on this VPN (${s.cameras.length})</h3>
+    </div>
+    <div class="grid g-cams">
+      ${camsAsLive.map(c => html`<div key=${c.id}>
+        <${Player} cam=${c} />
+        <div class="row" style=${{marginTop:'6px',justifyContent:'space-between'}}>
+          <span class="dim mono" style=${{fontSize:'11px'}}>${c.lanIp}:${c.rtspPort} ⇄ :${c.tunnelPort}</span>
+          <div class="row">
+            <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+              onClick=${async()=>{await api('/cameras/'+c.id,{method:'PATCH',body:{enabled:!c.enabled}}); load();}}>${c.enabled?'disable':'enable'}</button>
+            <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+              onClick=${async()=>{if(confirm('Delete camera '+c.name+'?')){await api('/cameras/'+c.id,{method:'DELETE'}); load();}}}>✕</button>
+          </div>
+        </div></div>`)}
+      ${s.cameras.length===0 && html`<div class="dim">Walang camera na naka-link sa VPN client na ito. Mag-add ng CCTV sa Locations tab.</div>`}
+    </div>
+  </div>`;
+}
+
+function PaymongoSettingsPanel({ isSuperAdmin }) {
+  const [data,setData]=useState(null);
+  const [f,setF]=useState({enabled:false,mode:'test',publicKey:'',secretKey:'',webhookSecret:''});
+  const [err,setErr]=useState(''); const [msg,setMsg]=useState(''); const [busy,setBusy]=useState(false);
+  const load = useCallback(async()=>{
+    try {
+      const d = await api('/settings/paymongo');
+      setData(d);
+      setF({
+        enabled: !!d.settings?.enabled,
+        mode: d.settings?.mode || 'test',
+        publicKey: d.settings?.publicKey || '',
+        secretKey: '',
+        webhookSecret: '',
+      });
+    } catch(e){ setErr(e.message); }
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+  const set = k => e => setF({...f,[k]: e.target.type==='checkbox'?e.target.checked:e.target.value});
+  if (!data && !err) return html`<div class="dim">Loading PayMongo settings…</div>`;
+  return html`<div>
+    <div class="card" style=${{marginBottom:'14px'}}>
+      <div class="topbar"><h3>PayMongo Webhook</h3>
+        <button class="ghost" onClick=${load}>Refresh</button></div>
+      <p class="dim" style=${{fontSize:'13px',margin:'0 0 12px'}}>
+        Secret key at webhook signing secret ay <b>sa server lang</b>. I-paste ang URL na ito sa PayMongo Dashboard → Developers → Webhooks.
+      </p>
+      <label>Webhook URL</label>
+      <div class="row" style=${{gap:'8px',alignItems:'center'}}>
+        <input class="mono" style=${{flex:1}} readonly value=${data?.webhookUrl||''} />
+        <button class="ghost" type="button" onClick=${async()=>{
+          const ok = await copyTxt(data?.webhookUrl||'');
+          if (ok) { setMsg('Webhook URL copied'); setTimeout(()=>setMsg(''),2000); }
+        }}>Copy</button>
+      </div>
+      <div class="dim" style=${{fontSize:'12px',marginTop:'6px'}}>
+        Events to enable: <span class="mono">payment.paid</span>, <span class="mono">payment.failed</span>, <span class="mono">qrph.expired</span>
+      </div>
+    </div>
+
+    <div class="card" style=${{marginBottom:'14px'}}>
+      <h3 style=${{marginTop:0}}>API & signing keys</h3>
+      ${!isSuperAdmin && html`<p class="dim" style=${{fontSize:'13px'}}>View only — Super Admin ang pwedeng mag-save ng keys.</p>`}
+      <label style=${{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'}}>
+        <input type="checkbox" checked=${f.enabled} onChange=${set('enabled')} disabled=${!isSuperAdmin} />
+        Enable PayMongo webhooks
+      </label>
+      <label>Mode</label>
+      <select value=${f.mode} onChange=${set('mode')} disabled=${!isSuperAdmin}>
+        <option value="test">Test</option>
+        <option value="live">Live</option>
+      </select>
+      <label>Public key ${data?.settings?.publicKeyMasked?html`<span class="dim">(${data.settings.publicKeyMasked})</span>`:''}</label>
+      <input class="mono" value=${f.publicKey} onInput=${set('publicKey')} placeholder="pk_test_…" disabled=${!isSuperAdmin} />
+      <label>Secret key ${data?.settings?.secretKeyConfigured?html`<span class="dim">(configured: ${data.settings.secretKeyMasked})</span>`:html`<span class="dim">(not set)</span>`}</label>
+      <input class="mono" type="password" value=${f.secretKey} onInput=${set('secretKey')}
+        placeholder=${data?.settings?.secretKeyConfigured?'Leave blank to keep':'sk_test_…'} disabled=${!isSuperAdmin} autocomplete="new-password" />
+      <label>Webhook signing secret ${data?.settings?.webhookSecretConfigured?html`<span class="dim">(configured: ${data.settings.webhookSecretMasked})</span>`:html`<span class="dim">(not set)</span>`}</label>
+      <input class="mono" type="password" value=${f.webhookSecret} onInput=${set('webhookSecret')}
+        placeholder=${data?.settings?.webhookSecretConfigured?'Leave blank to keep':'whsk_… from PayMongo webhook'} disabled=${!isSuperAdmin} autocomplete="new-password" />
+      ${err && html`<div class="err">${err}</div>`}
+      ${msg && html`<div class="dim" style=${{color:'var(--ok)',marginTop:'8px'}}>${msg}</div>`}
+      ${isSuperAdmin && html`<div class="row" style=${{marginTop:'14px',justifyContent:'flex-end'}}>
+        <button disabled=${busy} onClick=${async()=>{
+          setBusy(true); setErr(''); setMsg('');
+          try {
+            const body = { enabled:f.enabled, mode:f.mode, publicKey:f.publicKey };
+            if (f.secretKey.trim()) body.secretKey = f.secretKey.trim();
+            if (f.webhookSecret.trim()) body.webhookSecret = f.webhookSecret.trim();
+            const d = await api('/settings/paymongo',{method:'PUT',body});
+            setData(prev => ({...prev, settings:d.settings, webhookUrl:d.webhookUrl}));
+            setF(x => ({...x, secretKey:'', webhookSecret:''}));
+            setMsg('Saved');
+            load();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save PayMongo settings'}</button>
+      </div>`}
+    </div>
+
+    <div class="card" style=${{padding:0,overflowX:'auto'}}>
+      <div style=${{padding:'12px 14px',borderBottom:'1px solid var(--line)'}}>
+        <h3 style=${{margin:0}}>Recent webhooks</h3>
+        <div class="dim" style=${{fontSize:'12px'}}>Signature check + idempotency log (duplicate events ignored)</div>
+      </div>
+      <table><thead><tr>
+        <th>When</th><th>Event</th><th>Event ID</th><th>Valid</th><th>Dup</th><th>Processed</th><th>Error</th>
+      </tr></thead>
+      <tbody>
+        ${(data?.recentWebhooks||[]).map(l=>html`<tr key=${l.id}>
+          <td class="dim">${fmt(l.created)}</td>
+          <td class="mono">${l.eventType}</td>
+          <td class="mono" style=${{fontSize:'11px'}}>${l.eventId||'—'}</td>
+          <td><span class="badge ${l.isValid?'b-ok':'b-warn'}">${l.isValid?'yes':'no'}</span></td>
+          <td>${l.duplicate?'yes':'—'}</td>
+          <td class="dim">${l.processedAt?fmt(l.processedAt):'—'}</td>
+          <td class="dim" style=${{whiteSpace:'normal',maxWidth:'200px'}}>${l.error||'—'}</td>
+        </tr>`)}
+        ${!(data?.recentWebhooks||[]).length && html`<tr><td colSpan="7" class="dim" style=${{textAlign:'center',padding:'24px'}}>
+          Wala pang webhook — i-save ang signing secret, tapos i-test sa PayMongo Dashboard.
+        </td></tr>`}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
+// ---------- VPN Server panel ----------
+function ServerPanel() {
+  const [st,setSt]=useState(null); const [sess,setSess]=useState([]); const [log,setLog]=useState([]);
+  const [busy,setBusy]=useState('');
+  const load = useCallback(async()=>{
+    const [a,b,c] = await Promise.all([api('/server/status'), api('/server/sessions'), api('/server/audit?limit=25')]);
+    setSt(a); setSess(b); setLog(c);
+  },[]);
+  useEffect(()=>{ load(); const t=setInterval(load,30000); return ()=>clearInterval(t); },[load]);
+  if (!st) return html`<div class="dim">Loading…</div>`;
+  const doAct = async (label, fn) => { setBusy(label); try { await fn(); await load(); } catch(e){ alert(e.message); } setBusy(''); };
+  const svcBadge = v => html`<span class="badge ${v==='active'?'b-ok':'b-bad'}">${v}</span>`;
+  return html`<div>
+    <div class="statbar">
+      <div class="stat"><div class="v">${st.vpn.onlineSessions}</div><div class="l">Online now</div></div>
+      <div class="stat"><div class="v">${st.vpn.active}</div><div class="l">Active clients</div></div>
+      <div class="stat"><div class="v" style=${{color:'var(--warn)'}}>${st.vpn.disabled}</div><div class="l">Disabled</div></div>
+      <div class="stat"><div class="v" style=${{color:'var(--bad)'}}>${st.vpn.expired}</div><div class="l">Expired</div></div>
+      <div class="stat"><div class="v">${st.streams.activePulls}</div><div class="l">Live streams</div></div>
+      <div class="stat"><div class="v">${st.system.memUsedPct}%</div><div class="l">RAM</div></div>
+      <div class="stat"><div class="v">${st.system.loadavg[0]}</div><div class="l">Load 1m</div></div>
+      <div class="stat"><div class="v">${upSec(st.system.uptimeSec)}</div><div class="l">Uptime</div></div>
+    </div>
+    ${st.dryRun && html`<div class="card" style=${{borderColor:'var(--warn)',marginBottom:'12px'}}>⚠ DRY_RUN mode — walang totoong system changes na ina-apply.</div>`}
+    <div class="card" style=${{marginBottom:'14px'}}>
+      <div class="topbar">
+        <h3>Services — ${st.system.hostname}</h3>
+        <div class="row">
+          <button class="ghost" disabled=${!!busy} onClick=${()=>doAct('sync',()=>api('/server/sync',{method:'POST'}))}>${busy==='sync'?'Applying…':'⟳ Apply config now'}</button>
+          <button class="ghost" disabled=${!!busy} onClick=${()=>confirm('Restart SSTP server? Madidiskonekta sandali lahat ng clients.')&&doAct('accel',()=>api('/server/restart',{method:'POST',body:{service:'accel-ppp'}}))}>${busy==='accel'?'…':'Restart VPN server'}</button>
+          <button class="ghost" disabled=${!!busy} onClick=${()=>doAct('mtx',()=>api('/server/restart',{method:'POST',body:{service:'mediamtx'}}))}>${busy==='mtx'?'…':'Restart streaming'}</button>
+        </div>
+      </div>
+      <table style=${{marginTop:'8px'}}><tbody>
+        <tr><td>SSTP VPN server (accel-ppp)</td><td>${svcBadge(st.services['accel-ppp'])}</td></tr>
+        <tr><td>Streaming (MediaMTX)</td><td>${svcBadge(st.services['mediamtx'])}</td></tr>
+        <tr><td>Firewall/NAT (nftables)</td><td>${svcBadge(st.services['nftables'])}</td></tr>
+        <tr><td>Database (PostgreSQL)</td><td>${svcBadge(st.services['postgresql'])}</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card" style=${{marginBottom:'14px',padding:0,overflowX:'auto'}}>
+      <table><thead><tr><th>Live Sessions (${sess.length})</th><th>VPN Client</th><th>Tunnel IP</th><th>Uptime</th><th></th></tr></thead>
+      <tbody>${sess.map(x=>html`<tr key=${x.username}>
+        <td class="mono">${x.username}</td><td>${x.station}</td>
+        <td class="mono">${x.ip}</td><td>${x.uptime}</td>
+        <td><button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+          onClick=${()=>confirm('Kick session '+x.username+'?')&&doAct('kick',()=>api('/server/sessions/'+x.username+'/kick',{method:'POST'}))}>kick</button></td>
+      </tr>`)}
+      ${sess.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'20px'}}>Walang naka-connect na client ngayon.</td></tr>`}
+      </tbody></table>
+    </div>
+    <div class="card" style=${{padding:0,overflowX:'auto'}}>
+      <table><thead><tr><th>Recent Activity</th><th>Actor</th><th>When</th></tr></thead>
+      <tbody>${log.map(x=>html`<tr key=${x.id}>
+        <td class="mono" style=${{fontSize:'12px'}}>${x.action}${x.detail?.reason?' — '+x.detail.reason:''}</td>
+        <td><span class="badge b-disabled">${x.actor}</span></td>
+        <td class="dim">${fmt(x.at)}</td></tr>`)}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
+// ---------- Main app ----------
+function App() {
+  const [authed,setAuthed]=useState(!!TOKEN);
+  const [user,setUser]=useState(()=>{
+    try { return JSON.parse(sessionStorage.getItem('cctv_user')||'null'); } catch { return null; }
+  });
+  const isManager = user?.role === 'admin' || user?.role === 'staff';
+  const isSuperAdmin = user?.role === 'admin';
+  const roleLabel = isSuperAdmin ? 'Super Admin' : isManager ? (user?.displayName || 'Staff') : (user?.displayName || 'Viewer');
+  const [geo,setGeo]=useState(null);
+  const [hub,setHub]=useState(null);
+  const [stations,setStations]=useState([]);
+  const [cams,setCams]=useState([]);
+  const [ztClients,setZtClients]=useState([]);
+  const [ztStatus,setZtStatus]=useState(null);
+  const [gasSummary,setGasSummary]=useState({todayAmount:0,todayLiters:0,todayCount:0,totalAmount:0,totalLiters:0,salesCount:0,pricePerLiter:65,presets:[50,100,200,500]});
+  const [gasSales,setGasSales]=useState([]);
+  const [gasDevices,setGasDevices]=useState([]);
+  const [gasOwners,setGasOwners]=useState([]);
+  const [tab,setTab]=useState('browse'); // browse | wall | dash | vpn | zerotier | gas | cctv | server | accounts
+  const [wallBrand,setWallBrand]=useState('all');
+  const [sideOpen,setSideOpen]=useState(false);
+  const dashPref = useRef(false);
+  const [nav,setNav]=useState({});       // drilldown: {province, city, municipality, barangay} | {stationId, back}
+  const [modal,setModal]=useState(null);
+  const [q,setQ]=useState('');
+
+  const loadAll = useCallback(async()=>{
+    if (!TOKEN) return;
+    try {
+      const d = await api('/dashboard');
+      if (d.user) {
+        setUser(d.user);
+        sessionStorage.setItem('cctv_user', JSON.stringify({ role:d.user.role, displayName:d.user.displayName }));
+      }
+      setGeo(d.geo);
+      setHub(d.config);
+      setStations(d.stations || []);
+      setCams(d.cameras || []);
+      setZtClients(d.zerotierClients || []);
+      if (d.gasoline) {
+        setGasSummary(s=>({...s, ...d.gasoline, presets: d.gasoline.presets || s.presets || [50,100,200,500]}));
+      }
+      if (d.user?.role === 'admin' || d.user?.role === 'staff') {
+        api('/zerotier/status').then(setZtStatus).catch(()=>setZtStatus(null));
+        api('/gasoline/sales?limit=100').then(setGasSales).catch(()=>setGasSales([]));
+        api('/gasoline/devices').then(setGasDevices).catch(()=>setGasDevices([]));
+        api('/gasoline/owners').then(setGasOwners).catch(()=>setGasOwners([]));
+        api('/gasoline/price').then(p=>{
+          if (p?.pricePerLiter != null || p?.presets) {
+            setGasSummary(s=>({
+              ...s,
+              pricePerLiter: p.pricePerLiter ?? s.pricePerLiter,
+              presets: Array.isArray(p.presets) ? p.presets : s.presets,
+            }));
+          }
+        }).catch(()=>{});
+      }
+    } catch (e) {
+      console.error(e);
+      // Huwag burahin ang stations kung partial error — keep previous state kung may laman
+      setGeo(g => g || { provinces:[], cities:[], municipalities:[], barangays:[], counts:{} });
+    }
+  },[]);
+  useEffect(()=>{ if(authed){ loadAll(); const t=setInterval(loadAll,60000); return ()=>clearInterval(t);} },[authed,loadAll]);
+  useEffect(()=>{
+    if (isManager && !dashPref.current) { dashPref.current = true; setTab('dash'); }
+  },[isManager]);
+
+  if (!authed) return html`<${PublicLanding} onLoginOk=${r=>{ setUser({ role:r.role, displayName:r.displayName }); setAuthed(true); }} />`;
+  if (!geo) return html`<div class="login-wrap dim">Loading…</div>`;
+
+  const match = t => (t||'').toLowerCase().includes(q.toLowerCase());
+  const openStation = (id, back) => setNav({stationId:id, back: back||{...nav}});
+
+  const goTab = (t) => { setTab(t); setSideOpen(false); if(t==='browse') setNav({}); };
+  const pageTitles = {
+    dash:'Dashboard', browse: isManager?'Locations':'My Barangays', wall:'Live Wall',
+    map:'Fleet Map', vpn:'VPN Clients', zerotier:'ZeroTier', gas:'Gasoline Vendo',
+    cctv:'CCTV Clients', server:'VPN Server', settings:'Settings', accounts:'Accounts',
+  };
+  const pageTitle = nav.stationId && isManager ? 'Station Detail' : (pageTitles[tab] || 'Portal');
+  const initials = (roleLabel||'U').split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
+
+  let body;
+
+  // ---- Station detail (nasa loob ng kahit anong tab) ----
+  if (nav.stationId && isManager) {
+    body = html`<${StationDetail} id=${nav.stationId} onBack=${()=>setNav(nav.back||{})} onChanged=${loadAll} />`;
+  }
+  // ---- Dashboard overview (managers) ----
+  else if (tab==='dash' && isManager) {
+    const onlineN = stations.filter(s=>s.online).length;
+    const liveN = cams.filter(c=>c.live).length;
+    const ztOn = ztStatus && (ztStatus.online===true || ztStatus.status==='ONLINE' || ztStatus.joined);
+    body = html`<div class="dash-grid">
+      <div class="metric">
+        <div class="ml">VPN Clients</div>
+        <div class="mv">${stations.length}</div>
+        <div class="ms"><span class="trend up">${onlineN} online</span> · SSTP routers</div>
+        <div class="spark">${[40,55,35,70,50,80,60,75].map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
+      </div>
+      <div class="metric">
+        <div class="ml">Online Stations</div>
+        <div class="mv">${onlineN}</div>
+        <div class="ms"><span class="trend ${onlineN? 'up':'down'}">${stations.length? Math.round(onlineN/stations.length*100):0}%</span> of fleet</div>
+        <div class="bars">${[50,70,40,85,60,90].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+      <div class="metric">
+        <div class="ml">CCTV Cameras</div>
+        <div class="mv">${cams.length}</div>
+        <div class="ms">${cams.filter(c=>c.enabled).length} enabled</div>
+        <div class="spark">${[30,45,60,40,75,55,85,70].map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
+      </div>
+      <div class="metric">
+        <div class="ml">Live Cams</div>
+        <div class="mv">${liveN}</div>
+        <div class="ms"><span class="trend ${liveN?'up':'down'}">${liveN?'streaming':'idle'}</span></div>
+        <div class="bars">${[40,55,70,50,80,65].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+      <div class="metric wide">
+        <div class="ml">ZeroTier Clients</div>
+        <div class="mv">${ztClients.length}</div>
+        <div class="ms">Managed network members</div>
+        <div class="spark">${[35,50,45,65,55,75,60,80].map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
+      </div>
+      <div class="metric wide">
+        <div class="ml">Hub ZeroTier</div>
+        <div class="mv" style=${{fontSize:'22px'}}>${ztOn?'Online':(ztStatus?'Check':'—')}</div>
+        <div class="ms"><span class="trend ${ztOn?'up':'down'}">${ztOn?'connected':'status unknown'}</span></div>
+        <div class="bars">${[60,50,70,55,85,75].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+      <div class="metric wide">
+        <div class="ml">Gasoline Sales Today</div>
+        <div class="mv" style=${{fontSize:'22px'}}>₱${Number(gasSummary.todayAmount||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+        <div class="ms"><span class="trend up">${gasSummary.todayCount||0} tx</span> · ${Number(gasSummary.todayLiters||0).toFixed(1)} L</div>
+        <div class="spark">${[40,55,45,70,60,80,65,75].map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
+      </div>
+      <div class="metric wide">
+        <div class="ml">Gasoline All-time</div>
+        <div class="mv" style=${{fontSize:'22px'}}>₱${Number(gasSummary.totalAmount||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+        <div class="ms">${gasSummary.salesCount||0} sales · ${Number(gasSummary.totalLiters||0).toFixed(1)} L</div>
+        <div class="bars">${[45,60,50,75,55,85].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+    </div>
+    <div class="section-head"><div><h3>Quick actions</h3><div class="sub">Jump to a workspace</div></div></div>
+    <div class="quick-grid">
+      <div class="quick" onClick=${()=>goTab('gas')}><b>Record Sale</b><span>Gasoline vendo</span></div>
+      <div class="quick" onClick=${()=>goTab('vpn')}><b>VPN Clients</b><span>Manage SSTP routers</span></div>
+      <div class="quick" onClick=${()=>goTab('cctv')}><b>CCTV Clients</b><span>Cameras & tunnels</span></div>
+      <div class="quick" onClick=${()=>goTab('zerotier')}><b>ZeroTier</b><span>Network members</span></div>
+      <div class="quick" onClick=${()=>goTab('map')}><b>Fleet Map</b><span>Vendo · CCTV · VPN</span></div>
+      <div class="quick" onClick=${()=>goTab('wall')}><b>Live Wall</b><span>Multi-cam view</span></div>
+    </div>`;
+  }
+  // ---- Fleet Map ----
+  else if (tab==='map') {
+    body = html`<${FleetMap}
+      stations=${stations} cameras=${cams} vendos=${gasDevices}
+      onOpenStation=${(id)=>openStation(id)}
+      onOpenWall=${()=>goTab('wall')}
+    />`;
+  }
+  // ---- Live Wall ----
+  else if (tab==='wall') {
+    const shown = cams.filter(c => {
+      if (wallBrand !== 'all' && (c.brand||'dahua') !== wallBrand) return false;
+      return match(c.name+c.station+c.barangay+c.municipality+c.city+c.province+(c.brand||''));
+    });
+    body = html`<div class="section-head">
+        <div>
+          <h3>Live Wall</h3>
+          <div class="sub">${shown.length} cameras · parang V380 app — tap ▶ para live</div>
+        </div>
+        <select value=${wallBrand} onChange=${e=>setWallBrand(e.target.value)} style=${{maxWidth:'200px'}}>
+          <option value="all">All types</option>
+          <option value="v380">V380 / V380 Pro</option>
+          <option value="dahua">Dahua / NVR</option>
+          <option value="hikvision">Hikvision</option>
+          <option value="other">Other RTSP</option>
+        </select>
+      </div>
+      <div class="grid g-cams">${shown.map(c=>html`<${Player} key=${c.id} cam=${c} />`)}
+      ${shown.length===0 && html`<div class="empty">Walang cameras${wallBrand==='v380'?' (V380)':''}. I-add sa CCTV → Camera type = V380.</div>`}</div>`;
+  }
+  // ---- CCTV Clients tab ----
+  else if (tab==='cctv') {
+    const shown = cams.filter(c => match(c.name+c.station+c.barangay+c.municipality+c.city+c.province+(c.brand||'')));
+    body = html`<div class="section-head">
+        <div><h3>CCTV Cameras</h3><div class="sub">${cams.length} total · Dahua / Hikvision / V380 RTSP</div></div>
+        <button onClick=${()=>setModal({type:'camera'})}>+ Add CCTV Camera</button></div>
+      <div class="table-wrap">
+      <table><thead><tr><th></th><th>Camera</th><th>Type</th><th>Location</th><th>VPN Client</th><th>LAN IP</th><th>Tunnel</th><th>Status</th><th></th></tr></thead>
+      <tbody>${shown.map(c=>html`<tr key=${c.id}>
+        <td><span class="dot ${c.live?'on':'off'}"></span></td>
+        <td><b>${c.name}</b></td>
+        <td><span class="badge b-ok">${(CAM_BRANDS.find(b=>b.id===c.brand)||{label:c.brand||'dahua'}).label}</span></td>
+        <td class="dim">${c.barangay} / ${c.municipality} / ${c.city} / ${c.province}</td>
+        <td style=${{cursor:'pointer',color:'var(--acc)'}} onClick=${()=>openStation(c.stationId)}>${c.station}</td>
+        <td class="mono">${c.lanIp}</td>
+        <td class="mono dim">:${c.tunnelPort}</td>
+        <td><span class="badge ${c.enabled?'b-ok':'b-warn'}">${c.enabled?'enabled':'disabled'}</span>
+            ${c.stream?.ready && html` <span class="badge b-ok">streaming</span>`}</td>
+        <td class="row">
+          <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+            onClick=${()=>setModal({type:'editCamera',cam:c})}>edit</button>
+          <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+            onClick=${async()=>{await api('/cameras/'+c.id,{method:'PATCH',body:{enabled:!c.enabled}}); loadAll();}}>${c.enabled?'disable':'enable'}</button>
+          <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+            onClick=${async()=>{if(confirm('Delete camera '+c.name+'?')){await api('/cameras/'+c.id,{method:'DELETE'}); loadAll();}}}>✕</button>
+        </td></tr>`)}
+        ${shown.length===0 && html`<tr><td colSpan="9" class="dim" style=${{textAlign:'center',padding:'28px'}}>Wala pang camera — i-click ang “+ Add CCTV Camera”.</td></tr>`}
+      </tbody></table></div>`;
+  }
+  // ---- VPN Clients tab (square tiles) ----
+  else if (tab==='vpn') {
+    const shown = stations.filter(s => match(s.name+s.username+s.vpnAddress+(s.apiAddress||'')));
+    body = html`<div class="section-head">
+        <div><h3>VPN Clients</h3><div class="sub">${stations.length} SSTP routers · square cards</div></div>
+        <button onClick=${()=>setModal({type:'station'})}>+ Add VPN Client</button></div>
+      <div class="grid g-vpn">
+        ${shown.map(s=>html`<div key=${s.id} class="tile vpn-sq" onClick=${()=>openStation(s.id)}>
+          <div>
+            <div class="n"><span class="dot ${s.online?'on':'off'}"></span>${s.name}</div>
+            <div class="c mono">${s.username}</div>
+            <div class="c" style=${{marginTop:'8px'}}>
+              <span class="badge b-${s.status}">${s.status}</span>
+              ${' '}${s.online?'online':'offline'} · ${s.cameraCount||0} cam
+            </div>
+            <div class="c mono" style=${{marginTop:'10px'}}>Winbox<br/>${s.vpnAddress}</div>
+            <div class="c mono" style=${{marginTop:'6px'}}>API<br/>${s.apiAddress||'—'}</div>
+          </div>
+          <div class="vpn-actions" onClick=${e=>e.stopPropagation()}>
+            <button class="ghost" style=${{fontSize:'11px',padding:'4px 9px'}} onClick=${()=>openStation(s.id)}>Manage</button>
+            <button class="danger" style=${{fontSize:'11px',padding:'4px 9px'}}
+              onClick=${async()=>{if(confirm('Delete VPN client '+s.name+'? Kasama ang cameras nito!')){await api('/stations/'+s.id,{method:'DELETE'}); loadAll();}}}>✕</button>
+          </div>
+        </div>`)}
+        ${shown.length===0 && html`<div class="empty">Wala pang VPN client — i-click ang “+ Add VPN Client”.</div>`}
+      </div>`;
+  }
+  // ---- ZeroTier Clients tab (separate from SSTP) ----
+  else if (tab==='zerotier') {
+    const shown = ztClients.filter(z => match(z.name+z.nodeId+(z.ztIp||'')+(z.notes||'')));
+    body = html`<div>
+      <div class="card" style=${{marginBottom:'14px'}}>
+        <div class="topbar">
+          <h3>ZeroTier Hub <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— mesh VPN (hiwalay sa SSTP)</span></h3>
+          <div class="row">
+            ${ztStatus && !ztStatus.joinedStatus && hub?.zerotierNetworkId && html`
+              <button class="ghost" onClick=${async()=>{
+                try { await api('/zerotier/join',{method:'POST',body:{}}); alert('Joined network — authorize hub sa my.zerotier.com'); loadAll(); }
+                catch(e){ alert(e.message); }
+              }}>Join network</button>`}
+            <button class="ghost" onClick=${()=>copyTxt(ztStatus?.instructions||'').then(ok=>ok&&alert('Join instructions copied!'))}>Copy join script</button>
+          </div>
+        </div>
+        ${!ztStatus && html`<p class="dim">Loading ZeroTier status…</p>`}
+        ${ztStatus && html`<div class="dim" style=${{fontSize:'13px',marginTop:'8px'}}>
+          <div>Installed: <b style=${{color:ztStatus.installed?'var(--ok)':'var(--bad)'}}>${ztStatus.installed?'yes':'no'}</b>
+            · Running: <b style=${{color:ztStatus.running?'var(--ok)':'var(--bad)'}}>${ztStatus.running?'yes':'no'}</b>
+            · Hub node: <span class="mono">${ztStatus.nodeId||'—'}</span></div>
+          <div style=${{marginTop:'4px'}}>Network: <span class="mono">${ztStatus.networkId||hub?.zerotierNetworkId||'(set ZEROTIER_NETWORK_ID sa .env)'}</span>
+            · Status: <b>${ztStatus.joinedStatus||'not joined'}</b>
+            ${ztStatus.hubIps?.length ? html` · Hub IP: <span class="mono">${ztStatus.hubIps.join(', ')}</span>` : ''}
+          </div>
+          ${!ztStatus.hasApiToken && html`<div style=${{marginTop:'6px',color:'var(--warn)'}}>Tip: i-set ang ZEROTIER_API_TOKEN sa /opt/mrp/.env para auto-authorize members mula sa portal.</div>`}
+        </div>`}
+      </div>
+      <div class="topbar" style=${{marginBottom:'10px'}}>
+        <h3>ZeroTier Clients (${ztClients.length})</h3>
+        <button onClick=${()=>setModal({type:'zerotier'})}>+ Add ZeroTier Client</button>
+      </div>
+      <div class="card" style=${{padding:0,overflowX:'auto'}}>
+        <table><thead><tr>
+          <th></th><th>Client</th><th>Node ID</th><th>ZT IP</th><th>Authorized</th><th>Status</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${shown.map(z=>html`<tr key=${z.id}>
+            <td><span class="dot ${z.online?'on':'off'}"></span></td>
+            <td><b>${z.name}</b></td>
+            <td class="mono">${z.nodeId}</td>
+            <td class="mono">${z.ztIp||'—'}</td>
+            <td><span class="badge ${z.authorized?'b-ok':'b-warn'}">${z.authorized?'yes':'no'}</span></td>
+            <td><span class="badge b-${z.status==='active'?'ok':'disabled'}">${z.status}</span></td>
+            <td class="dim" style=${{whiteSpace:'normal',maxWidth:'220px'}}>${z.notes||'—'}</td>
+            <td class="row">
+              <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+                onClick=${async()=>{
+                  await api('/zerotier/clients/'+z.id,{method:'PATCH',body:{authorized:!z.authorized}});
+                  loadAll();
+                }}>${z.authorized?'deauth':'authorize'}</button>
+              <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+                onClick=${async()=>{if(confirm('Delete ZeroTier client '+z.name+'?')){await api('/zerotier/clients/'+z.id,{method:'DELETE'}); loadAll();}}}>✕</button>
+            </td>
+          </tr>`)}
+          ${shown.length===0 && html`<tr><td colSpan="8" class="dim" style=${{textAlign:'center',padding:'24px'}}>
+            Wala pang ZeroTier client — i-click ang “+ Add ZeroTier Client”.
+          </td></tr>`}
+        </tbody></table>
+      </div>
+    </div>`;
+  }
+  // ---- Gasoline Vendo (record sales) ----
+  else if (tab==='gas' && isManager) {
+    const shown = gasSales.filter(s => match(
+      (s.vendor||'')+(s.fuelType||'')+(s.payment||'')+(s.notes||'')+(s.soldBy||'')
+    ));
+    const shownDev = gasDevices.filter(d => match(
+      (d.name||'')+(d.deviceId||'')+(d.board||'')+(d.notes||'')+(d.mqttTopic||'')
+    ));
+    body = html`<div>
+      <div class="dash-grid" style=${{marginBottom:'14px'}}>
+        <div class="metric">
+          <div class="ml">Today ₱</div>
+          <div class="mv">${Number(gasSummary.todayAmount||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+          <div class="ms">${gasSummary.todayCount||0} transactions</div>
+        </div>
+        <div class="metric">
+          <div class="ml">Today liters</div>
+          <div class="mv">${Number(gasSummary.todayLiters||0).toFixed(1)}</div>
+          <div class="ms">L dispensed</div>
+        </div>
+        <div class="metric">
+          <div class="ml">ESP32 kiosks</div>
+          <div class="mv">${gasDevices.length}</div>
+          <div class="ms">${gasDevices.filter(d=>d.status==='active').length} active</div>
+        </div>
+        <div class="metric">
+          <div class="ml">All-time ₱</div>
+          <div class="mv">${Number(gasSummary.totalAmount||0).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+          <div class="ms">${gasSummary.salesCount||0} sales</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div>
+          <h3>ESP32 Kiosks</h3>
+          <div class="sub">JC3248W535 touch LCD · i-edit ang ₱/L sa card</div>
+        </div>
+        <button onClick=${()=>setModal({type:'espAdd'})}>+ Add ESP32</button>
+      </div>
+      <div class="section-head" style=${{marginTop:'4px'}}>
+        <div>
+          <h3>Vendo owners (may-ari)</h3>
+          <div class="sub">Username/password para sa <a href="/vendo-admin" target="_blank" rel="noopener">/vendo-admin</a></div>
+        </div>
+        <button onClick=${()=>setModal({type:'gasOwner'})}>+ Create owner</button>
+      </div>
+      <div class="table-wrap" style=${{marginBottom:'22px'}}>
+        <table><thead><tr>
+          <th>Username</th><th>Name</th><th>Boards</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${gasOwners.map(o=>html`<tr key=${o.id}>
+            <td class="mono"><b>${o.username}</b></td>
+            <td>${o.displayName||'—'}</td>
+            <td>${o.deviceCount||0}</td>
+            <td><span class="badge ${o.isActive?'b-ok':'b-warn'}">${o.isActive?'active':'disabled'}</span></td>
+            <td>
+              <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+                onClick=${async()=>{
+                  const pw=prompt('New password for '+o.username+' (min 8):');
+                  if(!pw||pw.length<8) return;
+                  try {
+                    await api('/gasoline/owners/'+o.id,{method:'PATCH',body:{password:pw}});
+                    alert('Password updated');
+                  } catch(e){ alert(e.message); }
+                }}>Reset PW</button>
+              <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+                onClick=${async()=>{
+                  try {
+                    await api('/gasoline/owners/'+o.id,{method:'PATCH',body:{isActive:!o.isActive}});
+                    loadAll();
+                  } catch(e){ alert(e.message); }
+                }}>${o.isActive?'Disable':'Enable'}</button>
+              <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+                onClick=${async()=>{
+                  if(!confirm('Delete owner '+o.username+'?')) return;
+                  try {
+                    await api('/gasoline/owners/'+o.id,{method:'DELETE'});
+                    loadAll();
+                  } catch(e){ alert(e.message); }
+                }}>✕</button>
+            </td>
+          </tr>`)}
+          ${gasOwners.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'16px'}}>
+            Wala pang may-ari — i-click ang “+ Create owner”.
+          </td></tr>`}
+        </tbody></table>
+      </div>
+      <div class="grid g-devices" style=${{marginBottom:'22px'}}>
+        ${shownDev.map(d=>html`<div key=${d.id} class="tile device-card">
+          <div class="dev-id">Device ID</div>
+          <div class="mono" style=${{fontWeight:700,fontSize:'15px'}}>${d.deviceId}</div>
+          <div class="dev-name">${d.name}</div>
+          <div class="dev-meta">
+            <span class="badge ${d.status==='active'?'b-ok':'b-warn'}">${d.status}</span>
+            · ${d.board||'JC3248W535'}
+            ${d.ownerUsername?html`<div class="dim" style=${{marginTop:'4px'}}>May-ari: <b>${d.ownerName||d.ownerUsername}</b></div>`:''}
+            <div style=${{marginTop:'8px',fontWeight:700,color:'#93c5fd'}}>
+              ₱${Number(gasSummary.pricePerLiter||65).toFixed(2)} / liter
+            </div>
+            <div class="dim" style=${{fontSize:'11px',marginTop:'2px'}}>
+              Client types amount on phone → PAY → QR
+            </div>
+            ${d.notes?html`<div style=${{marginTop:'6px'}}>${d.notes}</div>`:''}
+            <div class="mono" style=${{marginTop:'4px',fontSize:'11px'}}>${d.mqttTopic||'—'}</div>
+            <div style=${{marginTop:'8px'}}>
+              <div class="dim" style=${{fontSize:'11px'}}>Client pay URL (phone only — MAIN board binds below)</div>
+              <div class="row" style=${{gap:'6px',alignItems:'center',marginTop:'4px'}}>
+                <input class="mono" readonly
+                  value=${payUrl(d.deviceId)}
+                  style=${{flex:1,fontSize:'11px',padding:'6px 8px'}} />
+                <button type="button" class="ghost" style=${{fontSize:'11px',padding:'6px 8px'}}
+                  onClick=${()=>{ copyTxt(payUrl(d.deviceId)); }}>Copy</button>
+                <a class="ghost" style=${{fontSize:'11px',padding:'6px 8px',textDecoration:'none'}}
+                  href=${payUrl(d.deviceId)}
+                  target="_blank" rel="noopener">Open</a>
+              </div>
+              <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>
+                Flash MAIN <span class="mono">vendo-main</span> with this Device ID + API key → STA WiFi. LCD QR HMI optional / not required.
+              </div>
+            </div>
+          </div>
+          <div class="dev-actions">
+            <button class="ghost" style=${{fontSize:'11px',padding:'4px 9px'}}
+              onClick=${()=>setModal({type:'espRates'})}>Rates</button>
+            <button class="ghost" style=${{fontSize:'11px',padding:'4px 9px'}}
+              onClick=${()=>setModal({type:'espRename',device:d})}>Rename</button>
+            <button class="ghost" style=${{fontSize:'11px',padding:'4px 9px'}}
+              onClick=${async()=>{
+                try {
+                  const u = await api('/gasoline/devices/'+d.id,{method:'PATCH',body:{
+                    status: d.status==='active'?'disabled':'active'
+                  }});
+                  setGasDevices(list => list.map(x => x.id===d.id ? {...x,...u, apiKey:undefined} : x));
+                } catch(e){ alert(e.message); }
+              }}>${d.status==='active'?'Disable':'Enable'}</button>
+            <button class="danger" style=${{fontSize:'11px',padding:'4px 9px'}}
+              onClick=${async()=>{
+                if(!confirm('Delete ESP32 '+d.name+' ('+d.deviceId+')?')) return;
+                await api('/gasoline/devices/'+d.id,{method:'DELETE'});
+                loadAll();
+              }}>✕</button>
+          </div>
+        </div>`)}
+        ${shownDev.length===0 && html`<div class="empty">Wala pang ESP32 — i-click ang “+ Add ESP32” (JC3248W535).</div>`}
+      </div>
+
+      <div class="section-head">
+        <div><h3>Sales log</h3><div class="sub">Record gasoline vendo sales</div></div>
+        <button onClick=${()=>setModal({type:'gasSale'})}>+ Record Sale</button>
+      </div>
+      <div class="table-wrap">
+      <table><thead><tr>
+        <th>When</th><th>Vendo</th><th>Fuel</th><th>Liters</th><th>₱/L</th><th>Amount</th><th>Pay</th><th>By</th><th>Notes</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${shown.map(s=>html`<tr key=${s.id}>
+          <td class="dim">${fmt(s.soldAt)}</td>
+          <td><b>${s.vendor}</b></td>
+          <td>${s.fuelType}</td>
+          <td class="mono">${Number(s.liters).toFixed(3)}</td>
+          <td class="mono">${Number(s.pricePerLiter).toFixed(2)}</td>
+          <td class="mono"><b>₱${Number(s.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</b></td>
+          <td><span class="badge b-ok">${s.payment}</span></td>
+          <td class="dim">${s.soldBy||'—'}</td>
+          <td class="dim" style=${{whiteSpace:'normal',maxWidth:'160px'}}>${s.notes||'—'}</td>
+          <td><button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+            onClick=${async()=>{if(confirm('Delete this sale?')){await api('/gasoline/sales/'+s.id,{method:'DELETE'}); loadAll();}}}>✕</button></td>
+        </tr>`)}
+        ${shown.length===0 && html`<tr><td colSpan="10" class="dim" style=${{textAlign:'center',padding:'28px'}}>
+          Wala pang sale — i-click ang “+ Record Sale”.
+        </td></tr>`}
+      </tbody></table></div>
+    </div>`;
+  }
+  // ---- Accounts tab (staff + client viewers) ----
+  else if (tab==='accounts' && isManager) {
+    body = html`<div>
+      ${isSuperAdmin && html`<${StaffAccountsPanel} onChanged=${loadAll} />`}
+      <div style=${{marginTop: isSuperAdmin ? '28px' : '0'}}>
+        <${ClientAccountsPanel} geo=${geo} onChanged=${loadAll} />
+      </div>
+      <div style=${{marginTop:'28px'}}>
+        <${ForexAccountsPanel} onChanged=${loadAll} />
+      </div>
+    </div>`;
+  }
+  // ---- VPN Server tab ----
+  else if (tab==='server' && isManager) {
+    body = html`<${ServerPanel} />`;
+  }
+  // ---- Settings (PayMongo webhook) ----
+  else if (tab==='settings' && isManager) {
+    body = html`<div>
+      <${MapsSettingsPanel} isSuperAdmin=${isSuperAdmin} />
+      <${PaymongoSettingsPanel} isSuperAdmin=${isSuperAdmin} />
+    </div>`;
+  }
+  // ---- Browse (province -> city -> municipal -> barangay -> CCTV only) ----
+  else {
+    const { province, city, municipality, barangay } = nav;
+    const crumbs = html`<div class="crumbs">
+      <a onClick=${()=>setNav({})}>All Provinces</a>
+      ${province && html`<span>/</span><a onClick=${()=>setNav({province})}>${province.name}</a>`}
+      ${city && html`<span>/</span><a onClick=${()=>setNav({province,city})}>${city.name}</a>`}
+      ${municipality && html`<span>/</span><a onClick=${()=>setNav({province,city,municipality})}>${municipality.name}</a>`}
+      ${barangay && html`<span>/</span><span style=${{color:'var(--txt)'}}>${barangay.name}</span>`}
+    </div>`;
+    if (!province) {
+      const items = geo.provinces.filter(p=>match(p.name));
+      body = html`<div class="topbar"><h3>Provinces</h3>
+          ${isManager && html`<button onClick=${()=>setModal({type:'geo',level:'provinces',title:'Create Province'})}>+ Create Province</button>`}</div>
+        <div class="grid g-tiles" style=${{marginTop:'10px'}}>
+          ${items.map(p=>{
+            const cities = geo.cities.filter(c=>c.province_id===p.id);
+            const camN = cams.filter(c=>c.province===p.name).length;
+            return html`<div key=${p.id} class="tile" onClick=${()=>setNav({province:p})}>
+              <div class="n">${p.name}</div>
+              <div class="c">${cities.length} cities · ${camN} CCTV cameras</div>
+              ${isManager && html`<div style=${{marginTop:'8px'}}><button class="danger" style=${{fontSize:'11px',padding:'2px 8px'}}
+                onClick=${e=>{e.stopPropagation(); delGeo('provinces',p.id,p.name,loadAll);}}>Delete</button></div>`}
+            </div>`;})}
+          ${items.length===0 && html`<div class="dim">Wala pang province — i-click ang “+ Create Province” (hal. Masbate).</div>`}</div>`;
+    } else if (!city) {
+      const items = geo.cities.filter(c=>c.province_id===province.id && match(c.name));
+      body = html`${crumbs}<div class="topbar"><h3>Cities — ${province.name}</h3>
+          ${isManager && html`<button onClick=${()=>setModal({type:'geo',level:'cities',parentId:province.id,title:'Create City sa '+province.name})}>+ Create City</button>`}</div>
+        <div class="grid g-tiles" style=${{marginTop:'10px'}}>
+          ${items.map(c=>{
+            const muns = geo.municipalities.filter(m=>m.city_id===c.id);
+            const camN = cams.filter(c2=>c2.province===province.name && c2.city===c.name).length;
+            return html`<div key=${c.id} class="tile" onClick=${()=>setNav({province,city:c})}>
+              <div class="n">${c.name}</div>
+              <div class="c">${muns.length} municipals · ${camN} CCTV cameras</div>
+              ${isManager && html`<div style=${{marginTop:'8px'}}><button class="danger" style=${{fontSize:'11px',padding:'2px 8px'}}
+                onClick=${e=>{e.stopPropagation(); delGeo('cities',c.id,c.name,loadAll);}}>Delete</button></div>`}
+            </div>`;})}
+          ${items.length===0 && html`<div class="dim">Wala pang city dito — hal. “Masbate City”.</div>`}</div>`;
+    } else if (!municipality) {
+      const items = geo.municipalities.filter(m=>m.city_id===city.id && match(m.name));
+      body = html`${crumbs}<div class="topbar"><h3>Municipals — ${city.name}</h3>
+          ${isManager && html`<button onClick=${()=>setModal({type:'geo',level:'municipalities',parentId:city.id,title:'Create Municipal sa '+city.name})}>+ Create Municipal</button>`}</div>
+        <div class="grid g-tiles" style=${{marginTop:'10px'}}>
+          ${items.map(m=>{
+            const brgys = geo.barangays.filter(b=>b.municipality_id===m.id);
+            const camN = cams.filter(c2=>c2.province===province.name && c2.city===city.name && c2.municipality===m.name).length;
+            return html`<div key=${m.id} class="tile" onClick=${()=>setNav({province,city,municipality:m})}>
+              <div class="n">${m.name}</div>
+              <div class="c">${brgys.length} barangays · ${camN} CCTV cameras</div>
+              ${isManager && html`<div style=${{marginTop:'8px'}}><button class="danger" style=${{fontSize:'11px',padding:'2px 8px'}}
+                onClick=${e=>{e.stopPropagation(); delGeo('municipalities',m.id,m.name,loadAll);}}>Delete</button></div>`}
+            </div>`;})}
+          ${items.length===0 && html`<div class="dim">Wala pang municipal dito — hal. “Milagros”, “Cataingan”, etc.</div>`}</div>`;
+    } else if (!barangay) {
+      const items = geo.barangays.filter(b=>b.municipality_id===municipality.id && match(b.name));
+      body = html`${crumbs}<div class="topbar"><h3>Barangays — ${municipality.name}</h3>
+          ${isManager && html`<button onClick=${()=>setModal({type:'geo',level:'barangays',parentId:municipality.id,title:'Create Barangay sa '+municipality.name})}>+ Create Barangay</button>`}</div>
+        <div class="grid g-tiles" style=${{marginTop:'10px'}}>
+          ${items.map(b=>{
+            const cnt = geo.counts[b.id] || {cameras:0};
+            return html`<div key=${b.id} class="tile" onClick=${()=>setNav({province,city,municipality,barangay:b})}>
+              <div class="n">${b.name}</div>
+              <div class="c">${cnt.cameras} CCTV cameras</div>
+              ${isManager && html`<div style=${{marginTop:'8px'}}><button class="danger" style=${{fontSize:'11px',padding:'2px 8px'}}
+                onClick=${e=>{e.stopPropagation(); delGeo('barangays',b.id,b.name,loadAll);}}>Delete</button></div>`}
+            </div>`;})}
+          ${items.length===0 && html`<div class="dim">Wala pang barangay dito.</div>`}</div>`;
+    } else {
+      const items = cams.filter(c=>c.barangayId===barangay.id && match(c.name+c.lanIp+c.station));
+      body = html`${crumbs}<div class="topbar"><h3>CCTV Cameras — ${barangay.name}</h3>
+          ${isManager && html`<button onClick=${()=>setModal({type:'camera',barangay})}>+ Add CCTV Camera</button>`}</div>
+        <div class="grid g-cams" style=${{marginTop:'10px'}}>
+          ${items.map(c => html`<div key=${c.id}>
+            <${Player} cam=${c} />
+            ${isManager && html`<div class="row" style=${{marginTop:'6px',justifyContent:'space-between'}}>
+              <span class="dim mono" style=${{fontSize:'11px'}}>${c.lanIp} · VPN: ${c.station}</span>
+              <div class="row">
+                <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+                  onClick=${()=>setModal({type:'editCamera',cam:c})}>edit</button>
+                <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
+                  onClick=${async()=>{await api('/cameras/'+c.id,{method:'PATCH',body:{enabled:!c.enabled}}); loadAll();}}>${c.enabled?'disable':'enable'}</button>
+                <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}}
+                  onClick=${async()=>{if(confirm('Delete camera '+c.name+'?')){await api('/cameras/'+c.id,{method:'DELETE'}); loadAll();}}}>✕</button>
+              </div>
+            </div>`}
+          </div>`)}
+          ${items.length===0 && html`<div class="dim">${isManager?'Wala pang CCTV dito — i-click ang “+ Add CCTV Camera”.':'Walang CCTV sa barangay na ito.'}</div>`}
+        </div>`;
+    }
+  }
+
+  return html`<div class="shell">
+    <div class=${"side-backdrop"+(sideOpen?" show":"")} onClick=${()=>setSideOpen(false)}></div>
+    <aside class=${"sidebar"+(sideOpen?" open":"")}>
+      <div class="side-brand">
+        <${BrandMark} />
+      </div>
+      <nav class="nav">
+        ${isManager && html`<button class=${tab==='dash'&&!nav.stationId?'act':''} onClick=${()=>{goTab('dash');setNav({});}}>Dashboard</button>`}
+        <button class=${tab==='browse'&&!nav.stationId?'act':''} onClick=${()=>goTab('browse')}>${isManager?'Locations':'My Barangays'}</button>
+        <button class=${tab==='wall'&&!nav.stationId?'act':''} onClick=${()=>goTab('wall')}>Live Wall</button>
+        <button class=${tab==='map'&&!nav.stationId?'act':''} onClick=${()=>goTab('map')}>Fleet Map</button>
+        ${isManager && html`<div class="nav-sec">Operations</div>`}
+        ${isManager && html`<button class=${tab==='cctv'&&!nav.stationId?'act':''} onClick=${()=>goTab('cctv')}>CCTV</button>`}
+        ${isManager && html`<button class=${tab==='vpn'&&!nav.stationId?'act':''} onClick=${()=>goTab('vpn')}>VPN Clients</button>`}
+        ${isManager && html`<button class=${tab==='zerotier'&&!nav.stationId?'act':''} onClick=${()=>goTab('zerotier')}>ZeroTier</button>`}
+        ${isManager && html`<button class=${tab==='gas'&&!nav.stationId?'act':''} onClick=${()=>goTab('gas')}>Gasoline Vendo</button>`}
+        ${isManager && html`<div class="nav-sec">All Vendo</div>`}
+        ${isManager && html`<a class="nav-ext" href="/shop" target="_blank" rel="noopener">JM Market</a>`}
+        ${isManager && html`<button class=${tab==='settings'&&!nav.stationId?'act':''} onClick=${()=>goTab('settings')}>Settings</button>`}
+        ${isManager && html`<button class=${tab==='accounts'&&!nav.stationId?'act':''} onClick=${()=>goTab('accounts')}>Accounts</button>`}
+        ${isManager && html`<button class=${tab==='server'&&!nav.stationId?'act':''} onClick=${()=>goTab('server')}>VPN Server</button>`}
+      </nav>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <button class="menu-btn" type="button" onClick=${()=>setSideOpen(v=>!v)} aria-label="Menu">☰</button>
+        <input class="top-search" placeholder="Search…" value=${q} onInput=${e=>setQ(e.target.value)} />
+        <div class="topbar-right">
+          <span class="role-chip">${roleLabel}</span>
+          <div class="avatar">${initials}</div>
+          <button class="ghost" onClick=${()=>{ TOKEN=''; sessionStorage.removeItem('cctv_token'); sessionStorage.removeItem('cctv_user'); location.reload(); }}>Logout</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="page-head">
+          <h1>${pageTitle}</h1>
+          <div class="crumb">Home · ${pageTitle}</div>
+        </div>
+        ${body}
+      </div>
+    </div>
+    ${modal?.type==='geo' && isManager && html`<${NameModal} title=${modal.title} onClose=${()=>setModal(null)}
+      onSave=${async name=>{await api('/geo/'+modal.level,{method:'POST',body:{name,parentId:modal.parentId}}); setModal(null); loadAll();}} />`}
+    ${modal?.type==='station' && isManager && html`<${StationModal} hub=${hub} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='zerotier' && isManager && html`<${ZeroTierModal} hub=${hub} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='gasSale' && isManager && html`<${GasSaleModal} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='espAdd' && isManager && html`<${EspAddModal}
+      initialPrice=${gasSummary.pricePerLiter} initialPresets=${gasSummary.presets} owners=${gasOwners}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='espRates' && isManager && html`<${EspRatesModal}
+      initialPrice=${gasSummary.pricePerLiter} initialPresets=${gasSummary.presets}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='espRename' && isManager && html`<${EspRenameModal}
+      device=${modal.device} owners=${gasOwners}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='gasOwner' && isManager && html`<${GasOwnerModal}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='camera' && isManager && html`<${CameraModal} barangay=${modal.barangay} geo=${geo} stations=${stations} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='editCamera' && isManager && html`<${CameraEditModal} cam=${modal.cam} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+  </div>`;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+</script>
+</body>
+</html>

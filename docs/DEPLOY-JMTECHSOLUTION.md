@@ -81,4 +81,20 @@ systemctl stop OLD_SERVICE_NAME
 lsof -i :3000
 ```
 
-Pag na-deploy na ito, ang **ALL VENDO** ay makikita sa `jmtechsolution.cloud/dashboard/` — wala nang Empty Bottle o Cloud Hotspot sa sidebar.
+Pag na-deploy na ito, ang sidebar ay may **All Vendo** section lang — wala nang Empty Bottle o Cloud Hotspot.
+
+## Quick fix — sidebar lang (existing portal)
+
+Kung ayaw palitan buong server, i-update lang ang monitoring portal HTML:
+
+```bash
+# Sa VPS — hanapin muna ang file
+grep -r "Empty Bottle" /var/www /opt /home 2>/dev/null | head -3
+
+# Copy mula sa repo
+cp /opt/jmtechsolution/site/monitoring/index.html /var/www/jmtechsolution.cloud/index.html
+# o gamitin ang script:
+sudo bash deploy/update-jmtechsolution-portal.sh
+```
+
+File na in-edit: `site/monitoring/index.html` (live portal mula sa jmtechsolution.cloud)
