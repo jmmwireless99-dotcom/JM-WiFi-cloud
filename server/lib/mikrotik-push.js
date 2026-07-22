@@ -5,8 +5,14 @@ const net = require('net');
 const http = require('http');
 const db = require('../db');
 
+const CENTRAL_GATEWAY = '10.0.0.1';
+
+function isCentralHotspot(site) {
+  return !site || String(site.module_type || 'hotspot') !== 'empty_bottle';
+}
+
 function parseGateway(hsAddress) {
-  const gw = String(hsAddress || '10.0.0.1').split('/')[0].trim();
+  const gw = String(hsAddress || CENTRAL_GATEWAY).split('/')[0].trim();
   const p = gw.split('.');
   if (p.length !== 4) throw new Error('Invalid hs_address: ' + hsAddress);
   const network = `${p[0]}.${p[1]}.${p[2]}.0/24`;
@@ -204,16 +210,17 @@ async function pushHotspotServer(server, options = {}) {
   const cloud = (options.cloudUrl || process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
   const bridgeLocal = options.bridgeLocal || 'bridge-local';
 
+  const central = isCentralHotspot(site);
   const hsName = server.name || 'CENTRAL';
-  const iface = server.interface_name || 'bridge-hotspot';
+  const iface = server.interface_name || (central ? 'bridge-hotspot' : 'bridge-hotspot');
   const profileName = server.profile_name || 'jmwifi';
   const dnsName = server.dns_name || 'jmwifi.local';
   const htmlDir = server.html_directory || 'hotspot';
   const loginBy = server.login_by || 'http-pap,cookie';
   const vlanIds = parseVlanIds(server);
-  const { gw, network, pool } = parseGateway(server.hs_address);
-  const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-  const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const { gw, network, pool } = parseGateway(central ? CENTRAL_GATEWAY : server.hs_address);
+  const poolName = central ? 'pool-central' : `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const dhcpName = central ? 'dhcp-central' : `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
 
   const api = new RouterOS(host, port);
   const steps = [];
@@ -271,6 +278,16 @@ async function pushHotspotServer(server, options = {}) {
         interface: iface,
         comment: `JM Hotspot ${hsName}`
       });
+    }
+    if (central) {
+      for (const a of addrs) {
+        if (a.address && a.address !== gwAddr) {
+          try {
+            await api.call(['/ip/address/remove', `=.id=${a['.id']}`]);
+            steps.push(`Removed stray IP ${a.address}`);
+          } catch {}
+        }
+      }
     }
     steps.push(`Gateway ${gw} on ${iface}`);
 
@@ -411,9 +428,11 @@ async function pushHotspotProfile(profile, site) {
 }
 
 module.exports = {
+  CENTRAL_GATEWAY,
   pushHotspotServer,
   pushHotspotProfile,
   resolveSite,
   parseGateway,
-  parseVlanIds
+  parseVlanIds,
+  isCentralHotspot
 };

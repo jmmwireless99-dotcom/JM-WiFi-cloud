@@ -403,7 +403,8 @@ router.get('/hotspot/servers', authAdmin, (req, res) => {
     SELECT hs.*, s.name as site_name
     FROM hotspot_servers hs
     LEFT JOIN sites s ON s.id = hs.site_id
-    WHERE hs.site_id IS NULL OR ${f.sql.replace('operator_id', 's.operator_id')}
+    WHERE (hs.site_id IS NULL OR ${f.sql.replace('operator_id', 's.operator_id')})
+      AND COALESCE(s.module_type, 'hotspot') = 'hotspot'
     ORDER BY hs.created_at DESC
   `).all(...f.params);
   res.json({ servers });
@@ -429,13 +430,16 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), asy
     return res.status(404).json({ error: 'Vendo not found' });
   }
 
+  const { CENTRAL_GATEWAY } = require('../lib/mikrotik-push');
+  const finalHsAddress = CENTRAL_GATEWAY;
+
   const id = uuid();
   db.prepare(`
     INSERT INTO hotspot_servers (
       id, site_id, name, hs_address, html_directory, login_by,
       interface_name, vlan_id, vlan_ids, dns_name, profile_name
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, vlan_ids, dns_name, profile_name);
+  `).run(id, site_id, name, finalHsAddress, html_directory, login_by, interface_name, vlan_id, vlan_ids, dns_name, profile_name);
 
   const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id);
   let push = null;
@@ -460,12 +464,13 @@ router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), 
     'name', 'hs_address', 'html_directory', 'login_by', 'interface_name',
     'vlan_id', 'vlan_ids', 'dns_name', 'profile_name', 'status', 'site_id'
   ];
+  const { CENTRAL_GATEWAY } = require('../lib/mikrotik-push');
   const updates = [];
   const values = [];
   for (const field of fields) {
     if (req.body[field] !== undefined) {
       updates.push(`${field} = ?`);
-      values.push(req.body[field]);
+      values.push(field === 'hs_address' ? CENTRAL_GATEWAY : req.body[field]);
     }
   }
   if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
