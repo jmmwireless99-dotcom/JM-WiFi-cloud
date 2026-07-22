@@ -162,7 +162,7 @@
             <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
           </div>
           <div class="toolbar">
-            <p id="hs-toolbar-text">Central hotspot server — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.</p>
+            <p id="hs-toolbar-text">Central hotspot — settings dito direktang napupush sa MikroTik (VLAN, IP, DHCP, hotspot).</p>
             <div class="filter-row">
               <button id="btn-add-server" class="btn-primary">+ Server</button>
               <button id="btn-add-profile" class="btn-primary">+ Profile</button>
@@ -178,21 +178,31 @@
 
           <dialog id="hs-server-dialog">
             <form id="hs-server-form" method="dialog">
-              <h3>Setup Hotspot Server</h3>
+              <h3 id="hs-server-dialog-title">Setup Hotspot Server</h3>
+              <input type="hidden" name="id" id="hs-server-id">
               <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
               <div class="form-row">
                 <label>HS Address <input name="hs_address" value="10.0.0.1" required></label>
-                <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs via bridge-hotspot"></label>
+                <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs"></label>
+              </div>
+              <label>VLAN IDs (comma) <input name="vlan_ids" value="101,102" placeholder="101,102,103"></label>
+              <div class="form-row">
+                <label>Interface <input name="interface_name" value="bridge-hotspot"></label>
+                <label>Profile <input name="profile_name" value="jmwifi"></label>
               </div>
               <div class="form-row">
                 <label>HTML Directory <input name="html_directory" value="hotspot"></label>
                 <label>Login By <input name="login_by" value="http-pap,cookie"></label>
               </div>
               <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
-              <p class="hub-lead">Kitifi-style: isang CENTRAL server (10.0.0.1). VLAN ID = 0 = lahat ng VLAN sa bridge-hotspot.</p>
+              <label>Vendo site
+                <select name="site_id" id="hs-site-select"><option value="">Auto (first hotspot vendo)</option></select>
+              </label>
+              <label class="check-row"><input type="checkbox" name="push_to_mikrotik" checked> Direktang i-apply sa MikroTik pag save</label>
+              <p class="hub-lead">Auto-push: VLAN + bridge + IP + DHCP + hotspot profile + walled garden sa router.</p>
               <div class="dialog-actions">
                 <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
-                <button type="submit" class="btn-primary">Save Server</button>
+                <button type="submit" class="btn-primary">Save &amp; Push</button>
               </div>
             </form>
           </dialog>

@@ -409,17 +409,19 @@ router.get('/hotspot/servers', authAdmin, (req, res) => {
   res.json({ servers });
 });
 
-router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
   const {
     name,
     site_id = null,
-    hs_address = '10.10.10.1',
+    hs_address = '10.0.0.1',
     html_directory = 'hotspot',
-    login_by = 'http-pap,mac-cookie',
+    login_by = 'http-pap,cookie',
     interface_name = 'bridge-hotspot',
-    vlan_id = 10,
+    vlan_id = 0,
+    vlan_ids = '101,102',
     dns_name = 'jmwifi.local',
-    profile_name = 'jmwifi'
+    profile_name = 'jmwifi',
+    push_to_mikrotik = true
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
@@ -431,14 +433,23 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), (re
   db.prepare(`
     INSERT INTO hotspot_servers (
       id, site_id, name, hs_address, html_directory, login_by,
-      interface_name, vlan_id, dns_name, profile_name
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, dns_name, profile_name);
+      interface_name, vlan_id, vlan_ids, dns_name, profile_name
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, vlan_ids, dns_name, profile_name);
 
-  res.status(201).json({ server: db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id) });
+  const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id);
+  let push = null;
+  if (push_to_mikrotik) {
+    const { pushHotspotServer } = require('../lib/mikrotik-push');
+    push = await pushHotspotServer(server);
+    if (push.success) {
+      db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(id);
+    }
+  }
+  res.status(201).json({ server, push });
 });
 
-router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
   const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
   if (!server) return res.status(404).json({ error: 'Server not found' });
   if (server.site_id && !getOwnedSite(req.operator, server.site_id, MODULE)) {
@@ -447,7 +458,7 @@ router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), 
 
   const fields = [
     'name', 'hs_address', 'html_directory', 'login_by', 'interface_name',
-    'vlan_id', 'dns_name', 'profile_name', 'status', 'site_id'
+    'vlan_id', 'vlan_ids', 'dns_name', 'profile_name', 'status', 'site_id'
   ];
   const updates = [];
   const values = [];
@@ -460,7 +471,44 @@ router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), 
   if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
   values.push(server.id);
   db.prepare(`UPDATE hotspot_servers SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ server: db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(server.id) });
+  const updated = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(server.id);
+  let push = null;
+  if (req.body.push_to_mikrotik !== false) {
+    const { pushHotspotServer } = require('../lib/mikrotik-push');
+    push = await pushHotspotServer(updated);
+    if (push.success) {
+      db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(server.id);
+    }
+  }
+  res.json({ server: updated, push });
+});
+
+router.post('/hotspot/servers/:id/push', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
+  const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+  if (server.site_id && !getOwnedSite(req.operator, server.site_id, MODULE)) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
+  const { pushHotspotServer } = require('../lib/mikrotik-push');
+  const push = await pushHotspotServer(server);
+  if (push.success) {
+    db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(server.id);
+    return res.json(push);
+  }
+  res.status(502).json(push);
+});
+
+router.post('/hotspot/profiles/:id/push', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
+  const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
+  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  const site = profile.site_id
+    ? getOwnedSite(req.operator, profile.site_id, MODULE)
+    : require('../lib/mikrotik-push').resolveSite({});
+  if (!site) return res.status(400).json({ error: 'Walang vendo site na may MikroTik' });
+  const { pushHotspotProfile } = require('../lib/mikrotik-push');
+  const push = await pushHotspotProfile(profile, site);
+  if (push.success) return res.json(push);
+  res.status(502).json(push);
 });
 
 router.delete('/hotspot/servers/:id', authAdmin, requireRole('admin'), (req, res) => {

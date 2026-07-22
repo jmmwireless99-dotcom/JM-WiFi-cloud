@@ -649,7 +649,7 @@
     $('#hs-server-panel').classList.toggle('hidden', tab !== 'server');
     $('#hs-profile-panel').classList.toggle('hidden', tab !== 'profile');
     $('#hs-toolbar-text').textContent = tab === 'server'
-      ? 'Central hotspot — lahat ng VLAN dadaan sa 10.0.0.1 captive portal.'
+      ? 'Central hotspot — direktang i-apply sa MikroTik ang VLAN, IP, DHCP, at hotspot settings.'
       : 'User profiles — pause on disconnect, no validity, random MAC.';
     $('#btn-add-server').style.display = tab === 'server' ? '' : 'none';
     $('#btn-add-profile').style.display = tab === 'profile' ? '' : 'none';
@@ -664,16 +664,18 @@
 
     $('#hs-server-list').innerHTML = servers.servers.length ? `
       <table>
-        <thead><tr><th>Name</th><th>HS Address</th><th>Interface</th><th>Login By</th><th>VLAN</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>HS Address</th><th>Interface</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
         <tbody>
           ${servers.servers.map((s) => `
             <tr>
               <td><strong>${esc(s.name)}</strong></td>
               <td class="mono">${esc(s.hs_address)}</td>
               <td>${esc(s.interface_name || 'bridge-hotspot')}</td>
-              <td>${esc(s.login_by)}</td>
-              <td>${Number(s.vlan_id) === 0 ? 'ALL' : esc(s.vlan_id)}</td>
+              <td>${Number(s.vlan_id) === 0 ? esc(s.vlan_ids || 'ALL') : esc(s.vlan_id)}</td>
+              <td class="mono">${esc(s.last_pushed_at || '—')}</td>
               <td>
+                <button class="btn-primary" data-hs-push="${s.id}">Push</button>
+                <button class="btn-secondary" data-hs-edit="${s.id}">Edit</button>
                 <button class="btn-secondary" data-hs-script="${s.id}">Script</button>
                 <button class="btn-danger" data-hs-del="${s.id}">Delete</button>
               </td>
@@ -696,6 +698,7 @@
               <td>${p.allow_random_mac ? 'yes' : 'no'}</td>
               <td>${esc(p.keepalive_timeout)}</td>
               <td>
+                <button class="btn-primary" data-profile-push="${p.id}">Push</button>
                 <button class="btn-secondary" data-profile-script="${p.id}">Script</button>
                 <button class="btn-danger" data-profile-del="${p.id}">Delete</button>
               </td>
@@ -705,6 +708,27 @@
       </table>
     ` : '<p class="empty">Walang profile pa. Mag-click + Profile.</p>';
 
+    $$('[data-hs-push]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const r = await api('/hotspot/servers/' + btn.dataset.hsPush + '/push', { method: 'POST' });
+          alert('MikroTik OK\n\n' + (r.steps || []).join('\n'));
+          loadHotspotServer();
+        } catch (ex) {
+          alert('Push failed: ' + ex.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+    $$('[data-hs-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const s = servers.servers.find((x) => x.id === btn.dataset.hsEdit);
+        if (!s) return;
+        openServerDialog(s);
+      });
+    });
     $$('[data-hs-script]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const r = await api('/hotspot/servers/' + btn.dataset.hsScript + '/script');
@@ -716,6 +740,19 @@
         if (!confirm('Delete this hotspot server?')) return;
         await api('/hotspot/servers/' + btn.dataset.hsDel, { method: 'DELETE' });
         loadHotspotServer();
+      });
+    });
+    $$('[data-profile-push]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const r = await api('/hotspot/profiles/' + btn.dataset.profilePush + '/push', { method: 'POST' });
+          alert('Profile pushed: ' + (r.profile || 'OK'));
+        } catch (ex) {
+          alert('Push failed: ' + ex.message);
+        } finally {
+          btn.disabled = false;
+        }
       });
     });
     $$('[data-profile-script]').forEach((btn) => {
@@ -738,10 +775,42 @@
   });
 
   $('#btn-refresh-hs')?.addEventListener('click', () => loadHotspotServer());
+  async function fillHsSiteSelect() {
+    if (!state.vendos.length) {
+      const data = await api('/vendos');
+      state.vendos = data.vendos;
+    }
+    const sel = $('#hs-site-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Auto (first hotspot vendo)</option>' +
+      state.vendos.map((v) => `<option value="${v.id}">${esc(v.name)} (${esc(v.mikrotik_host || 'no MT')})</option>`).join('');
+  }
+
+  function openServerDialog(server) {
+    fillHsSiteSelect();
+    const form = $('#hs-server-form');
+    $('#hs-server-dialog-title').textContent = server?.id ? 'Edit Hotspot Server' : 'Setup Hotspot Server';
+    if (server) {
+      $('#hs-server-id').value = server.id;
+      for (const k of ['name', 'hs_address', 'vlan_id', 'vlan_ids', 'interface_name', 'profile_name', 'html_directory', 'login_by', 'dns_name']) {
+        const el = form.elements.namedItem(k);
+        if (el && server[k] != null) el.value = server[k];
+      }
+      if (form.elements.namedItem('site_id')) form.elements.namedItem('site_id').value = server.site_id || '';
+    } else {
+      form.reset();
+      $('#hs-server-id').value = '';
+      form.elements.namedItem('name').value = 'CENTRAL';
+      form.elements.namedItem('hs_address').value = '10.0.0.1';
+      form.elements.namedItem('vlan_ids').value = '101,102';
+    }
+    if (form.elements.namedItem('push_to_mikrotik')) form.elements.namedItem('push_to_mikrotik').checked = true;
+    $('#hs-server-dialog').showModal();
+  }
+
   $('#btn-add-server')?.addEventListener('click', () => {
     setHsTab('server');
-    $('#hs-server-form').reset();
-    $('#hs-server-dialog').showModal();
+    openServerDialog(null);
   });
   $('#btn-add-profile')?.addEventListener('click', () => {
     setHsTab('profile');
@@ -756,8 +825,24 @@
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
     body.vlan_id = Number(body.vlan_id);
-    await api('/hotspot/servers', { method: 'POST', body: JSON.stringify(body) });
+    body.push_to_mikrotik = fd.get('push_to_mikrotik') ? true : false;
+    if (!body.site_id) delete body.site_id;
+    delete body.id;
+    const id = $('#hs-server-id').value;
+    let data;
+    if (id) {
+      data = await api('/hotspot/servers/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    } else {
+      data = await api('/hotspot/servers', { method: 'POST', body: JSON.stringify(body) });
+    }
     $('#hs-server-dialog').close();
+    if (data.push) {
+      if (data.push.success) {
+        alert('Saved & pushed sa MikroTik\n\n' + (data.push.steps || []).join('\n'));
+      } else {
+        alert('Saved pero push failed:\n' + (data.push.error || 'unknown error'));
+      }
+    }
     loadHotspotServer();
   });
 

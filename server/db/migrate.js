@@ -26,8 +26,12 @@ function ensureColumn(table, column, ddl) {
   ['bandwidth_up', "bandwidth_up TEXT DEFAULT '2M'"],
   ['bandwidth_down', "bandwidth_down TEXT DEFAULT '5M'"],
   ['notes', "notes TEXT DEFAULT ''"],
-  ['module_type', "module_type TEXT DEFAULT 'hotspot'"]
+  ['module_type', "module_type TEXT DEFAULT 'hotspot'"],
+  ['vlan_ids', "vlan_ids TEXT DEFAULT '101,102'"]
 ].forEach(([col, ddl]) => ensureColumn('sites', col, ddl));
+
+ensureColumn('hotspot_servers', 'vlan_ids', "vlan_ids TEXT DEFAULT '101,102'");
+ensureColumn('hotspot_servers', 'last_pushed_at', 'last_pushed_at TEXT');
 
 db.prepare("UPDATE sites SET module_type = 'hotspot' WHERE module_type IS NULL OR module_type = ''").run();
 

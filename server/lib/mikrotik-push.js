@@ -1,0 +1,419 @@
+/**
+ * Push Hotspot Server settings from DB directly to MikroTik (RouterOS API :8728).
+ */
+const net = require('net');
+const http = require('http');
+const db = require('../db');
+
+function parseGateway(hsAddress) {
+  const gw = String(hsAddress || '10.0.0.1').split('/')[0].trim();
+  const p = gw.split('.');
+  if (p.length !== 4) throw new Error('Invalid hs_address: ' + hsAddress);
+  const network = `${p[0]}.${p[1]}.${p[2]}.0/24`;
+  const pool = `${p[0]}.${p[1]}.${p[2]}.10-${p[0]}.${p[1]}.${p[2]}.254`;
+  return { gw, network, pool };
+}
+
+function parseVlanIds(server) {
+  if (server.vlan_ids) {
+    return String(server.vlan_ids).split(',').map((v) => Number(v.trim())).filter((n) => n > 0);
+  }
+  const single = Number(server.vlan_id);
+  if (single > 0) return [single];
+  return [101, 102];
+}
+
+function resolveSite(server) {
+  if (server.site_id) {
+    return db.prepare('SELECT * FROM sites WHERE id = ?').get(server.site_id);
+  }
+  return db.prepare(`
+    SELECT * FROM sites
+    WHERE COALESCE(module_type, 'hotspot') = 'hotspot'
+      AND mikrotik_host IS NOT NULL AND mikrotik_host != ''
+    ORDER BY created_at ASC LIMIT 1
+  `).get();
+}
+
+function encodeLength(n) {
+  if (n < 0x80) return Buffer.from([n]);
+  if (n < 0x4000) return Buffer.from([(n >> 8) | 0x80, n & 0xff]);
+  if (n < 0x200000) return Buffer.from([(n >> 16) | 0xc0, (n >> 8) & 0xff, n & 0xff]);
+  const b = Buffer.alloc(5);
+  b[0] = 0xf0;
+  b.writeUInt32BE(n, 1);
+  return b;
+}
+
+function encodeWord(word) {
+  const data = Buffer.from(String(word), 'utf8');
+  return Buffer.concat([encodeLength(data.length), data]);
+}
+
+function encodeSentence(words) {
+  return Buffer.concat([...words.map(encodeWord), Buffer.from([0])]);
+}
+
+function decodeSentences(buf) {
+  const sentences = [];
+  let i = 0;
+  let cur = [];
+  while (i < buf.length) {
+    let len = buf[i++];
+    if (len === 0) {
+      if (cur.length) sentences.push(cur);
+      cur = [];
+      continue;
+    }
+    if (len & 0x80) {
+      if ((len & 0xc0) === 0x80) len = ((len & 0x3f) << 8) + buf[i++];
+      else if ((len & 0xe0) === 0xc0) { len = ((len & 0x1f) << 16) + (buf[i] << 8) + buf[i + 1]; i += 2; }
+    }
+    cur.push(buf.slice(i, i + len).toString('utf8'));
+    i += len;
+  }
+  if (cur.length) sentences.push(cur);
+  return sentences;
+}
+
+class RouterOS {
+  constructor(host, port) {
+    this.host = host;
+    this.port = port;
+    this.buf = Buffer.alloc(0);
+  }
+
+  connect() {
+    return new Promise((resolve, reject) => {
+      this.sock = net.createConnection({ host: this.host, port: this.port }, () => resolve());
+      this.sock.setTimeout(25000);
+      this.sock.on('error', reject);
+      this.sock.on('timeout', () => reject(new Error('socket timeout')));
+      this.sock.on('data', (c) => { this.buf = Buffer.concat([this.buf, c]); });
+    });
+  }
+
+  close() {
+    try { this.sock?.destroy(); } catch {}
+  }
+
+  async readReply(timeoutMs = 15000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const sentences = decodeSentences(this.buf);
+      if (sentences.some((s) => s[0] === '!done' || s[0] === '!trap' || s[0] === '!fatal')) {
+        this.buf = Buffer.alloc(0);
+        const trap = sentences.find((s) => s[0] === '!trap' || s[0] === '!fatal');
+        if (trap) throw new Error(trap.join(' '));
+        return sentences.filter((s) => s[0] === '!re').map((s) => {
+          const o = {};
+          for (const w of s.slice(1)) {
+            if (w.startsWith('=')) {
+              const eq = w.indexOf('=', 1);
+              if (eq > 0) o[w.slice(1, eq)] = w.slice(eq + 1);
+            }
+          }
+          return o;
+        });
+      }
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    throw new Error('reply timeout');
+  }
+
+  async call(words) {
+    this.sock.write(encodeSentence(words));
+    return this.readReply();
+  }
+
+  async login(user, pass) {
+    await this.call(['/login', `=name=${user}`, `=password=${pass}`]);
+  }
+}
+
+async function safeAdd(api, addPath, props) {
+  const words = [addPath];
+  for (const [k, v] of Object.entries(props)) words.push(`=${k}=${v}`);
+  return api.call(words);
+}
+
+async function ensureOrSet(api, menuPath, key, value, props) {
+  const found = await api.call([`${menuPath}/print`, `?${key}=${value}`]);
+  if (found.length) {
+    const words = [`${menuPath}/set`, `=.id=${found[0]['.id']}`];
+    for (const [k, v] of Object.entries(props)) {
+      if (k === key) continue;
+      words.push(`=${k}=${v}`);
+    }
+    try {
+      await api.call(words);
+    } catch (e) {
+      console.log('[mikrotik-push] set warn:', e.message);
+    }
+    return found[0];
+  }
+  try {
+    await safeAdd(api, `${menuPath}/add`, props);
+  } catch (e) {
+    console.log('[mikrotik-push] add warn:', e.message);
+  }
+  return null;
+}
+
+function fetchLoginHtml(host, user, pass, siteId, cloudBase) {
+  return new Promise((resolve) => {
+    const url = `${cloudBase.replace(/\/$/, '')}/mikrotik/login-${siteId}.html`;
+    const req = http.request(
+      {
+        host,
+        port: 80,
+        path: `/rest/tool/fetch`,
+        method: 'POST',
+        timeout: 8000,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64')
+        }
+      },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode < 400);
+      }
+    );
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.write(JSON.stringify({ url, 'dst-path': 'hotspot/login.html' }));
+    req.end();
+  });
+}
+
+/**
+ * @param {object} server hotspot_servers row
+ * @param {object} [options]
+ */
+async function pushHotspotServer(server, options = {}) {
+  const site = options.site || resolveSite(server);
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return { success: false, error: 'Walang MikroTik credentials sa vendo site. I-set sa Vendo List.' };
+  }
+
+  const host = site.mikrotik_host;
+  const port = Number(options.apiPort || process.env.MIKROTIK_API_PORT || 8728);
+  const user = site.mikrotik_user || 'admin';
+  const pass = site.mikrotik_pass;
+  const cloud = (options.cloudUrl || process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
+  const bridgeLocal = options.bridgeLocal || 'bridge-local';
+
+  const hsName = server.name || 'CENTRAL';
+  const iface = server.interface_name || 'bridge-hotspot';
+  const profileName = server.profile_name || 'jmwifi';
+  const dnsName = server.dns_name || 'jmwifi.local';
+  const htmlDir = server.html_directory || 'hotspot';
+  const loginBy = server.login_by || 'http-pap,cookie';
+  const vlanIds = parseVlanIds(server);
+  const { gw, network, pool } = parseGateway(server.hs_address);
+  const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+
+  const api = new RouterOS(host, port);
+  const steps = [];
+
+  try {
+    await api.connect();
+    await api.login(user, pass);
+    const identity = await api.call(['/system/identity/print']);
+    steps.push(`Connected: ${identity[0]?.name || host}`);
+
+    await fetchLoginHtml(host, user, pass, site.id, cloud);
+    steps.push('login.html fetched');
+
+    await ensureOrSet(api, '/interface/bridge', 'name', iface, {
+      name: iface,
+      comment: `JM Hotspot ${hsName}`
+    });
+
+    for (const vid of vlanIds) {
+      const vname = `VLAN${vid}`;
+      await ensureOrSet(api, '/interface/vlan', 'name', vname, {
+        name: vname,
+        'vlan-id': String(vid),
+        interface: bridgeLocal,
+        comment: `JM Hotspot ${hsName}`
+      });
+      const ports = await api.call(['/interface/bridge/port/print', `?interface=${vname}`]);
+      if (!ports.length) {
+        await safeAdd(api, '/interface/bridge/port/add', {
+          bridge: iface,
+          interface: vname,
+          comment: `HS ${hsName}`
+        });
+      } else if (ports[0].bridge !== iface) {
+        await api.call([
+          '/interface/bridge/port/set',
+          `=.id=${ports[0]['.id']}`,
+          `=bridge=${iface}`,
+          `=comment=HS ${hsName}`
+        ]);
+      }
+    }
+    steps.push(`VLANs: ${vlanIds.join(', ')} → ${iface}`);
+
+    await ensureOrSet(api, '/ip/pool', 'name', poolName, { name: poolName, ranges: pool });
+
+    const addrs = await api.call(['/ip/address/print', `?interface=${iface}`]);
+    const gwAddr = `${gw}/24`;
+    const existing = addrs.find((a) => String(a.address || '').startsWith(`${gw.split('.').slice(0, 3).join('.')}.`));
+    if (existing && existing.address !== gwAddr) {
+      await api.call(['/ip/address/set', `=.id=${existing['.id']}`, `=address=${gwAddr}`]);
+    } else if (!addrs.some((a) => a.address === gwAddr)) {
+      await safeAdd(api, '/ip/address/add', {
+        address: gwAddr,
+        interface: iface,
+        comment: `JM Hotspot ${hsName}`
+      });
+    }
+    steps.push(`Gateway ${gw} on ${iface}`);
+
+    await ensureOrSet(api, '/ip/dhcp-server', 'name', dhcpName, {
+      name: dhcpName,
+      interface: iface,
+      'address-pool': poolName,
+      'lease-time': '30m'
+    });
+
+    const nets = await api.call(['/ip/dhcp-server/network/print', `?address=${network}`]);
+    if (nets.length) {
+      await api.call([
+        '/ip/dhcp-server/network/set',
+        `=.id=${nets[0]['.id']}`,
+        `=gateway=${gw}`,
+        `=dns-server=${gw}`
+      ]);
+    } else {
+      await safeAdd(api, '/ip/dhcp-server/network/add', {
+        address: network,
+        gateway: gw,
+        'dns-server': gw
+      });
+    }
+
+    await ensureOrSet(api, '/ip/dns/static', 'name', dnsName, {
+      name: dnsName,
+      address: gw,
+      comment: `Hotspot ${hsName}`
+    });
+
+    await ensureOrSet(api, '/ip/hotspot/profile', 'name', profileName, {
+      name: profileName,
+      'hotspot-address': gw,
+      'dns-name': dnsName,
+      'html-directory': htmlDir,
+      'login-by': loginBy,
+      'http-cookie-lifetime': '1d'
+    });
+
+    await ensureOrSet(api, '/ip/hotspot', 'name', hsName, {
+      name: hsName,
+      interface: iface,
+      'address-pool': poolName,
+      profile: profileName,
+      'idle-timeout': 'none',
+      'keepalive-timeout': '2m',
+      disabled: 'no'
+    });
+
+    for (const dst of ['jmtechsolution.cloud', '*.jmtechsolution.cloud']) {
+      const wg = await api.call(['/ip/hotspot/walled-garden/print', `?dst-host=${dst}`]);
+      if (!wg.length) {
+        await safeAdd(api, '/ip/hotspot/walled-garden/add', { 'dst-host': dst, comment: 'JM WiFi Cloud' });
+      }
+    }
+
+    const natComment = `JM Hotspot NAT ${hsName}`;
+    const nat = await api.call(['/ip/firewall/nat/print', `?comment=${natComment}`]);
+    if (!nat.length) {
+      await safeAdd(api, '/ip/firewall/nat/add', {
+        chain: 'srcnat',
+        'src-address': network,
+        action: 'masquerade',
+        comment: natComment
+      });
+    } else {
+      await api.call([
+        '/ip/firewall/nat/set',
+        `=.id=${nat[0]['.id']}`,
+        `=src-address=${network}`
+      ]);
+    }
+
+    if (site.api_key) {
+      const onLogout =
+        `/tool fetch url="${cloud}/api/session/pause" http-method=post ` +
+        `http-data="{\\"mac\\":\\"$mac-address\\"}" ` +
+        `http-header-field="Content-Type: application/json,X-API-Key: ${site.api_key}" keep-result=no`;
+      try {
+        await api.call([
+          '/ip/hotspot/user/profile/set',
+          '=numbers=jmwifi-pause',
+          `=on-logout=${onLogout}`
+        ]);
+      } catch {}
+    }
+
+    const hs = await api.call(['/ip/hotspot/print', `?name=${hsName}`]);
+    steps.push(`Hotspot ${hsName} active on ${iface}`);
+
+    api.close();
+    return {
+      success: true,
+      host,
+      identity: identity[0]?.name,
+      gateway: gw,
+      vlans: vlanIds,
+      hotspot: hs[0]?.name || hsName,
+      steps
+    };
+  } catch (err) {
+    api.close();
+    return { success: false, error: err.message, steps };
+  }
+}
+
+async function pushHotspotProfile(profile, site) {
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return { success: false, error: 'Walang MikroTik credentials' };
+  }
+  const host = site.mikrotik_host;
+  const port = Number(process.env.MIKROTIK_API_PORT || 8728);
+  const api = new RouterOS(host, port);
+  try {
+    await api.connect();
+    await api.login(site.mikrotik_user || 'admin', site.mikrotik_pass);
+    const name = profile.name;
+    await ensureOrSet(api, '/ip/hotspot/user/profile', 'name', name, {
+      name,
+      'shared-users': String(profile.shared_users || 1),
+      'rate-limit': profile.rate_limit || '2M/5M',
+      'keepalive-timeout': profile.keepalive_timeout || '2m',
+      'idle-timeout': profile.idle_timeout || 'none',
+      'status-autorefresh': '30s',
+      'add-mac-cookie': profile.mac_cookie === 0 ? 'no' : 'yes',
+      'mac-cookie-timeout': '1d',
+      'transparent-proxy': profile.transparent_proxy ? 'yes' : 'no',
+      comment: profile.notes || 'JM WiFi profile'
+    });
+    api.close();
+    return { success: true, host, profile: name };
+  } catch (err) {
+    api.close();
+    return { success: false, error: err.message };
+  }
+}
+
+module.exports = {
+  pushHotspotServer,
+  pushHotspotProfile,
+  resolveSite,
+  parseGateway,
+  parseVlanIds
+};
