@@ -162,7 +162,7 @@
             <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
           </div>
           <div class="toolbar">
-            <p id="hs-toolbar-text">Central hotspot — settings dito direktang napupush sa MikroTik (VLAN, IP, DHCP, hotspot).</p>
+            <p id="hs-toolbar-text">Add/Edit/Delete sa system = auto sync sa MikroTik (direct).</p>
             <div class="filter-row">
               <button id="btn-add-server" class="btn-primary">+ Server</button>
               <button id="btn-add-profile" class="btn-primary">+ Profile</button>
@@ -187,9 +187,9 @@
               </div>
               <label>VLAN IDs (comma) <input name="vlan_ids" value="101,102" placeholder="101,102,530"></label>
               <div class="form-row">
-                <label>Interface
+                <label>Parent Interface
                   <select name="interface_name" id="hs-interface-select" required>
-                    <option value="">— Pili ng interface —</option>
+                    <option value="">— Pili ng ether port —</option>
                   </select>
                 </label>
                 <label>Profile <input name="profile_name" value="jmwifi"></label>
@@ -203,7 +203,7 @@
                 <select name="site_id" id="hs-site-select"><option value="">Auto (first hotspot vendo)</option></select>
               </label>
               <label class="check-row"><input type="checkbox" name="push_to_mikrotik" checked> Direktang i-apply sa MikroTik pag save</label>
-              <p class="hub-lead">Pili ng <strong>Interface</strong> (VLAN530, ether, etc.) — hindi kasama ang bridge. Hotspot portal = <strong>10.0.0.1</strong>.</p>
+              <p class="hub-lead">Pili ng <strong>Parent Interface</strong> (hal. ether2-OUT). Auto-gagawa ng <strong>VLAN{id}</strong> doon at doon ilalagay ang IP at hotspot.</p>
               <div class="dialog-actions">
                 <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
                 <button type="submit" class="btn-primary">Save &amp; Push</button>

@@ -664,7 +664,7 @@
 
     $('#hs-server-list').innerHTML = servers.servers.length ? `
       <table>
-        <thead><tr><th>Name</th><th>Interface IP</th><th>Interface</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>Interface IP</th><th>Parent IF</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
         <tbody>
           ${servers.servers.map((s) => `
             <tr>
@@ -820,15 +820,7 @@
   }
 
   function suggestInterfaceFromVlan() {
-    const form = $('#hs-server-form');
-    const vlanId = Number(form.elements.namedItem('vlan_id')?.value || 0);
-    const vlanIds = String(form.elements.namedItem('vlan_ids')?.value || '').split(',')[0]?.trim();
-    const vid = vlanId > 0 ? vlanId : Number(vlanIds);
-    if (vid > 0) {
-      const name = 'VLAN' + vid;
-      const sel = $('#hs-interface-select');
-      if (sel && [...sel.options].some((o) => o.value === name)) sel.value = name;
-    }
+    /* Parent interface stays user-selected (ether port). VLAN interface auto-created on push. */
   }
 
   async function openServerDialog(server) {
@@ -852,8 +844,7 @@
       form.elements.namedItem('hs_address').value = '10.5.30.1';
       form.elements.namedItem('vlan_id').value = '530';
       form.elements.namedItem('vlan_ids').value = '530';
-      await fillHsInterfaceSelect('', siteId);
-      suggestInterfaceFromVlan();
+      await fillHsInterfaceSelect('ether2-OUT', siteId);
     }
     if (form.elements.namedItem('push_to_mikrotik')) form.elements.namedItem('push_to_mikrotik').checked = true;
     $('#hs-server-dialog').showModal();

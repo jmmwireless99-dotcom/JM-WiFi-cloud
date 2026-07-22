@@ -255,6 +255,46 @@ async function removeExtraHotspots(api, iface, keepName) {
   }
 }
 
+function resolveHotspotTarget(server, options = {}) {
+  const selected = String(server.interface_name || '').trim();
+  const vlanIds = parseVlanIds(server);
+  const vlanMatch = selected.match(/^VLAN(\d+)$/i);
+  const defaultParent = options.vlanParent || process.env.MIKROTIK_VLAN_PARENT || 'bridge-local';
+
+  if (vlanMatch) {
+    const vid = Number(vlanMatch[1]);
+    return {
+      selected,
+      targetIface: `VLAN${vid}`,
+      ensureVids: [{ vid, parent: defaultParent }]
+    };
+  }
+
+  if (vlanIds.length >= 1 && vlanIds[0] > 0) {
+    const vid = vlanIds[0];
+    return {
+      selected,
+      targetIface: `VLAN${vid}`,
+      ensureVids: [{ vid, parent: selected }]
+    };
+  }
+
+  return { selected, targetIface: selected, ensureVids: [] };
+}
+
+async function cleanupMisplacedIps(api, parentIface, hsName, steps) {
+  const addrs = await api.call(['/ip/address/print', `?interface=${parentIface}`]);
+  for (const row of addrs) {
+    const c = String(row.comment || '');
+    if (c.includes(hsName) || c.startsWith('JM VLAN') || c.includes('JM Hotspot captive portal')) {
+      try {
+        await api.call(['/ip/address/remove', `=.id=${row['.id']}`]);
+        steps.push(`Removed IP ${row.address} from ${parentIface} (ilipat sa VLAN)`);
+      } catch {}
+    }
+  }
+}
+
 async function ensureVlanInterface(api, vid, vlanParent, comment) {
   const vname = `VLAN${vid}`;
   await ensureOrSet(api, '/interface/vlan', 'name', vname, {
@@ -281,14 +321,14 @@ async function pushHotspotServer(server, options = {}) {
   const user = site.mikrotik_user || 'admin';
   const pass = site.mikrotik_pass;
   const cloud = (options.cloudUrl || process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
-  const vlanParent = options.vlanParent || process.env.MIKROTIK_VLAN_PARENT || 'bridge-local';
 
   const central = isCentralHotspot(site);
-  const vlanIds = parseVlanIds(server);
-  const hsIface = String(server.interface_name || '').trim();
-  if (!hsIface) {
-    return { success: false, error: 'Pili ng interface sa admin (hal. VLAN530, ether2)' };
+  const selected = String(server.interface_name || '').trim();
+  if (!selected) {
+    return { success: false, error: 'Pili ng parent interface sa admin (hal. ether2-OUT)' };
   }
+  const { targetIface, ensureVids, selected: parentIface } = resolveHotspotTarget(server, options);
+  const hsIface = targetIface;
   const vlanNet = parseGateway(server.hs_address || CENTRAL_GATEWAY);
   const portalAddress = central ? CENTRAL_GATEWAY : vlanNet.gw;
   const hsName = server.name || hsIface;
@@ -316,18 +356,20 @@ async function pushHotspotServer(server, options = {}) {
       steps.push(`WARN: ${login.error || 'login.html upload failed'}`);
     }
 
-    const vlanFromIface = hsIface.match(/^VLAN(\d+)$/i);
-    const vids = vlanFromIface
-      ? [Number(vlanFromIface[1])]
-      : vlanIds.filter((v) => `VLAN${v}`.toUpperCase() === hsIface.toUpperCase());
-    const ensureVids = vids.length ? vids : (vlanIds.length === 1 ? vlanIds : []);
-    for (const vid of ensureVids) {
+    for (const { vid, parent } of ensureVids) {
       if (vid > 0) {
-        await ensureVlanInterface(api, vid, vlanParent, `JM Hotspot ${hsName}`);
+        await ensureVlanInterface(api, vid, parent, `JM Hotspot ${hsName}`);
+        steps.push(`Created VLAN${vid} on ${parent}`);
       }
     }
-    if (ensureVids.length) steps.push(`VLAN ${ensureVids.join(', ')} · interface ${hsIface}`);
-    else steps.push(`Interface ${hsIface}`);
+    if (ensureVids.length) {
+      steps.push(`Hotspot target ${hsIface} (parent ${parentIface})`);
+    } else {
+      steps.push(`Interface ${hsIface}`);
+    }
+    if (parentIface !== hsIface) {
+      await cleanupMisplacedIps(api, parentIface, hsName, steps);
+    }
 
     await ensureOrSet(api, '/ip/pool', 'name', poolName, { name: poolName, ranges: pool });
 
@@ -436,7 +478,9 @@ async function pushHotspotServer(server, options = {}) {
       gateway: vlanGw,
       client_network: network,
       hotspot_address: portalAddress,
-      vlans: vlanIds,
+      interface: hsIface,
+      parent_interface: parentIface,
+      vlans: ensureVids.map((v) => v.vid),
       hotspot: hs[0]?.name || hsName,
       steps
     };
@@ -528,7 +572,8 @@ async function deleteHotspotServer(server, options = {}) {
     return { success: false, error: 'Walang interface_name sa record' };
   }
 
-  const hsIface = String(server.interface_name).trim();
+  const { targetIface, selected: parentIface } = resolveHotspotTarget(server, options);
+  const hsIface = targetIface;
   const hsName = server.name || hsIface;
   const { network } = parseGateway(server.hs_address || CENTRAL_GATEWAY);
   const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();

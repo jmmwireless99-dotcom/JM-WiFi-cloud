@@ -415,6 +415,10 @@ router.get('/hotspot/interfaces', authAdmin, async (req, res) => {
     .filter((i) => i.name && String(i.disabled || 'false') !== 'true')
     .filter((i) => String(i.type || '').toLowerCase() !== 'bridge')
     .filter((i) => !/^bridge/i.test(String(i.name)))
+    .filter((i) => {
+      const t = String(i.type || '').toLowerCase();
+      return t === 'ether' || t === 'vlan' || t === 'bond' || t === 'wlan';
+    })
     .map((i) => ({
       name: i.name,
       type: i.type || '',
