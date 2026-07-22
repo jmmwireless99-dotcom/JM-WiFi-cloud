@@ -21,9 +21,9 @@
   if (config.mac) macDisplay.textContent = 'MAC: ' + config.mac;
   if (config.error) showStatus('Login failed: ' + config.error, 'error');
   if (!config.siteId) {
-    showStatus('Missing site_id sa URL. I-push ulit ang hotspot server mula sa admin.', 'error');
+    showStatus('Missing site_id. Re-push hotspot server from admin.', 'error');
   } else if (!config.mac || !config.linkLogin) {
-    showStatus('Kumonekta mula sa WiFi hotspot (hindi direktang buksan ang portal URL).', 'info');
+    showStatus('Connect to JM WiFi, then open http://10.0.0.1 in your browser.', 'info');
   }
 
   document.querySelectorAll('.tab').forEach(function (tab) {
@@ -95,7 +95,7 @@
       .then(function (data) {
         if (data.error || !data.site) return;
         document.getElementById('brand-name').textContent = data.site.portal_title || 'JM WiFi';
-        document.getElementById('site-name').textContent = data.site.name;
+        document.getElementById('site-name').textContent = data.site.name || 'Connect to the internet';
         document.getElementById('coin-rate').textContent =
           '1 coin = ' + data.site.minutes_per_coin + ' minutes';
         document.title = (data.site.portal_title || 'JM WiFi') + ' Login';

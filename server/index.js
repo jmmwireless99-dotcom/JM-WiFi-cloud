@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { getPortalUrl } = require('./lib/public-url');
 const { buildMikrotikLoginHtml } = require('./lib/login-html');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
@@ -47,8 +46,10 @@ app.use(`${BASE_PATH}/empty-bottle`, express.static(path.join(__dirname, '../emp
 
 // Site-specific MikroTik login.html (for /tool fetch upload)
 app.get(`${BASE_PATH}/mikrotik/login-:siteId.html`, (req, res) => {
-  const siteId = req.params.siteId;
-  res.type('html').send(buildMikrotikLoginHtml(siteId, getPortalUrl()));
+  const { getPublicBaseUrl } = require('./lib/public-url');
+  res.type('html').send(buildMikrotikLoginHtml(req.params.siteId, {
+    apiBase: `${getPublicBaseUrl()}/api`
+  }));
 });
 
 app.get(`${BASE_PATH}/health`, (req, res) => {
