@@ -182,7 +182,7 @@
               <input type="hidden" name="id" id="hs-server-id">
               <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
               <div class="form-row">
-                <label>Interface IP / Gateway <input name="hs_address" value="10.0.0.1" required title="IP ng client sa VLAN na ito"></label>
+                <label>Interface IP / Gateway <input name="hs_address" value="10.5.30.1" required title="Client gateway sa VLAN (hal. 10.5.30.1). Captive portal = 10.0.0.1"></label>
                 <label>VLAN ID <input name="vlan_id" type="number" value="0" min="0" title="0 = all VLANs"></label>
               </div>
               <label>VLAN IDs (comma) <input name="vlan_ids" value="101,102" placeholder="101,102,530"></label>
@@ -202,7 +202,7 @@
               <label>Vendo site <span class="req">*</span>
                 <select name="site_id" id="hs-site-select" required><option value="">— Pili ng vendo —</option></select>
               </label>
-              <p class="hub-lead hub-warn">Create = sabay sa MikroTik (VLAN + IP + DHCP + hotspot). Kung fail ang MikroTik, hindi ma-save sa system.</p>
+              <p class="hub-lead hub-warn">Create = sabay sa MikroTik (VLAN + IP + DHCP + hotspot + login.html). Captive portal: <strong>10.0.0.1</strong> → cloud portal. Kung fail ang MikroTik, hindi ma-save sa system.</p>
               <div class="dialog-actions">
                 <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
                 <button type="submit" class="btn-primary">Save &amp; Push</button>

@@ -20,6 +20,11 @@
 
   if (config.mac) macDisplay.textContent = 'MAC: ' + config.mac;
   if (config.error) showStatus('Login failed: ' + config.error, 'error');
+  if (!config.siteId) {
+    showStatus('Missing site_id sa URL. I-push ulit ang hotspot server mula sa admin.', 'error');
+  } else if (!config.mac || !config.linkLogin) {
+    showStatus('Kumonekta mula sa WiFi hotspot (hindi direktang buksan ang portal URL).', 'info');
+  }
 
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {

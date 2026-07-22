@@ -1,17 +1,16 @@
-<!DOCTYPE html>
+/**
+ * MikroTik hotspot login.html — RouterOS expands $(mac), $(link-login-only), etc.
+ * before the browser runs this script.
+ */
+function buildMikrotikLoginHtml(siteId, portalUrl) {
+  const cloud = String(portalUrl || '').replace(/\/?$/, '/');
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>JM WiFi</title>
-  <!--
-    Reference template only — live file is fetched from cloud:
-    https://YOUR_DOMAIN/allvendo/mikrotik/login-SITE_ID.html
-
-    RouterOS expands before browser runs JS:
-    $(mac) $(ip) $(link-login-only) $(link-orig-esc) $(error)
-  -->
-  <meta http-equiv="refresh" content="2; url=https://jmtechsolution.cloud/allvendo/portal/?site_id=YOUR_SITE_ID&amp;mac=$(mac)&amp;ip=$(ip)&amp;link-login-only=$(link-login-only)&amp;link-orig=$(link-orig-esc)&amp;error=$(error)">
+  <meta http-equiv="refresh" content="2; url=${cloud}?site_id=${siteId}&amp;mac=$(mac)&amp;ip=$(ip)&amp;link-login-only=$(link-login-only)&amp;link-orig=$(link-orig-esc)&amp;error=$(error)">
   <style>
     body{margin:0;font-family:system-ui,sans-serif;background:#0b6e4f;color:#fff;display:grid;place-items:center;min-height:100vh}
     .box{text-align:center;padding:24px}
@@ -20,8 +19,8 @@
   </style>
   <script>
     (function () {
-      var SITE_ID = 'YOUR_SITE_ID';
-      var CLOUD = 'https://jmtechsolution.cloud/allvendo/portal/';
+      var SITE_ID = ${JSON.stringify(siteId)};
+      var CLOUD = ${JSON.stringify(cloud)};
       var q = '?site_id=' + encodeURIComponent(SITE_ID);
       var mac = '$(mac)';
       if (mac && mac.indexOf('$(') === -1) q += '&mac=' + encodeURIComponent(mac);
@@ -43,4 +42,7 @@
     <p>Connecting to secure portal…</p>
   </div>
 </body>
-</html>
+</html>`;
+}
+
+module.exports = { buildMikrotikLoginHtml };

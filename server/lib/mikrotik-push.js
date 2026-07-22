@@ -3,6 +3,7 @@
  */
 const net = require('net');
 const db = require('../db');
+const { getPublicBaseUrl, getLoginHtmlUrl, getWalledGardenHosts } = require('./public-url');
 
 const CENTRAL_GATEWAY = '10.0.0.1';
 
@@ -165,8 +166,8 @@ async function ensureOrSet(api, menuPath, key, value, props) {
   return null;
 }
 
-async function uploadLoginHtml(api, siteId, cloudBase) {
-  const url = `${cloudBase.replace(/\/$/, '')}/mikrotik/login-${siteId}.html`;
+async function uploadLoginHtml(api, siteId, options = {}) {
+  const url = getLoginHtmlUrl(siteId, options);
   const attempts = [
     ['=mode=https', '=check-certificate=no'],
     ['=mode=http'],
@@ -175,17 +176,17 @@ async function uploadLoginHtml(api, siteId, cloudBase) {
   for (const extra of attempts) {
     try {
       await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 6; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         const files = await api.call(['/file/print']);
         const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
-        if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
+        if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size, url };
       }
     } catch (e) {
-      console.log('[mikrotik-push] fetch login warn:', e.message);
+      console.log('[mikrotik-push] fetch login warn:', e.message, url);
     }
   }
-  return { ok: false, error: 'login.html hindi na-upload sa MikroTik' };
+  return { ok: false, error: `login.html hindi na-upload sa MikroTik. Sinubukan: ${url}`, url };
 }
 
 async function ensureIfaceIp(api, iface, ip, comment, steps) {
@@ -334,7 +335,7 @@ async function pushHotspotServer(server, options = {}) {
   const port = Number(options.apiPort || process.env.MIKROTIK_API_PORT || 8728);
   const user = site.mikrotik_user || 'admin';
   const pass = site.mikrotik_pass;
-  const cloud = (options.cloudUrl || process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
+  const cloud = (options.cloudUrl || getPublicBaseUrl(options)).replace(/\/$/, '');
 
   const central = isCentralHotspot(site);
   const selected = String(server.interface_name || '').trim();
@@ -363,11 +364,18 @@ async function pushHotspotServer(server, options = {}) {
     const identity = await api.call(['/system/identity/print']);
     steps.push(`Connected: ${identity[0]?.name || host}`);
 
-    const login = await uploadLoginHtml(api, site.id, cloud);
+    const login = await uploadLoginHtml(api, site.id, options);
     if (login.ok) {
-      steps.push(`login.html uploaded (${login.size} bytes)`);
+      steps.push(`login.html uploaded (${login.size} bytes) from ${login.url}`);
     } else {
-      steps.push(`WARN: ${login.error || 'login.html upload failed'}`);
+      steps.push(`ERROR: ${login.error || 'login.html upload failed'}`);
+      api.close();
+      return {
+        success: false,
+        error: login.error || 'login.html hindi na-upload — walang captive portal',
+        login_url: login.url,
+        steps
+      };
     }
 
     for (const { vid, parent } of ensureVids) {
@@ -388,7 +396,9 @@ async function pushHotspotServer(server, options = {}) {
     await ensureOrSet(api, '/ip/pool', 'name', poolName, { name: poolName, ranges: pool });
 
     await ensureIfaceIp(api, hsIface, vlanGw, `JM VLAN ${hsName}`, steps);
-    if (portalAddress !== vlanGw) {
+    if (central) {
+      await ensurePortalIp(api, hsIface, CENTRAL_GATEWAY, steps);
+    } else if (portalAddress !== vlanGw) {
       await ensurePortalIp(api, hsIface, portalAddress, steps);
     }
     steps.push(`Client DHCP ${network} gw ${vlanGw} · portal ${portalAddress}`);
@@ -455,12 +465,13 @@ async function pushHotspotServer(server, options = {}) {
       disabled: 'no'
     });
 
-    for (const dst of ['jmtechsolution.cloud', '*.jmtechsolution.cloud']) {
+    for (const dst of getWalledGardenHosts(options)) {
       const wg = await api.call(['/ip/hotspot/walled-garden/print', `?dst-host=${dst}`]);
       if (!wg.length) {
         await safeAdd(api, '/ip/hotspot/walled-garden/add', { 'dst-host': dst, comment: 'JM WiFi Cloud' });
       }
     }
+    steps.push('Walled garden updated for cloud portal');
 
     const natComment = `JM Hotspot NAT ${hsName}`;
     const nat = await api.call(['/ip/firewall/nat/print', `?comment=${natComment}`]);

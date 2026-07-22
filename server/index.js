@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { getPortalUrl } = require('./lib/public-url');
+const { buildMikrotikLoginHtml } = require('./lib/login-html');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const emptyBottleAdminRoutes = require('./routes/empty-bottle-admin');
@@ -46,39 +48,7 @@ app.use(`${BASE_PATH}/empty-bottle`, express.static(path.join(__dirname, '../emp
 // Site-specific MikroTik login.html (for /tool fetch upload)
 app.get(`${BASE_PATH}/mikrotik/login-:siteId.html`, (req, res) => {
   const siteId = req.params.siteId;
-  const cloud = (process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JM WiFi</title>
-  <style>
-    body{margin:0;font-family:system-ui,sans-serif;background:#0b6e4f;color:#fff;display:grid;place-items:center;min-height:100vh}
-    .box{text-align:center;padding:24px}
-    .brand{font-size:2rem;font-weight:800;letter-spacing:-.04em}
-    p{opacity:.9}
-  </style>
-  <script>
-    (function () {
-      var SITE_ID = ${JSON.stringify(siteId)};
-      var CLOUD = ${JSON.stringify(cloud + '/portal/')};
-      var q = location.search || '';
-      if (q.indexOf('site_id=') === -1) {
-        q += (q ? '&' : '?') + 'site_id=' + encodeURIComponent(SITE_ID);
-      }
-      setTimeout(function () { location.replace(CLOUD + q); }, 120);
-    })();
-  </script>
-</head>
-<body>
-  <div class="box">
-    <div class="brand">JM WiFi</div>
-    <p>Connecting to secure portal…</p>
-  </div>
-</body>
-</html>`;
-  res.type('html').send(html);
+  res.type('html').send(buildMikrotikLoginHtml(siteId, getPortalUrl()));
 });
 
 app.get(`${BASE_PATH}/health`, (req, res) => {
