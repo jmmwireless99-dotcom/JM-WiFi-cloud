@@ -40,84 +40,10 @@
     return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  function expandAllVendo() {
-    const children = $('children-allvendo');
-    const btn = $('btn-allvendo-toggle');
-    if (children) {
-      children.classList.remove('collapsed');
-      children.classList.add('open');
-      children.removeAttribute('hidden');
-    }
-    $('nav-tree-allvendo')?.classList.add('expanded');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-    const chevron = $('chevron-allvendo');
-    if (chevron) chevron.textContent = '▾';
-  }
-
-  function collapseAllVendo() {
-    const children = $('children-allvendo');
-    const btn = $('btn-allvendo-toggle');
-    if (children) {
-      children.classList.add('collapsed');
-      children.classList.remove('open');
-      children.setAttribute('hidden', '');
-    }
-    $('nav-tree-allvendo')?.classList.remove('expanded');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-    const chevron = $('chevron-allvendo');
-    if (chevron) chevron.textContent = '▸';
-    collapseHotspot();
-  }
-
-  function expandHotspot() {
-    expandAllVendo();
-    const children = $('children-vlans');
-    const btn = $('btn-hotspot-toggle');
-    if (children) {
-      children.classList.remove('collapsed');
-      children.classList.add('open');
-      children.removeAttribute('hidden');
-    }
-    $('nav-tree-hotspot')?.classList.add('expanded');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-    const chevron = $('chevron-hotspot');
-    if (chevron) chevron.textContent = '▾';
-  }
-
-  function collapseHotspot() {
-    const children = $('children-vlans');
-    const btn = $('btn-hotspot-toggle');
-    if (children) {
-      children.classList.add('collapsed');
-      children.classList.remove('open');
-      children.setAttribute('hidden', '');
-    }
-    $('nav-tree-hotspot')?.classList.remove('expanded');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
-    const chevron = $('chevron-hotspot');
-    if (chevron) chevron.textContent = '▸';
-  }
-
   function setNavActive(name) {
     document.querySelectorAll('.nav-btn[data-view]').forEach(function (b) {
       b.classList.toggle('active', b.dataset.view === name);
     });
-    document.querySelectorAll('.nav-btn.nav-vlan').forEach(function (b) {
-      b.classList.toggle('active', name === 'vlan-detail' && b.dataset.siteId === currentVlanId);
-    });
-
-    const inAllVendo = ['allvendo', 'hotspot-vendo', 'vlan-detail', 'empty-bottle'].includes(name);
-    $('btn-allvendo-toggle')?.classList.toggle('active', inAllVendo);
-    $('btn-hotspot-toggle')?.classList.toggle('active', name === 'hotspot-vendo' || name === 'vlan-detail');
-
-    if (inAllVendo) {
-      expandAllVendo();
-      if (name === 'hotspot-vendo' || name === 'vlan-detail') {
-        expandHotspot();
-      }
-    } else {
-      collapseAllVendo();
-    }
   }
 
   function showView(name, params) {
@@ -145,30 +71,8 @@
 
   window.showView = showView;
 
-  // Toggle ALL VENDO — click to show/hide Empty Bottle & Cloud Hotspot
-  $('btn-allvendo-toggle')?.addEventListener('click', function () {
-    const children = $('children-allvendo');
-    const isOpen = children?.classList.contains('open');
-
-    if (isOpen) {
-      collapseAllVendo();
-    } else {
-      expandAllVendo();
-      showView('allvendo');
-    }
-  });
-
-  // Toggle Cloud Hotspot — click to show VLANs and open page
-  $('btn-hotspot-toggle')?.addEventListener('click', function (e) {
-    e.stopPropagation();
-    expandHotspot();
-    showView('hotspot-vendo');
-  });
-
   document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
-    if (btn.id === 'btn-hotspot-toggle') return;
     btn.addEventListener('click', function () {
-      if (btn.dataset.view === 'empty-bottle') expandAllVendo();
       showView(btn.dataset.view);
     });
   });
@@ -192,31 +96,6 @@
   $('btn-refresh-vendo')?.addEventListener('click', loadVendoData);
   $('btn-refresh-hotspot')?.addEventListener('click', loadHotspotData);
   $('btn-refresh-bottle')?.addEventListener('click', loadBottleData);
-
-  function renderVlanNav(sites) {
-    const container = $('children-vlans');
-    if (!container) return;
-
-    if (!sites || !sites.length) {
-      container.innerHTML = '';
-      return;
-    }
-
-    container.innerHTML = sites.map(function (s) {
-      return '<button class="nav-btn nav-grandchild nav-vlan" data-view="vlan-detail" data-site-id="' +
-        esc(s.id) + '" type="button">' +
-        '<span class="ico vlan-dot ' + (s.online_devices > 0 ? 'online' : '') + '">●</span>' +
-        '<span class="nav-label">VLAN ' + s.vlan_id + ' — ' + esc(s.name) + '</span>' +
-        '</button>';
-    }).join('');
-
-    container.querySelectorAll('.nav-vlan').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        expandHotspot();
-        showView('vlan-detail', { siteId: btn.dataset.siteId });
-      });
-    });
-  }
 
   function renderVlanGrid(sites, containerId) {
     const grid = $(containerId);
@@ -296,8 +175,6 @@
         $('wifi-status').textContent = data.active_devices > 0 ? 'Online' : 'No devices';
         $('wifi-status').className = 'badge ' + (data.active_devices > 0 ? 'online' : '');
       }
-
-      renderVlanNav(data.sites);
     } catch (err) {
       console.error('Failed to load vendo data:', err);
     }
@@ -315,7 +192,6 @@
       if ($('hotspot-coins')) $('hotspot-coins').textContent = totalCoins;
 
       renderVlanGrid(data.sites, 'vlan-grid');
-      renderVlanNav(data.sites);
       renderCoinLogs(data.recent_coins);
     } catch (err) {
       console.error('Failed to load hotspot data:', err);
@@ -376,7 +252,6 @@
   }
 
   function loadBottleData() {
-    // Placeholder — ready for bottle vendo API integration
     if ($('bottle-today')) $('bottle-today').textContent = '0';
     if ($('bottle-revenue')) $('bottle-revenue').textContent = peso(0);
     if ($('bottle-machines')) $('bottle-machines').textContent = '0';
@@ -384,10 +259,6 @@
     if ($('bottle-sales')) $('bottle-sales').textContent = peso(0);
   }
 
-  // Force collapsed on page load — children hidden until ALL VENDO clicked
-  collapseAllVendo();
-
-  // URL hash routing e.g. #allvendo, #hotspot-vendo, #vlan/SITE_ID
   const hash = location.hash.replace('#', '');
   if (hash.startsWith('vlan/')) {
     showView('vlan-detail', { siteId: hash.split('/')[1] });

@@ -1,58 +1,27 @@
-# ALL VENDO Collapsible Sidebar — Integration Snippet
+# ALL VENDO Button — Sidebar Integration
 
-Kung ang main portal mo sa `jmtechsolution.cloud` ay hiwalay na app, idagdag ang code na ito para maging collapsible ang ALL VENDO menu.
+Ang **ALL VENDO** ay simpleng nav button na diretso sa ALL VENDO page.
 
-## HTML Structure
+## HTML (sidebar)
 
 ```html
-<!-- Sa sidebar, palitan ang static items ng: -->
-<button type="button" class="nav-btn" id="btn-allvendo" aria-expanded="false">
-  ALL VENDO <span id="chevron-allvendo">▸</span>
+<button type="button" class="nav-btn" data-view="allvendo">
+  ALL VENDO
 </button>
-<div id="children-allvendo" hidden>
-  <button type="button" class="nav-btn nav-child" data-page="empty-bottle">Empty Bottle</button>
-  <button type="button" class="nav-btn nav-child" data-page="cloud-hotspot">Cloud Hotspot</button>
-</div>
-```
-
-## CSS
-
-```css
-#children-allvendo[hidden] {
-  display: none !important;
-}
-#children-allvendo.open {
-  display: block;
-  padding-left: 16px;
-}
 ```
 
 ## JavaScript
 
 ```javascript
-document.getElementById('btn-allvendo').addEventListener('click', function () {
-  const children = document.getElementById('children-allvendo');
-  const chevron = document.getElementById('chevron-allvendo');
-  const isOpen = !children.hidden;
-
-  if (isOpen) {
-    children.hidden = true;
-    children.classList.remove('open');
-    this.setAttribute('aria-expanded', 'false');
-    chevron.textContent = '▸';
-  } else {
-    children.hidden = false;
-    children.classList.add('open');
-    this.setAttribute('aria-expanded', 'true');
-    chevron.textContent = '▾';
-  }
+document.querySelector('[data-view="allvendo"]').addEventListener('click', function () {
+  showView('allvendo'); // or your page navigation function
 });
 ```
 
 ## JM-WiFi-cloud Admin Portal
 
-Ang built-in admin portal (`/admin/`) ay may collapsible menu na. I-deploy ang server at buksan:
+```
+https://jmwifi.jmtechsolution.cloud/admin/#allvendo
+```
 
-```
-https://jmwifi.jmtechsolution.cloud/admin/
-```
+Empty Bottle at Cloud Hotspot — nasa loob ng ALL VENDO page bilang cards, hindi sa sidebar (pwede idagdag ulit later).
