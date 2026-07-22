@@ -157,27 +157,83 @@ async function ensureOrSet(api, menuPath, key, value, props) {
   return null;
 }
 
-async function uploadLoginHtml(api, siteId, cloudBase) {
-  const url = `${cloudBase.replace(/\/$/, '')}/mikrotik/login-${siteId}.html`;
+async function fetchToRouter(api, url, dstPath, attempts) {
+  for (const extra of attempts) {
+    try {
+      await api.call(['/tool/fetch', `=url=${url}`, `=dst-path=${dstPath}`, ...extra]);
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 1200));
+        const files = await api.call(['/file/print']);
+        const base = dstPath.split('/').pop();
+        const hit = files.find((f) => String(f.name || '').endsWith(base));
+        if (hit && Number(hit.size || 0) > 50) {
+          return { ok: true, size: hit.size, file: base };
+        }
+      }
+    } catch (e) {
+      console.log('[mikrotik-push] fetch warn:', dstPath, e.message);
+    }
+  }
+  return { ok: false, file: dstPath.split('/').pop() };
+}
+
+const HOTSPOT_PACK_FILES = [
+  'login.html', 'logout.html', 'status.html', 'error.html',
+  'redirect.html', 'alogin.html', 'radvert.html',
+];
+
+async function uploadHotspotPack(api, siteId, cloudBase) {
+  const cloud = cloudBase.replace(/\/$/, '');
   const attempts = [
     ['=mode=https', '=check-certificate=no'],
     ['=mode=http'],
     []
   ];
-  for (const extra of attempts) {
-    try {
-      await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
-      for (let i = 0; i < 4; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        const files = await api.call(['/file/print']);
-        const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
-        if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
-      }
-    } catch (e) {
-      console.log('[mikrotik-push] fetch login warn:', e.message);
-    }
+  const uploaded = [];
+  const failed = [];
+
+  // login.html — per-site redirect (maya site_id sa portal URL)
+  const loginDyn = await fetchToRouter(
+    api,
+    `${cloud}/mikrotik/login-${siteId}.html`,
+    'hotspot/login.html',
+    attempts
+  );
+  if (loginDyn.ok) uploaded.push('login.html');
+  else {
+    const loginStatic = await fetchToRouter(
+      api,
+      `${cloud}/hotspot-pack/login.html`,
+      'hotspot/login.html',
+      attempts
+    );
+    if (loginStatic.ok) uploaded.push('login.html (pack)');
+    else failed.push('login.html');
   }
-  return { ok: false, error: 'login.html hindi na-upload sa MikroTik' };
+
+  for (const file of HOTSPOT_PACK_FILES) {
+    if (file === 'login.html') continue;
+    const r = await fetchToRouter(api, `${cloud}/hotspot-pack/${file}`, `hotspot/${file}`, attempts);
+    if (r.ok) uploaded.push(file);
+    else failed.push(file);
+  }
+
+  return {
+    ok: failed.length === 0,
+    uploaded,
+    failed,
+    error: failed.length ? `Kulang: ${failed.join(', ')}` : null,
+    size: uploaded.length,
+  };
+}
+
+/** @deprecated use uploadHotspotPack */
+async function uploadLoginHtml(api, siteId, cloudBase) {
+  const r = await uploadHotspotPack(api, siteId, cloudBase);
+  if (r.ok || r.uploaded.includes('login.html') || r.uploaded.includes('login.html (pack)')) {
+    return { ok: true, size: r.size, files: r.uploaded };
+  }
+  return { ok: false, error: r.error || 'login.html hindi na-upload sa MikroTik' };
 }
 
 async function ensureIfaceIp(api, iface, ip, comment, steps) {
@@ -341,11 +397,11 @@ async function pushHotspotServer(server, options = {}) {
     const identity = await api.call(['/system/identity/print']);
     steps.push(`Connected: ${identity[0]?.name || host}`);
 
-    const login = await uploadLoginHtml(api, site.id, cloud);
+    const login = await uploadHotspotPack(api, site.id, cloud);
     if (login.ok) {
-      steps.push(`login.html uploaded (${login.size} bytes)`);
+      steps.push(`hotspot files uploaded (${login.uploaded.length}): ${login.uploaded.join(', ')}`);
     } else {
-      steps.push(`WARN: ${login.error || 'login.html upload failed'}`);
+      steps.push(`WARN: ${login.error || 'hotspot upload incomplete'} — uploaded: ${(login.uploaded || []).join(', ')}`);
     }
 
     for (const { vid, parent } of ensureVids) {
@@ -655,6 +711,8 @@ module.exports = {
   pushHotspotProfile,
   deleteHotspotServer,
   deleteHotspotProfile,
+  uploadHotspotPack,
+  uploadLoginHtml,
   resolveSite,
   parseGateway,
   parseVlanIds,
