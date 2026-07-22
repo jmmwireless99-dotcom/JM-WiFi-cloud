@@ -540,9 +540,21 @@ router.post('/hotspot/profiles/:id/push', authAdmin, requireRole('admin', 'opera
   res.status(502).json(push);
 });
 
-router.delete('/hotspot/servers/:id', authAdmin, requireRole('admin'), (req, res) => {
-  db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
+router.delete('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
+  const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+  if (server.site_id && !getOwnedSite(req.operator, server.site_id, MODULE)) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  let mikrotik = null;
+  if (req.query.remove_from_mikrotik !== 'false') {
+    const { deleteHotspotServer } = require('../lib/mikrotik-push');
+    mikrotik = await deleteHotspotServer(server);
+  }
+
+  db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(server.id);
+  res.json({ success: true, mikrotik });
 });
 
 router.get('/hotspot/servers/:id/script', authAdmin, (req, res) => {
@@ -567,7 +579,7 @@ router.get('/hotspot/profiles', authAdmin, (req, res) => {
   res.json({ profiles });
 });
 
-router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
   const {
     name,
     site_id = null,
@@ -580,7 +592,8 @@ router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (r
     no_validity = 1,
     allow_random_mac = 1,
     mac_cookie = 1,
-    notes = ''
+    notes = '',
+    push_to_mikrotik = true
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
@@ -601,11 +614,21 @@ router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (r
   );
 
   const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(id);
+  let push = null;
+  if (push_to_mikrotik) {
+    const site = site_id
+      ? getOwnedSite(req.operator, site_id, MODULE)
+      : require('../lib/mikrotik-push').resolveSite({});
+    if (site) {
+      const { pushHotspotProfile } = require('../lib/mikrotik-push');
+      push = await pushHotspotProfile(profile, site);
+    }
+  }
   const { buildProfileScript } = require('../lib/mikrotik');
-  res.status(201).json({ profile, script: buildProfileScript(profile) });
+  res.status(201).json({ profile, push, script: buildProfileScript(profile) });
 });
 
-router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
   const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
   if (profile.site_id && !getOwnedSite(req.operator, profile.site_id, MODULE)) {
@@ -632,17 +655,41 @@ router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'),
   if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
   values.push(profile.id);
   db.prepare(`UPDATE hotspot_profiles SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ profile: db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(profile.id) });
+  const updated = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(profile.id);
+
+  let push = null;
+  if (req.body.push_to_mikrotik !== false) {
+    const site = updated.site_id
+      ? getOwnedSite(req.operator, updated.site_id, MODULE)
+      : require('../lib/mikrotik-push').resolveSite({});
+    if (site) {
+      const { pushHotspotProfile } = require('../lib/mikrotik-push');
+      push = await pushHotspotProfile(updated, site);
+    }
+  }
+  res.json({ profile: updated, push });
 });
 
-router.delete('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+router.delete('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
   const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
   if (!profile) return res.status(404).json({ error: 'Profile not found' });
   if (profile.site_id && !getOwnedSite(req.operator, profile.site_id, MODULE)) {
     return res.status(404).json({ error: 'Profile not found' });
   }
+
+  let mikrotik = null;
+  if (req.query.remove_from_mikrotik !== 'false') {
+    const site = profile.site_id
+      ? getOwnedSite(req.operator, profile.site_id, MODULE)
+      : require('../lib/mikrotik-push').resolveSite({});
+    if (site) {
+      const { deleteHotspotProfile } = require('../lib/mikrotik-push');
+      mikrotik = await deleteHotspotProfile(profile, site);
+    }
+  }
+
   db.prepare('DELETE FROM hotspot_profiles WHERE id = ?').run(profile.id);
-  res.json({ success: true });
+  res.json({ success: true, mikrotik });
 });
 
 router.get('/hotspot/profiles/:id/script', authAdmin, (req, res) => {

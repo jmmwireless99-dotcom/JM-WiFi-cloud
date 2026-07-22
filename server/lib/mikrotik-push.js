@@ -477,10 +477,147 @@ async function pushHotspotProfile(profile, site) {
   }
 }
 
+async function withRouterOS(site, fn, options = {}) {
+  const host = site.mikrotik_host;
+  const port = Number(options.apiPort || process.env.MIKROTIK_API_PORT || 8728);
+  const user = site.mikrotik_user || 'admin';
+  const pass = site.mikrotik_pass;
+  const api = new RouterOS(host, port);
+  try {
+    await api.connect();
+    await api.login(user, pass);
+    return await fn(api);
+  } finally {
+    api.close();
+  }
+}
+
+async function removeByName(api, menuPath, name) {
+  const found = await api.call([`${menuPath}/print`, `?name=${name}`]);
+  for (const row of found) {
+    try {
+      await api.call([`${menuPath}/remove`, `=.id=${row['.id']}`]);
+    } catch (e) {
+      console.log('[mikrotik-push] remove warn:', e.message);
+    }
+  }
+  return found.length;
+}
+
+async function removeByComment(api, menuPath, comment) {
+  const found = await api.call([`${menuPath}/print`, `?comment=${comment}`]);
+  for (const row of found) {
+    try {
+      await api.call([`${menuPath}/remove`, `=.id=${row['.id']}`]);
+    } catch (e) {
+      console.log('[mikrotik-push] remove warn:', e.message);
+    }
+  }
+  return found.length;
+}
+
+/**
+ * Remove hotspot server resources from MikroTik (mirror of push).
+ */
+async function deleteHotspotServer(server, options = {}) {
+  const site = options.site || resolveSite(server);
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return { success: false, error: 'Walang MikroTik credentials' };
+  }
+  if (!server?.interface_name) {
+    return { success: false, error: 'Walang interface_name sa record' };
+  }
+
+  const hsIface = String(server.interface_name).trim();
+  const hsName = server.name || hsIface;
+  const { network } = parseGateway(server.hs_address || CENTRAL_GATEWAY);
+  const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const natComment = `JM Hotspot NAT ${hsName}`;
+  const steps = [];
+
+  try {
+    await withRouterOS(site, async (api) => {
+      const hsRemoved = await removeByName(api, '/ip/hotspot', hsName);
+      if (hsRemoved) steps.push(`Removed hotspot ${hsName}`);
+
+      const dhcpRemoved = await removeByName(api, '/ip/dhcp-server', dhcpName);
+      if (dhcpRemoved) steps.push(`Removed DHCP ${dhcpName}`);
+
+      const poolRemoved = await removeByName(api, '/ip/pool', poolName);
+      if (poolRemoved) steps.push(`Removed pool ${poolName}`);
+
+      const natRemoved = await removeByComment(api, '/ip/firewall/nat', natComment);
+      if (natRemoved) steps.push(`Removed NAT ${natComment}`);
+
+      const nets = await api.call(['/ip/dhcp-server/network/print', `?address=${network}`]);
+      for (const row of nets) {
+        try {
+          await api.call(['/ip/dhcp-server/network/remove', `=.id=${row['.id']}`]);
+          steps.push(`Removed DHCP network ${network}`);
+        } catch {}
+      }
+
+      const addrs = await api.call(['/ip/address/print', `?interface=${hsIface}`]);
+      for (const row of addrs) {
+        const comment = String(row.comment || '');
+        if (comment.includes(hsName) || comment === `JM VLAN ${hsName}`) {
+          try {
+            await api.call(['/ip/address/remove', `=.id=${row['.id']}`]);
+            steps.push(`Removed IP ${row.address} on ${hsIface}`);
+          } catch {}
+        }
+      }
+    }, options);
+
+    return {
+      success: true,
+      host: site.mikrotik_host,
+      hotspot: hsName,
+      interface: hsIface,
+      steps: steps.length ? steps : ['Walang matching config sa MikroTik (OK)']
+    };
+  } catch (err) {
+    return { success: false, error: err.message, steps };
+  }
+}
+
+/**
+ * Remove hotspot user profile from MikroTik.
+ */
+async function deleteHotspotProfile(profile, site) {
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return { success: false, error: 'Walang MikroTik credentials' };
+  }
+  const name = profile?.name;
+  if (!name) return { success: false, error: 'Profile name required' };
+  if (name === 'default') {
+    return { success: false, error: 'Hindi pwedeng i-delete ang default profile sa MikroTik' };
+  }
+
+  try {
+    let removed = 0;
+    await withRouterOS(site, async (api) => {
+      removed = await removeByName(api, '/ip/hotspot/user/profile', name);
+    });
+    return {
+      success: true,
+      host: site.mikrotik_host,
+      profile: name,
+      removed: removed > 0,
+      steps: removed ? [`Removed user profile ${name}`] : [`Profile ${name} wala na sa MikroTik`]
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   CENTRAL_GATEWAY,
   pushHotspotServer,
   pushHotspotProfile,
+  deleteHotspotServer,
+  deleteHotspotProfile,
   resolveSite,
   parseGateway,
   parseVlanIds,

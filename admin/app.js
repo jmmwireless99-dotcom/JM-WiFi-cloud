@@ -649,8 +649,8 @@
     $('#hs-server-panel').classList.toggle('hidden', tab !== 'server');
     $('#hs-profile-panel').classList.toggle('hidden', tab !== 'profile');
     $('#hs-toolbar-text').textContent = tab === 'server'
-      ? 'Central hotspot — direktang i-apply sa MikroTik ang VLAN, IP, DHCP, at hotspot settings.'
-      : 'User profiles — pause on disconnect, no validity, random MAC.';
+      ? 'Add/Edit/Delete Hotspot Server — auto sync sa MikroTik.'
+      : 'Add/Edit/Delete Profile — auto sync sa MikroTik user profile.';
     $('#btn-add-server').style.display = tab === 'server' ? '' : 'none';
     $('#btn-add-profile').style.display = tab === 'profile' ? '' : 'none';
   }
@@ -737,9 +737,16 @@
     });
     $$('[data-hs-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this hotspot server?')) return;
-        await api('/hotspot/servers/' + btn.dataset.hsDel, { method: 'DELETE' });
-        loadHotspotServer();
+        if (!confirm('Delete sa system at sa MikroTik ang hotspot server na ito?')) return;
+        try {
+          const r = await api('/hotspot/servers/' + btn.dataset.hsDel, { method: 'DELETE' });
+          if (r.mikrotik) {
+            alert('Deleted\n\nMikroTik:\n' + (r.mikrotik.steps || []).join('\n'));
+          }
+          loadHotspotServer();
+        } catch (ex) {
+          alert('Delete failed: ' + ex.message);
+        }
       });
     });
     $$('[data-profile-push]').forEach((btn) => {
@@ -763,9 +770,16 @@
     });
     $$('[data-profile-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this profile?')) return;
-        await api('/hotspot/profiles/' + btn.dataset.profileDel, { method: 'DELETE' });
-        loadHotspotServer();
+        if (!confirm('Delete sa system at sa MikroTik ang profile na ito?')) return;
+        try {
+          const r = await api('/hotspot/profiles/' + btn.dataset.profileDel, { method: 'DELETE' });
+          if (r.mikrotik) {
+            alert('Deleted\n\nMikroTik:\n' + (r.mikrotik.steps || []).join('\n'));
+          }
+          loadHotspotServer();
+        } catch (ex) {
+          alert('Delete failed: ' + ex.message);
+        }
       });
     });
   }
@@ -897,9 +911,16 @@
     body.pause_on_disconnect = fd.get('pause_on_disconnect') ? 1 : 0;
     body.no_validity = fd.get('no_validity') ? 1 : 0;
     body.allow_random_mac = fd.get('allow_random_mac') ? 1 : 0;
+    body.push_to_mikrotik = fd.get('push_to_mikrotik') ? true : false;
     const data = await api('/hotspot/profiles', { method: 'POST', body: JSON.stringify(body) });
     $('#hs-profile-dialog').close();
-    if (data.script) alert('Profile created.\n\nMikroTik script:\n' + data.script);
+    if (data.push?.success) {
+      alert('Profile saved & pushed sa MikroTik: ' + (data.push.profile || data.profile.name));
+    } else if (data.push) {
+      alert('Saved pero MikroTik push failed:\n' + (data.push.error || 'unknown'));
+    } else if (data.script) {
+      alert('Profile created.\n\nMikroTik script:\n' + data.script);
+    }
     loadHotspotServer();
   });
 
