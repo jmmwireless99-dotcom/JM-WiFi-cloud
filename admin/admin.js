@@ -40,6 +40,36 @@
     return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  function expandAllVendo() {
+    $('children-allvendo')?.classList.add('open');
+    $('nav-tree-allvendo')?.classList.add('expanded');
+    const chevron = $('chevron-allvendo');
+    if (chevron) chevron.textContent = '▾';
+  }
+
+  function collapseAllVendo() {
+    $('children-allvendo')?.classList.remove('open');
+    $('nav-tree-allvendo')?.classList.remove('expanded');
+    const chevron = $('chevron-allvendo');
+    if (chevron) chevron.textContent = '▸';
+    collapseHotspot();
+  }
+
+  function expandHotspot() {
+    expandAllVendo();
+    $('children-vlans')?.classList.add('open');
+    $('nav-tree-hotspot')?.classList.add('expanded');
+    const chevron = $('chevron-hotspot');
+    if (chevron) chevron.textContent = '▾';
+  }
+
+  function collapseHotspot() {
+    $('children-vlans')?.classList.remove('open');
+    $('nav-tree-hotspot')?.classList.remove('expanded');
+    const chevron = $('chevron-hotspot');
+    if (chevron) chevron.textContent = '▸';
+  }
+
   function setNavActive(name) {
     document.querySelectorAll('.nav-btn[data-view]').forEach(function (b) {
       b.classList.toggle('active', b.dataset.view === name);
@@ -49,15 +79,13 @@
     });
 
     const inAllVendo = ['allvendo', 'hotspot-vendo', 'vlan-detail', 'empty-bottle'].includes(name);
-    $('btn-allvendo-toggle')?.classList.toggle('active', inAllVendo && name === 'allvendo');
+    $('btn-allvendo-toggle')?.classList.toggle('active', inAllVendo);
     $('btn-hotspot-toggle')?.classList.toggle('active', name === 'hotspot-vendo' || name === 'vlan-detail');
 
     if (inAllVendo) {
-      $('children-allvendo')?.classList.add('open');
-      $('nav-tree-allvendo')?.classList.add('expanded');
+      expandAllVendo();
       if (name === 'hotspot-vendo' || name === 'vlan-detail') {
-        $('children-vlans')?.classList.add('open');
-        $('nav-tree-hotspot')?.classList.add('expanded');
+        expandHotspot();
       }
     }
   }
@@ -87,41 +115,30 @@
 
   window.showView = showView;
 
-  // Toggle ALL VENDO submenu
-  $('btn-allvendo-toggle')?.addEventListener('click', function (e) {
+  // Toggle ALL VENDO — click to show/hide Empty Bottle & Cloud Hotspot
+  $('btn-allvendo-toggle')?.addEventListener('click', function () {
     const children = $('children-allvendo');
-    const tree = $('nav-tree-allvendo');
-    const chevron = $('chevron-allvendo');
     const isOpen = children?.classList.contains('open');
 
     if (isOpen) {
-      children?.classList.remove('open');
-      tree?.classList.remove('expanded');
-      if (chevron) chevron.textContent = '▸';
+      collapseAllVendo();
     } else {
-      children?.classList.add('open');
-      tree?.classList.add('expanded');
-      if (chevron) chevron.textContent = '▾';
+      expandAllVendo();
       showView('allvendo');
     }
   });
 
-  // Toggle Hotspot Vendo submenu (VLANs)
+  // Toggle Cloud Hotspot — click to show/hide VLANs
   $('btn-hotspot-toggle')?.addEventListener('click', function (e) {
     e.stopPropagation();
     const children = $('children-vlans');
-    const tree = $('nav-tree-hotspot');
-    const chevron = $('chevron-hotspot');
     const isOpen = children?.classList.contains('open');
 
-    if (isOpen && document.querySelector('.nav-btn.nav-subparent.active')?.dataset.view === 'hotspot-vendo') {
-      children?.classList.remove('open');
-      tree?.classList.remove('expanded');
-      if (chevron) chevron.textContent = '▸';
+    if (isOpen) {
+      collapseHotspot();
+      showView('hotspot-vendo');
     } else {
-      children?.classList.add('open');
-      tree?.classList.add('expanded');
-      if (chevron) chevron.textContent = '▾';
+      expandHotspot();
       showView('hotspot-vendo');
     }
   });
@@ -129,6 +146,7 @@
   document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
     if (btn.id === 'btn-hotspot-toggle') return;
     btn.addEventListener('click', function () {
+      if (btn.dataset.view === 'empty-bottle') expandAllVendo();
       showView(btn.dataset.view);
     });
   });
@@ -172,6 +190,7 @@
 
     container.querySelectorAll('.nav-vlan').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        expandHotspot();
         showView('vlan-detail', { siteId: btn.dataset.siteId });
       });
     });

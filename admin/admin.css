@@ -150,11 +150,19 @@ body {
   padding-left: 8px;
   margin-left: 12px;
   border-left: 2px solid var(--line);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
 }
 
 .nav-children.open,
 .nav-grandchildren.open {
   display: block;
+  max-height: 500px;
+  opacity: 1;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .nav-child {
