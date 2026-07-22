@@ -738,15 +738,16 @@
     });
     $$('[data-hs-del]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete sa system at sa MikroTik ang hotspot server na ito?')) return;
+        if (!confirm('Delete sa system at sa MikroTik ang hotspot server na ito?\n\nTatanggalin: hotspot, DHCP, IP, VLAN interface.')) return;
+        btn.disabled = true;
         try {
           const r = await api('/hotspot/servers/' + btn.dataset.hsDel, { method: 'DELETE' });
-          if (r.mikrotik) {
-            alert('Deleted\n\nMikroTik:\n' + (r.mikrotik.steps || []).join('\n'));
-          }
+          alert('Na-delete sa system at MikroTik:\n\n' + (r.mikrotik?.steps || []).join('\n'));
           loadHotspotServer();
         } catch (ex) {
-          alert('Delete failed: ' + ex.message);
+          alert('Hindi na-delete — ' + ex.message + '\n\nNaka-stay pa rin sa system at MikroTik.');
+        } finally {
+          btn.disabled = false;
         }
       });
     });

@@ -574,6 +574,31 @@ async function removeByComment(api, menuPath, comment) {
   return found.length;
 }
 
+async function removeByInterface(api, menuPath, iface) {
+  const found = await api.call([`${menuPath}/print`, `?interface=${iface}`]);
+  for (const row of found) {
+    try {
+      await api.call([`${menuPath}/remove`, `=.id=${row['.id']}`]);
+    } catch (e) {
+      console.log('[mikrotik-push] remove by iface warn:', e.message);
+    }
+  }
+  return found.length;
+}
+
+async function removeVlanInterface(api, vname, steps) {
+  const found = await api.call(['/interface/vlan/print', `?name=${vname}`]);
+  for (const row of found) {
+    try {
+      await api.call(['/interface/vlan/remove', `=.id=${row['.id']}`]);
+      steps.push(`Removed VLAN interface ${vname}`);
+    } catch (e) {
+      steps.push(`WARN: VLAN ${vname} — ${e.message}`);
+    }
+  }
+  return found.length;
+}
+
 /**
  * Remove hotspot server resources from MikroTik (mirror of push).
  */
@@ -586,22 +611,29 @@ async function deleteHotspotServer(server, options = {}) {
     return { success: false, error: 'Walang interface_name sa record' };
   }
 
-  const { targetIface, selected: parentIface } = resolveHotspotTarget(server, options);
+  const { targetIface, ensureVids } = resolveHotspotTarget(server, options);
   const hsIface = targetIface;
   const hsName = server.name || hsIface;
   const { network } = parseGateway(server.hs_address || CENTRAL_GATEWAY);
   const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
   const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
   const natComment = `JM Hotspot NAT ${hsName}`;
+  const dnsName = server.dns_name || 'jmwifi.local';
   const steps = [];
 
   try {
     await withRouterOS(site, async (api) => {
-      const hsRemoved = await removeByName(api, '/ip/hotspot', hsName);
-      if (hsRemoved) steps.push(`Removed hotspot ${hsName}`);
+      let hsRemoved = await removeByName(api, '/ip/hotspot', hsName);
+      if (!hsRemoved) {
+        hsRemoved = await removeByInterface(api, '/ip/hotspot', hsIface);
+      }
+      if (hsRemoved) steps.push(`Removed hotspot on ${hsIface}`);
 
-      const dhcpRemoved = await removeByName(api, '/ip/dhcp-server', dhcpName);
-      if (dhcpRemoved) steps.push(`Removed DHCP ${dhcpName}`);
+      let dhcpRemoved = await removeByName(api, '/ip/dhcp-server', dhcpName);
+      if (!dhcpRemoved) {
+        dhcpRemoved = await removeByInterface(api, '/ip/dhcp-server', hsIface);
+      }
+      if (dhcpRemoved) steps.push(`Removed DHCP on ${hsIface}`);
 
       const poolRemoved = await removeByName(api, '/ip/pool', poolName);
       if (poolRemoved) steps.push(`Removed pool ${poolName}`);
@@ -619,13 +651,20 @@ async function deleteHotspotServer(server, options = {}) {
 
       const addrs = await api.call(['/ip/address/print', `?interface=${hsIface}`]);
       for (const row of addrs) {
-        const comment = String(row.comment || '');
-        if (comment.includes(hsName) || comment === `JM VLAN ${hsName}`) {
-          try {
-            await api.call(['/ip/address/remove', `=.id=${row['.id']}`]);
-            steps.push(`Removed IP ${row.address} on ${hsIface}`);
-          } catch {}
-        }
+        try {
+          await api.call(['/ip/address/remove', `=.id=${row['.id']}`]);
+          steps.push(`Removed IP ${row.address} on ${hsIface}`);
+        } catch {}
+      }
+
+      const dnsRemoved = await removeByName(api, '/ip/dns/static', dnsName);
+      if (dnsRemoved) steps.push(`Removed DNS static ${dnsName}`);
+
+      if (/^VLAN\d+$/i.test(hsIface)) {
+        await removeVlanInterface(api, hsIface, steps);
+      }
+      for (const { vid } of ensureVids) {
+        if (vid > 0) await removeVlanInterface(api, `VLAN${vid}`, steps);
       }
     }, options);
 

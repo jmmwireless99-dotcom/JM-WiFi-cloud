@@ -561,10 +561,24 @@ router.delete('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'
     return res.status(404).json({ error: 'Server not found' });
   }
 
-  let mikrotik = null;
-  if (req.query.remove_from_mikrotik !== 'false') {
-    const { deleteHotspotServer } = require('../lib/mikrotik-push');
-    mikrotik = await deleteHotspotServer(server);
+  if (req.query.remove_from_mikrotik === 'false') {
+    db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(server.id);
+    return res.json({ success: true, mikrotik: null });
+  }
+
+  const site = server.site_id
+    ? getOwnedSite(req.operator, server.site_id, MODULE)
+    : require('../lib/mikrotik-push').resolveSite(server);
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return res.status(400).json({
+      error: 'Walang MikroTik credentials sa vendo site — hindi ma-delete sa router'
+    });
+  }
+
+  const { deleteHotspotServer } = require('../lib/mikrotik-push');
+  const mikrotik = await deleteHotspotServer(server, { site });
+  if (!mikrotik.success) {
+    return res.status(502).json({ error: mikrotik.error || 'MikroTik delete failed', mikrotik });
   }
 
   db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(server.id);
