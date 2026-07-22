@@ -177,7 +177,7 @@
           </div>
 
           <dialog id="hs-server-dialog">
-            <form id="hs-server-form" method="dialog">
+            <form id="hs-server-form">
               <h3 id="hs-server-dialog-title">Setup Hotspot Server</h3>
               <input type="hidden" name="id" id="hs-server-id">
               <label>Name <input name="name" required placeholder="CENTRAL" value="CENTRAL"></label>
@@ -199,11 +199,10 @@
                 <label>Login By <input name="login_by" value="http-pap,cookie"></label>
               </div>
               <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
-              <label>Vendo site
-                <select name="site_id" id="hs-site-select"><option value="">Auto (first hotspot vendo)</option></select>
+              <label>Vendo site <span class="req">*</span>
+                <select name="site_id" id="hs-site-select" required><option value="">— Pili ng vendo —</option></select>
               </label>
-              <label class="check-row"><input type="checkbox" name="push_to_mikrotik" checked> Direktang i-apply sa MikroTik pag save</label>
-              <p class="hub-lead">Pili ng <strong>Parent Interface</strong> (hal. ether2-OUT). Auto-gagawa ng <strong>VLAN{id}</strong> doon at doon ilalagay ang IP at hotspot.</p>
+              <p class="hub-lead hub-warn">Create = sabay sa MikroTik (VLAN + IP + DHCP + hotspot). Kung fail ang MikroTik, hindi ma-save sa system.</p>
               <div class="dialog-actions">
                 <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
                 <button type="submit" class="btn-primary">Save &amp; Push</button>

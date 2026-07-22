@@ -457,9 +457,12 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), asy
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
-  if (!interface_name) return res.status(400).json({ error: 'interface_name required — pili ng MikroTik interface' });
-  if (site_id && !getOwnedSite(req.operator, site_id, MODULE)) {
-    return res.status(404).json({ error: 'Vendo not found' });
+  if (!interface_name) return res.status(400).json({ error: 'interface_name required — pili ng parent interface' });
+  if (!site_id) return res.status(400).json({ error: 'Pili ng Vendo site — kailangan para sa MikroTik sync' });
+  const site = getOwnedSite(req.operator, site_id, MODULE);
+  if (!site) return res.status(404).json({ error: 'Vendo not found' });
+  if (!site.mikrotik_host || !site.mikrotik_pass) {
+    return res.status(400).json({ error: 'Walang MikroTik host/password sa vendo site. I-set sa Vendo List muna.' });
   }
 
   const id = uuid();
@@ -471,15 +474,15 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), asy
   `).run(id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, vlan_ids, dns_name, profile_name);
 
   const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id);
-  let push = null;
-  if (push_to_mikrotik) {
-    const { pushHotspotServer } = require('../lib/mikrotik-push');
-    push = await pushHotspotServer(server);
-    if (push.success) {
-      db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(id);
-    }
+  const { pushHotspotServer } = require('../lib/mikrotik-push');
+  const push = await pushHotspotServer(server, { site });
+  if (!push.success) {
+    db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(id);
+    return res.status(502).json({ error: push.error || 'MikroTik push failed', push });
   }
-  res.status(201).json({ server, push });
+  db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(id);
+  const saved = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id);
+  res.status(201).json({ server: saved, push });
 });
 
 router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), async (req, res) => {
@@ -507,13 +510,20 @@ router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), 
   const updated = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(server.id);
   let push = null;
   if (req.body.push_to_mikrotik !== false) {
+    const site = updated.site_id
+      ? getOwnedSite(req.operator, updated.site_id, MODULE)
+      : require('../lib/mikrotik-push').resolveSite(updated);
+    if (!site?.mikrotik_host) {
+      return res.status(400).json({ error: 'Walang MikroTik sa vendo site' });
+    }
     const { pushHotspotServer } = require('../lib/mikrotik-push');
-    push = await pushHotspotServer(updated);
+    push = await pushHotspotServer(updated, { site });
     if (push.success) {
       db.prepare("UPDATE hotspot_servers SET last_pushed_at = datetime('now') WHERE id = ?").run(server.id);
     }
   }
-  res.json({ server: updated, push });
+  const saved = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(server.id);
+  res.json({ server: saved, push });
 });
 
 router.post('/hotspot/servers/:id/push', authAdmin, requireRole('admin', 'operator'), async (req, res) => {

@@ -664,11 +664,12 @@
 
     $('#hs-server-list').innerHTML = servers.servers.length ? `
       <table>
-        <thead><tr><th>Name</th><th>Interface IP</th><th>Parent IF</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>Vendo</th><th>Interface IP</th><th>Parent IF</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
         <tbody>
           ${servers.servers.map((s) => `
             <tr>
               <td><strong>${esc(s.name)}</strong></td>
+              <td>${esc(s.site_name || '—')}</td>
               <td class="mono">${esc(s.hs_address)}</td>
               <td>${esc(s.interface_name || '—')}</td>
               <td>${Number(s.vlan_id) === 0 ? esc(s.vlan_ids || 'ALL') : esc(s.vlan_id)}</td>
@@ -789,15 +790,18 @@
   });
 
   $('#btn-refresh-hs')?.addEventListener('click', () => loadHotspotServer());
-  async function fillHsSiteSelect() {
+  async function fillHsSiteSelect(selected) {
     if (!state.vendos.length) {
       const data = await api('/vendos');
       state.vendos = data.vendos;
     }
     const sel = $('#hs-site-select');
     if (!sel) return;
-    sel.innerHTML = '<option value="">Auto (first hotspot vendo)</option>' +
-      state.vendos.map((v) => `<option value="${v.id}">${esc(v.name)} (${esc(v.mikrotik_host || 'no MT')})</option>`).join('');
+    const withMt = state.vendos.filter((v) => v.mikrotik_host);
+    sel.innerHTML = '<option value="">— Pili ng vendo —</option>' +
+      withMt.map((v) => `<option value="${v.id}">${esc(v.name)} (${esc(v.mikrotik_host)})</option>`).join('');
+    if (selected) sel.value = selected;
+    else if (withMt.length === 1) sel.value = withMt[0].id;
   }
 
   async function fillHsInterfaceSelect(selected, siteId) {
@@ -820,11 +824,17 @@
   }
 
   function suggestInterfaceFromVlan() {
-    /* Parent interface stays user-selected (ether port). VLAN interface auto-created on push. */
+    const form = $('#hs-server-form');
+    if (!form || $('#hs-server-id').value) return;
+    const vid = Number(form.elements.namedItem('vlan_id')?.value || 0);
+    if (vid > 0) {
+      form.elements.namedItem('name').value = 'VLAN' + vid;
+      form.elements.namedItem('vlan_ids').value = String(vid);
+    }
   }
 
   async function openServerDialog(server) {
-    fillHsSiteSelect();
+    await fillHsSiteSelect(server?.site_id || '');
     const form = $('#hs-server-form');
     $('#hs-server-dialog-title').textContent = server?.id ? 'Edit Hotspot Server' : 'Setup Hotspot Server';
     const siteId = server?.site_id || form.elements.namedItem('site_id')?.value || '';
@@ -870,28 +880,53 @@
 
   $('#hs-server-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const fd = new FormData(form);
     const body = Object.fromEntries(fd.entries());
-    body.vlan_id = Number(body.vlan_id);
-    body.push_to_mikrotik = fd.get('push_to_mikrotik') ? true : false;
-    if (!body.site_id) delete body.site_id;
+    body.vlan_id = Number(body.vlan_id || 0);
+    body.push_to_mikrotik = true;
     delete body.id;
+
+    if (!body.site_id) {
+      alert('Pili ng Vendo site — kailangan para sa MikroTik sync.');
+      return;
+    }
+    if (!body.interface_name) {
+      alert('Pili ng Parent Interface (hal. ether2-OUT).');
+      return;
+    }
+
     const id = $('#hs-server-id').value;
-    let data;
-    if (id) {
-      data = await api('/hotspot/servers/' + id, { method: 'PUT', body: JSON.stringify(body) });
-    } else {
-      data = await api('/hotspot/servers', { method: 'POST', body: JSON.stringify(body) });
-    }
-    $('#hs-server-dialog').close();
-    if (data.push) {
-      if (data.push.success) {
-        alert('Saved & pushed sa MikroTik\n\nProfile: ' + (data.push.hotspot_address || '10.0.0.1') + '\nInterface: ' + (data.push.gateway || '') + '\n\n' + (data.push.steps || []).join('\n'));
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const data = id
+        ? await api('/hotspot/servers/' + id, { method: 'PUT', body: JSON.stringify(body) })
+        : await api('/hotspot/servers', { method: 'POST', body: JSON.stringify(body) });
+
+      $('#hs-server-dialog').close();
+
+      if (data.push?.success) {
+        alert(
+          'Na-save at na-push sa MikroTik\n\n' +
+          'VLAN/Interface: ' + (data.push.interface || '—') + '\n' +
+          'Client IP: ' + (data.push.gateway || body.hs_address) + '\n' +
+          'Portal: ' + (data.push.hotspot_address || '10.0.0.1') + '\n\n' +
+          (data.push.steps || []).join('\n')
+        );
+      } else if (data.push) {
+        alert('Na-save sa system pero hindi na-push sa MikroTik:\n' + (data.push.error || 'unknown error'));
+      } else if (!id) {
+        alert('Na-create at na-sync sa MikroTik.');
       } else {
-        alert('Saved pero push failed:\n' + (data.push.error || 'unknown error'));
+        alert('Na-save.');
       }
+      loadHotspotServer();
+    } catch (ex) {
+      alert((id ? 'Hindi na-save' : 'Hindi na-create') + ' — ' + ex.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
-    loadHotspotServer();
   });
 
   $('#hs-profile-form')?.addEventListener('submit', async (e) => {

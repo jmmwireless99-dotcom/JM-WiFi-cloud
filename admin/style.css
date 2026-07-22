@@ -627,6 +627,18 @@ input:focus, select:focus {
   line-height: 1.5;
 }
 
+.hub-lead.hub-warn {
+  color: #f0c674;
+  background: rgba(240, 198, 116, 0.08);
+  border: 1px solid rgba(240, 198, 116, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.req {
+  color: #f07178;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

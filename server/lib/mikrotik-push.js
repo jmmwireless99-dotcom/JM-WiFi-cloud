@@ -297,7 +297,21 @@ async function cleanupMisplacedIps(api, parentIface, hsName, steps) {
 
 async function ensureVlanInterface(api, vid, vlanParent, comment) {
   const vname = `VLAN${vid}`;
-  await ensureOrSet(api, '/interface/vlan', 'name', vname, {
+  const existing = await api.call(['/interface/vlan/print', `?name=${vname}`]);
+  if (existing.length) {
+    const row = existing[0];
+    const needsParent = String(row.interface || '') !== vlanParent;
+    const words = ['/interface/vlan/set', `=.id=${row['.id']}`, `=comment=${comment}`];
+    if (needsParent) words.push(`=interface=${vlanParent}`);
+    if (String(row['vlan-id'] || '') !== String(vid)) words.push(`=vlan-id=${String(vid)}`);
+    try {
+      await api.call(words);
+    } catch (e) {
+      console.log('[mikrotik-push] vlan set warn:', e.message);
+    }
+    return vname;
+  }
+  await safeAdd(api, '/interface/vlan/add', {
     name: vname,
     'vlan-id': String(vid),
     interface: vlanParent,
