@@ -109,7 +109,7 @@ db.exec(`
     hs_address TEXT DEFAULT '0.0.0.0',
     html_directory TEXT DEFAULT 'hotspot',
     login_by TEXT DEFAULT 'http-pap,mac-cookie',
-    interface_name TEXT DEFAULT 'bridge-hotspot',
+    interface_name TEXT DEFAULT '',
     vlan_id INTEGER DEFAULT 10,
     dns_name TEXT DEFAULT 'jmwifi.local',
     profile_name TEXT DEFAULT 'jmwifi',

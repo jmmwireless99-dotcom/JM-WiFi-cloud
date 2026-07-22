@@ -413,6 +413,8 @@ router.get('/hotspot/interfaces', authAdmin, async (req, res) => {
   }
   const interfaces = (result.data || [])
     .filter((i) => i.name && String(i.disabled || 'false') !== 'true')
+    .filter((i) => String(i.type || '').toLowerCase() !== 'bridge')
+    .filter((i) => !/^bridge/i.test(String(i.name)))
     .map((i) => ({
       name: i.name,
       type: i.type || '',

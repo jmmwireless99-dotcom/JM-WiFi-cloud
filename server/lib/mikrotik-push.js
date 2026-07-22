@@ -255,12 +255,12 @@ async function removeExtraHotspots(api, iface, keepName) {
   }
 }
 
-async function ensureVlanInterface(api, vid, bridgeLocal, comment) {
+async function ensureVlanInterface(api, vid, vlanParent, comment) {
   const vname = `VLAN${vid}`;
   await ensureOrSet(api, '/interface/vlan', 'name', vname, {
     name: vname,
     'vlan-id': String(vid),
-    interface: bridgeLocal,
+    interface: vlanParent,
     comment
   });
   return vname;
@@ -281,7 +281,7 @@ async function pushHotspotServer(server, options = {}) {
   const user = site.mikrotik_user || 'admin';
   const pass = site.mikrotik_pass;
   const cloud = (options.cloudUrl || process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
-  const bridgeLocal = options.bridgeLocal || 'bridge-local';
+  const vlanParent = options.vlanParent || process.env.MIKROTIK_VLAN_PARENT || 'bridge-local';
 
   const central = isCentralHotspot(site);
   const vlanIds = parseVlanIds(server);
@@ -323,7 +323,7 @@ async function pushHotspotServer(server, options = {}) {
     const ensureVids = vids.length ? vids : (vlanIds.length === 1 ? vlanIds : []);
     for (const vid of ensureVids) {
       if (vid > 0) {
-        await ensureVlanInterface(api, vid, bridgeLocal, `JM Hotspot ${hsName}`);
+        await ensureVlanInterface(api, vid, vlanParent, `JM Hotspot ${hsName}`);
       }
     }
     if (ensureVids.length) steps.push(`VLAN ${ensureVids.join(', ')} · interface ${hsIface}`);
