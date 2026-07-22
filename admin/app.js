@@ -664,7 +664,7 @@
 
     $('#hs-server-list').innerHTML = servers.servers.length ? `
       <table>
-        <thead><tr><th>Name</th><th>HS Address</th><th>Interface</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>Interface IP</th><th>Interface</th><th>VLANs</th><th>Last push</th><th>Action</th></tr></thead>
         <tbody>
           ${servers.servers.map((s) => `
             <tr>
@@ -713,7 +713,7 @@
         btn.disabled = true;
         try {
           const r = await api('/hotspot/servers/' + btn.dataset.hsPush + '/push', { method: 'POST' });
-          alert('MikroTik OK\n\n' + (r.steps || []).join('\n'));
+          alert('MikroTik OK\n\nProfile: ' + (r.hotspot_address || '10.0.0.1') + '\nInterface: ' + (r.gateway || '') + '\n\n' + (r.steps || []).join('\n'));
           loadHotspotServer();
         } catch (ex) {
           alert('Push failed: ' + ex.message);
@@ -804,7 +804,6 @@
       form.elements.namedItem('hs_address').value = '10.0.0.1';
       form.elements.namedItem('vlan_ids').value = '101,102';
     }
-    if (form.elements.namedItem('push_to_mikrotik')) form.elements.namedItem('push_to_mikrotik').checked = true;
     $('#hs-server-dialog').showModal();
   }
 
@@ -838,7 +837,7 @@
     $('#hs-server-dialog').close();
     if (data.push) {
       if (data.push.success) {
-        alert('Saved & pushed sa MikroTik\n\n' + (data.push.steps || []).join('\n'));
+        alert('Saved & pushed sa MikroTik\n\nProfile: ' + (data.push.hotspot_address || '10.0.0.1') + '\nInterface: ' + (data.push.gateway || '') + '\n\n' + (data.push.steps || []).join('\n'));
       } else {
         alert('Saved pero push failed:\n' + (data.push.error || 'unknown error'));
       }

@@ -162,10 +162,10 @@ function buildServerScript(server = {}, cloudUrl = 'https://jmtechsolution.cloud
   const iface = server.interface_name || 'bridge-hotspot';
   const dns = server.dns_name || 'jmwifi.local';
   return `; JM WiFi Cloud CENTRAL Hotspot — ${name}
-; All VLANs share captive portal gateway ${hs} (Kitifi-style)
+; Interface gateway ${hs} · Hotspot Profile captive portal = 10.0.0.1
 :local cloudUrl "${cloudUrl}"
 /ip hotspot profile
-add name=jmwifi hotspot-address=${hs} dns-name=${dns} html-directory=${html} login-by=${loginBy}
+add name=jmwifi hotspot-address=10.0.0.1 dns-name=${dns} html-directory=${html} login-by=${loginBy}
 /ip hotspot walled-garden
 add dst-host=jmtechsolution.cloud
 add dst-host=*.jmtechsolution.cloud

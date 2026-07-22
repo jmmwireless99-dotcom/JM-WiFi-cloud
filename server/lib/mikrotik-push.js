@@ -218,9 +218,10 @@ async function pushHotspotServer(server, options = {}) {
   const htmlDir = server.html_directory || 'hotspot';
   const loginBy = server.login_by || 'http-pap,cookie';
   const vlanIds = parseVlanIds(server);
-  const { gw, network, pool } = parseGateway(central ? CENTRAL_GATEWAY : server.hs_address);
-  const poolName = central ? 'pool-central' : `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-  const dhcpName = central ? 'dhcp-central' : `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const { gw, network, pool } = parseGateway(server.hs_address);
+  const portalAddress = central ? CENTRAL_GATEWAY : gw;
+  const poolName = `pool-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+  const dhcpName = `dhcp-${hsName}`.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
 
   const api = new RouterOS(host, port);
   const steps = [];
@@ -279,17 +280,18 @@ async function pushHotspotServer(server, options = {}) {
         comment: `JM Hotspot ${hsName}`
       });
     }
-    if (central) {
-      for (const a of addrs) {
-        if (a.address && a.address !== gwAddr) {
-          try {
-            await api.call(['/ip/address/remove', `=.id=${a['.id']}`]);
-            steps.push(`Removed stray IP ${a.address}`);
-          } catch {}
-        }
+    if (central && portalAddress !== gw) {
+      const portalAddr = `${portalAddress}/24`;
+      if (!addrs.some((a) => a.address === portalAddr)) {
+        await safeAdd(api, '/ip/address/add', {
+          address: portalAddr,
+          interface: iface,
+          comment: 'JM Hotspot captive portal'
+        });
+        steps.push(`Portal IP ${portalAddress} on ${iface}`);
       }
     }
-    steps.push(`Gateway ${gw} on ${iface}`);
+    steps.push(`Interface IP ${gw} on ${iface}`);
 
     await ensureOrSet(api, '/ip/dhcp-server', 'name', dhcpName, {
       name: dhcpName,
@@ -316,18 +318,19 @@ async function pushHotspotServer(server, options = {}) {
 
     await ensureOrSet(api, '/ip/dns/static', 'name', dnsName, {
       name: dnsName,
-      address: gw,
+      address: portalAddress,
       comment: `Hotspot ${hsName}`
     });
 
     await ensureOrSet(api, '/ip/hotspot/profile', 'name', profileName, {
       name: profileName,
-      'hotspot-address': gw,
+      'hotspot-address': portalAddress,
       'dns-name': dnsName,
       'html-directory': htmlDir,
       'login-by': loginBy,
       'http-cookie-lifetime': '1d'
     });
+    steps.push(`Profile ${profileName} hotspot-address=${portalAddress}`);
 
     await ensureOrSet(api, '/ip/hotspot', 'name', hsName, {
       name: hsName,
@@ -386,6 +389,7 @@ async function pushHotspotServer(server, options = {}) {
       host,
       identity: identity[0]?.name,
       gateway: gw,
+      hotspot_address: portalAddress,
       vlans: vlanIds,
       hotspot: hs[0]?.name || hsName,
       steps
