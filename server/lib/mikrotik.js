@@ -159,7 +159,7 @@ function buildServerScript(server = {}, cloudUrl = 'https://jmtechsolution.cloud
   const hs = server.hs_address || '10.0.0.1';
   const html = server.html_directory || 'hotspot';
   const loginBy = server.login_by || 'http-pap,cookie';
-  const iface = server.interface_name || 'bridge-hotspot';
+  const iface = server.interface_name || 'VLAN530';
   const dns = server.dns_name || 'jmwifi.local';
   return `; JM WiFi Cloud CENTRAL Hotspot — ${name}
 ; Interface gateway ${hs} · Hotspot Profile captive portal = 10.0.0.1

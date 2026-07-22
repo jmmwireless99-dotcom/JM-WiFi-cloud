@@ -397,6 +397,31 @@ router.post('/sessions/:id/disconnect', authAdmin, requireRole('admin', 'operato
 
 // ─── Hotspot Servers (Kitifi-style) ───────────────────────────
 
+router.get('/hotspot/interfaces', authAdmin, async (req, res) => {
+  const { resolveSite } = require('../lib/mikrotik-push');
+  const { mtFetch } = require('../lib/mikrotik');
+  const siteId = req.query.site_id || null;
+  const site = siteId
+    ? getOwnedSite(req.operator, siteId, MODULE)
+    : resolveSite({});
+  if (!site?.mikrotik_host) {
+    return res.status(400).json({ error: 'Walang MikroTik sa vendo site', interfaces: [] });
+  }
+  const result = await mtFetch(site, '/interface');
+  if (!result.success) {
+    return res.status(502).json({ error: result.error || 'Hindi mabasa ang MikroTik', interfaces: [] });
+  }
+  const interfaces = (result.data || [])
+    .filter((i) => i.name && String(i.disabled || 'false') !== 'true')
+    .map((i) => ({
+      name: i.name,
+      type: i.type || '',
+      running: String(i.running || '') !== 'false'
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  res.json({ interfaces });
+});
+
 router.get('/hotspot/servers', authAdmin, (req, res) => {
   const f = ownedSitesSql(req.operator);
   const servers = db.prepare(`
@@ -417,7 +442,7 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), asy
     hs_address = '10.0.0.1',
     html_directory = 'hotspot',
     login_by = 'http-pap,cookie',
-    interface_name = 'bridge-hotspot',
+    interface_name = '',
     vlan_id = 0,
     vlan_ids = '101,102',
     dns_name = 'jmwifi.local',
@@ -426,6 +451,7 @@ router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), asy
   } = req.body || {};
 
   if (!name) return res.status(400).json({ error: 'name required' });
+  if (!interface_name) return res.status(400).json({ error: 'interface_name required — pili ng MikroTik interface' });
   if (site_id && !getOwnedSite(req.operator, site_id, MODULE)) {
     return res.status(404).json({ error: 'Vendo not found' });
   }

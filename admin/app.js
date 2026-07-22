@@ -670,7 +670,7 @@
             <tr>
               <td><strong>${esc(s.name)}</strong></td>
               <td class="mono">${esc(s.hs_address)}</td>
-              <td>${esc(s.interface_name || 'bridge-hotspot')}</td>
+              <td>${esc(s.interface_name || '—')}</td>
               <td>${Number(s.vlan_id) === 0 ? esc(s.vlan_ids || 'ALL') : esc(s.vlan_id)}</td>
               <td class="mono">${esc(s.last_pushed_at || '—')}</td>
               <td>
@@ -723,10 +723,10 @@
       });
     });
     $$('[data-hs-edit]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const s = servers.servers.find((x) => x.id === btn.dataset.hsEdit);
         if (!s) return;
-        openServerDialog(s);
+        await openServerDialog(s);
       });
     });
     $$('[data-hs-script]').forEach((btn) => {
@@ -786,30 +786,74 @@
       state.vendos.map((v) => `<option value="${v.id}">${esc(v.name)} (${esc(v.mikrotik_host || 'no MT')})</option>`).join('');
   }
 
-  function openServerDialog(server) {
+  async function fillHsInterfaceSelect(selected, siteId) {
+    const sel = $('#hs-interface-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Loading interfaces… —</option>';
+    try {
+      const q = siteId ? '?site_id=' + encodeURIComponent(siteId) : '';
+      const data = await api('/hotspot/interfaces' + q);
+      const opts = (data.interfaces || []).map((i) =>
+        `<option value="${esc(i.name)}">${esc(i.name)}${i.type ? ' (' + esc(i.type) + ')' : ''}${i.running ? '' : ' [down]'}</option>`
+      );
+      sel.innerHTML = '<option value="">— Pili ng interface —</option>' + opts.join('');
+      if (selected) sel.value = selected;
+    } catch (ex) {
+      sel.innerHTML = '<option value="">— Hindi mabasa ang MikroTik —</option>';
+      if (selected) sel.innerHTML += `<option value="${esc(selected)}">${esc(selected)}</option>`;
+      if (selected) sel.value = selected;
+    }
+  }
+
+  function suggestInterfaceFromVlan() {
+    const form = $('#hs-server-form');
+    const vlanId = Number(form.elements.namedItem('vlan_id')?.value || 0);
+    const vlanIds = String(form.elements.namedItem('vlan_ids')?.value || '').split(',')[0]?.trim();
+    const vid = vlanId > 0 ? vlanId : Number(vlanIds);
+    if (vid > 0) {
+      const name = 'VLAN' + vid;
+      const sel = $('#hs-interface-select');
+      if (sel && [...sel.options].some((o) => o.value === name)) sel.value = name;
+    }
+  }
+
+  async function openServerDialog(server) {
     fillHsSiteSelect();
     const form = $('#hs-server-form');
     $('#hs-server-dialog-title').textContent = server?.id ? 'Edit Hotspot Server' : 'Setup Hotspot Server';
+    const siteId = server?.site_id || form.elements.namedItem('site_id')?.value || '';
+    await fillHsInterfaceSelect(server?.interface_name || '', siteId);
     if (server) {
       $('#hs-server-id').value = server.id;
-      for (const k of ['name', 'hs_address', 'vlan_id', 'vlan_ids', 'interface_name', 'profile_name', 'html_directory', 'login_by', 'dns_name']) {
+      for (const k of ['name', 'hs_address', 'vlan_id', 'vlan_ids', 'profile_name', 'html_directory', 'login_by', 'dns_name']) {
         const el = form.elements.namedItem(k);
         if (el && server[k] != null) el.value = server[k];
       }
       if (form.elements.namedItem('site_id')) form.elements.namedItem('site_id').value = server.site_id || '';
+      if (server.interface_name) $('#hs-interface-select').value = server.interface_name;
     } else {
       form.reset();
       $('#hs-server-id').value = '';
-      form.elements.namedItem('name').value = 'CENTRAL';
-      form.elements.namedItem('hs_address').value = '10.0.0.1';
-      form.elements.namedItem('vlan_ids').value = '101,102';
+      form.elements.namedItem('name').value = 'VLAN530';
+      form.elements.namedItem('hs_address').value = '10.5.30.1';
+      form.elements.namedItem('vlan_id').value = '530';
+      form.elements.namedItem('vlan_ids').value = '530';
+      await fillHsInterfaceSelect('', siteId);
+      suggestInterfaceFromVlan();
     }
+    if (form.elements.namedItem('push_to_mikrotik')) form.elements.namedItem('push_to_mikrotik').checked = true;
     $('#hs-server-dialog').showModal();
   }
 
-  $('#btn-add-server')?.addEventListener('click', () => {
+  $('#hs-site-select')?.addEventListener('change', (e) => {
+    fillHsInterfaceSelect($('#hs-interface-select')?.value || '', e.target.value);
+  });
+  $('#hs-server-form')?.elements.namedItem('vlan_id')?.addEventListener('change', suggestInterfaceFromVlan);
+  $('#hs-server-form')?.elements.namedItem('vlan_ids')?.addEventListener('change', suggestInterfaceFromVlan);
+
+  $('#btn-add-server')?.addEventListener('click', async () => {
     setHsTab('server');
-    openServerDialog(null);
+    await openServerDialog(null);
   });
   $('#btn-add-profile')?.addEventListener('click', () => {
     setHsTab('profile');
