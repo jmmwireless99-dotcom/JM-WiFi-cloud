@@ -1,6 +1,14 @@
 (function () {
   'use strict';
 
+  if (sessionStorage.getItem('jmtech_auth') !== '1') {
+    location.href = '/login';
+    return;
+  }
+
+  const userLabel = document.querySelector('.user-label');
+  if (userLabel) userLabel.textContent = sessionStorage.getItem('jmtech_user') || 'Admin';
+
   const views = {
     dashboard: 'Home · Dashboard',
     locations: 'Home · Locations',

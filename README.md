@@ -124,20 +124,22 @@ Default: **1 coin = 5 minutes**. Adjustable per site:
 UPDATE sites SET minutes_per_coin = 10 WHERE id = 'your-site-id';
 ```
 
+## Deploy sa jmtechsolution.cloud
+
+**Lahat dito i-deploy — hindi sa hiwalay na portal.**
+
+```
+https://jmtechsolution.cloud/login       → Staff login
+https://jmtechsolution.cloud/dashboard/  → Monitoring + ALL VENDO
+https://jmtechsolution.cloud/hotspot/    → MikroTik captive portal
+https://jmtechsolution.cloud/api/        → REST API
+```
+
+Buong deploy guide: `docs/DEPLOY-JMTECHSOLUTION.md`
+
 ## Admin Portal (ALL VENDO)
 
-Monitoring dashboard na tumutugma sa jmtechsolution.cloud portal:
-
-```
-https://jmwifi.jmtechsolution.cloud/admin/
-```
-
-Sidebar may **ALL VENDO** button sa Operations section — central hub para sa:
-- WiFi Hotspot Vendo (MikroTik + ESP8266)
-- Gasoline Vendo
-- Empty Bottle Vendo (planned)
-
-Direct link: `/admin/#allvendo`
+Sidebar sa dashboard — **ALL VENDO** button lang (walang Empty Bottle / Cloud Hotspot sa list).
 
 ## Project Structure
 
