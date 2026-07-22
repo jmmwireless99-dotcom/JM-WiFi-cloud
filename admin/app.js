@@ -108,6 +108,7 @@
     hub: 'All Vendo',
     'empty-bottle': 'Empty Bottle',
     hotspot: 'Cloud Hotspot',
+    'hs-server': 'Hotspot Server',
     dashboard: 'Hotspot Overview',
     vendos: 'Mga Vendo',
     devices: 'Devices',
@@ -123,15 +124,15 @@
     $$('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + page));
     $('#page-title').textContent = titles[page] || page;
 
-    // Keep module= in URL for deep links from main portal
     const url = new URL(location.href);
-    if (page === 'empty-bottle' || page === 'hotspot' || page === 'hub') {
+    if (page === 'empty-bottle' || page === 'hotspot' || page === 'hub' || page === 'hs-server') {
       url.searchParams.set('module', page === 'hub' ? 'hub' : page);
     }
     history.replaceState(null, '', url);
 
     const loaders = {
       dashboard: loadDashboard,
+      'hs-server': loadHotspotServer,
       vendos: loadVendos,
       devices: loadDevices,
       sessions: loadSessions,
@@ -146,6 +147,7 @@
     const mod = new URLSearchParams(location.search).get('module');
     if (mod === 'empty-bottle') return 'empty-bottle';
     if (mod === 'hotspot') return 'hotspot';
+    if (mod === 'hs-server') return 'hs-server';
     if (mod === 'hub') return 'hub';
     return 'hub';
   }
@@ -303,21 +305,22 @@
   async function loadSessions() {
     const data = await api('/sessions');
     if (!data.sessions.length) {
-      $('#session-list').innerHTML = '<p class="empty">Walang active sessions.</p>';
+      $('#session-list').innerHTML = '<p class="empty">Walang active/paused sessions.</p>';
       return;
     }
     $('#session-list').innerHTML = `
       <table>
-        <thead><tr><th>Vendo</th><th>MAC</th><th>User</th><th>Minutes</th><th>Expires</th><th></th></tr></thead>
+        <thead><tr><th>Vendo</th><th>MAC</th><th>User</th><th>Remaining</th><th>Status</th><th>Random MAC</th><th></th></tr></thead>
         <tbody>
           ${data.sessions.map((s) => `
             <tr>
               <td>${esc(s.site_name)}</td>
               <td class="mono">${esc(s.mac_address)}</td>
               <td class="mono">${esc(s.username)}</td>
-              <td>${s.minutes_granted}</td>
-              <td>${esc(s.expires_at)}</td>
-              <td><button class="btn-danger" data-disconnect="${s.id}">Disconnect</button></td>
+              <td>${Math.ceil(Number(s.remaining_seconds || s.minutes_granted * 60 || 0) / 60)} min</td>
+              <td><span class="badge ${s.status}">${esc(s.status)}</span></td>
+              <td>${s.allow_random_mac ? 'yes' : 'no'}</td>
+              <td><button class="btn-danger" data-disconnect="${s.id}">Pause</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -330,6 +333,140 @@
       });
     });
   }
+
+  // ── Hotspot Server / Profile (Kitifi-style) ──
+  function setHsTab(tab) {
+    $$('.hs-tab').forEach((t) => t.classList.toggle('active', t.dataset.hsTab === tab));
+    $('#hs-server-panel').classList.toggle('hidden', tab !== 'server');
+    $('#hs-profile-panel').classList.toggle('hidden', tab !== 'profile');
+    $('#hs-toolbar-text').textContent = tab === 'server'
+      ? 'VLAN hotspot servers — mixed MikroTik + cloud captive portal.'
+      : 'User profiles — pause on disconnect, no validity, random MAC.';
+    $('#btn-add-server').style.display = tab === 'server' ? '' : 'none';
+    $('#btn-add-profile').style.display = tab === 'profile' ? '' : 'none';
+  }
+
+  async function loadHotspotServer() {
+    setHsTab(document.querySelector('.hs-tab.active')?.dataset.hsTab || 'server');
+    const [servers, profiles] = await Promise.all([
+      api('/hotspot/servers'),
+      api('/hotspot/profiles')
+    ]);
+
+    $('#hs-server-list').innerHTML = servers.servers.length ? `
+      <table>
+        <thead><tr><th>Name</th><th>HS Address</th><th>HTML Directory</th><th>Login By</th><th>VLAN</th><th>Action</th></tr></thead>
+        <tbody>
+          ${servers.servers.map((s) => `
+            <tr>
+              <td><strong>${esc(s.name)}</strong></td>
+              <td class="mono">${esc(s.hs_address)}</td>
+              <td>${esc(s.html_directory)}</td>
+              <td>${esc(s.login_by)}</td>
+              <td>${s.vlan_id}</td>
+              <td>
+                <button class="btn-secondary" data-hs-script="${s.id}">Script</button>
+                <button class="btn-danger" data-hs-del="${s.id}">Delete</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : '<p class="empty">Walang server pa. Mag-click + Server.</p>';
+
+    $('#hs-profile-list').innerHTML = profiles.profiles.length ? `
+      <table>
+        <thead><tr><th>Name</th><th>Rate</th><th>Pause</th><th>No validity</th><th>Random MAC</th><th>Keepalive</th><th>Action</th></tr></thead>
+        <tbody>
+          ${profiles.profiles.map((p) => `
+            <tr>
+              <td><strong>${esc(p.name)}</strong></td>
+              <td class="mono">${esc(p.rate_limit)}</td>
+              <td>${p.pause_on_disconnect ? 'yes' : 'no'}</td>
+              <td>${p.no_validity ? 'yes' : 'no'}</td>
+              <td>${p.allow_random_mac ? 'yes' : 'no'}</td>
+              <td>${esc(p.keepalive_timeout)}</td>
+              <td>
+                <button class="btn-secondary" data-profile-script="${p.id}">Script</button>
+                <button class="btn-danger" data-profile-del="${p.id}">Delete</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : '<p class="empty">Walang profile pa. Mag-click + Profile.</p>';
+
+    $$('[data-hs-script]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await api('/hotspot/servers/' + btn.dataset.hsScript + '/script');
+        alert(r.script);
+      });
+    });
+    $$('[data-hs-del]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this hotspot server?')) return;
+        await api('/hotspot/servers/' + btn.dataset.hsDel, { method: 'DELETE' });
+        loadHotspotServer();
+      });
+    });
+    $$('[data-profile-script]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await api('/hotspot/profiles/' + btn.dataset.profileScript + '/script');
+        alert(r.script);
+      });
+    });
+    $$('[data-profile-del]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this profile?')) return;
+        await api('/hotspot/profiles/' + btn.dataset.profileDel, { method: 'DELETE' });
+        loadHotspotServer();
+      });
+    });
+  }
+
+  $$('.hs-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      setHsTab(tab.dataset.hsTab);
+    });
+  });
+
+  $('#btn-refresh-hs')?.addEventListener('click', () => loadHotspotServer());
+  $('#btn-add-server')?.addEventListener('click', () => {
+    setHsTab('server');
+    $('#hs-server-form').reset();
+    $('#hs-server-dialog').showModal();
+  });
+  $('#btn-add-profile')?.addEventListener('click', () => {
+    setHsTab('profile');
+    $('#hs-profile-form').reset();
+    $('#hs-profile-dialog').showModal();
+  });
+  $('#hs-server-cancel')?.addEventListener('click', () => $('#hs-server-dialog').close());
+  $('#hs-profile-cancel')?.addEventListener('click', () => $('#hs-profile-dialog').close());
+
+  $('#hs-server-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = Object.fromEntries(fd.entries());
+    body.vlan_id = Number(body.vlan_id);
+    await api('/hotspot/servers', { method: 'POST', body: JSON.stringify(body) });
+    $('#hs-server-dialog').close();
+    loadHotspotServer();
+  });
+
+  $('#hs-profile-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = Object.fromEntries(fd.entries());
+    body.shared_users = Number(body.shared_users || 1);
+    body.pause_on_disconnect = fd.get('pause_on_disconnect') ? 1 : 0;
+    body.no_validity = fd.get('no_validity') ? 1 : 0;
+    body.allow_random_mac = fd.get('allow_random_mac') ? 1 : 0;
+    const data = await api('/hotspot/profiles', { method: 'POST', body: JSON.stringify(body) });
+    $('#hs-profile-dialog').close();
+    if (data.script) alert('Profile created.\\n\\nMikroTik script:\\n' + data.script);
+    loadHotspotServer();
+  });
 
   // ── Vouchers ──
   async function loadVouchers() {

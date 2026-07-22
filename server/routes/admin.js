@@ -285,7 +285,7 @@ router.get('/sessions', authAdmin, (req, res) => {
     SELECT sess.*, s.name as site_name
     FROM sessions sess
     JOIN sites s ON s.id = sess.site_id
-    WHERE sess.status = 'active' AND sess.expires_at > datetime('now')
+    WHERE sess.status IN ('active','paused')
   `;
   const params = [];
 
@@ -312,9 +312,189 @@ router.post('/sessions/:id/disconnect', authAdmin, requireRole('admin', 'operato
 
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  db.prepare("UPDATE sessions SET status = 'disconnected', expires_at = datetime('now') WHERE id = ?")
-    .run(session.id);
+  const { pauseSession } = require('../lib/session');
+  const result = pauseSession(session.id, 'admin-disconnect');
+  res.json(result);
+});
+
+// ─── Hotspot Servers (Kitifi-style) ───────────────────────────
+
+router.get('/hotspot/servers', authAdmin, (req, res) => {
+  const f = ownedSitesSql(req.operator);
+  const servers = db.prepare(`
+    SELECT hs.*, s.name as site_name
+    FROM hotspot_servers hs
+    LEFT JOIN sites s ON s.id = hs.site_id
+    WHERE hs.site_id IS NULL OR ${f.sql.replace('operator_id', 's.operator_id')}
+    ORDER BY hs.created_at DESC
+  `).all(...f.params);
+  res.json({ servers });
+});
+
+router.post('/hotspot/servers', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const {
+    name,
+    site_id = null,
+    hs_address = '10.10.10.1',
+    html_directory = 'hotspot',
+    login_by = 'http-pap,mac-cookie',
+    interface_name = 'bridge-hotspot',
+    vlan_id = 10,
+    dns_name = 'jmwifi.local',
+    profile_name = 'jmwifi'
+  } = req.body || {};
+
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (site_id && !getOwnedSite(req.operator, site_id)) {
+    return res.status(404).json({ error: 'Vendo not found' });
+  }
+
+  const id = uuid();
+  db.prepare(`
+    INSERT INTO hotspot_servers (
+      id, site_id, name, hs_address, html_directory, login_by,
+      interface_name, vlan_id, dns_name, profile_name
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, site_id, name, hs_address, html_directory, login_by, interface_name, vlan_id, dns_name, profile_name);
+
+  res.status(201).json({ server: db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(id) });
+});
+
+router.put('/hotspot/servers/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+  if (server.site_id && !getOwnedSite(req.operator, server.site_id)) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  const fields = [
+    'name', 'hs_address', 'html_directory', 'login_by', 'interface_name',
+    'vlan_id', 'dns_name', 'profile_name', 'status', 'site_id'
+  ];
+  const updates = [];
+  const values = [];
+  for (const field of fields) {
+    if (req.body[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      values.push(req.body[field]);
+    }
+  }
+  if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
+  values.push(server.id);
+  db.prepare(`UPDATE hotspot_servers SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  res.json({ server: db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(server.id) });
+});
+
+router.delete('/hotspot/servers/:id', authAdmin, requireRole('admin'), (req, res) => {
+  db.prepare('DELETE FROM hotspot_servers WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+router.get('/hotspot/servers/:id/script', authAdmin, (req, res) => {
+  const server = db.prepare('SELECT * FROM hotspot_servers WHERE id = ?').get(req.params.id);
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+  const { buildServerScript } = require('../lib/mikrotik');
+  const base = process.env.BASE_URL || 'https://jmtechsolution.cloud/allvendo';
+  res.json({ script: buildServerScript(server, base) });
+});
+
+// ─── Hotspot Profiles (+ Profile) ─────────────────────────────
+
+router.get('/hotspot/profiles', authAdmin, (req, res) => {
+  const f = ownedSitesSql(req.operator);
+  const profiles = db.prepare(`
+    SELECT hp.*, s.name as site_name
+    FROM hotspot_profiles hp
+    LEFT JOIN sites s ON s.id = hp.site_id
+    WHERE hp.site_id IS NULL OR ${f.sql.replace('operator_id', 's.operator_id')}
+    ORDER BY hp.created_at DESC
+  `).all(...f.params);
+  res.json({ profiles });
+});
+
+router.post('/hotspot/profiles', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const {
+    name,
+    site_id = null,
+    rate_limit = '2M/5M',
+    shared_users = 1,
+    session_timeout = '',
+    idle_timeout = 'none',
+    keepalive_timeout = '2m',
+    pause_on_disconnect = 1,
+    no_validity = 1,
+    allow_random_mac = 1,
+    mac_cookie = 1,
+    notes = ''
+  } = req.body || {};
+
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (site_id && !getOwnedSite(req.operator, site_id)) {
+    return res.status(404).json({ error: 'Vendo not found' });
+  }
+
+  const id = uuid();
+  db.prepare(`
+    INSERT INTO hotspot_profiles (
+      id, site_id, name, rate_limit, shared_users, session_timeout, idle_timeout,
+      keepalive_timeout, pause_on_disconnect, no_validity, allow_random_mac, mac_cookie, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, site_id, name, rate_limit, shared_users, session_timeout, idle_timeout,
+    keepalive_timeout, pause_on_disconnect ? 1 : 0, no_validity ? 1 : 0,
+    allow_random_mac ? 1 : 0, mac_cookie ? 1 : 0, notes
+  );
+
+  const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(id);
+  const { buildProfileScript } = require('../lib/mikrotik');
+  res.status(201).json({ profile, script: buildProfileScript(profile) });
+});
+
+router.put('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
+  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id)) {
+    return res.status(404).json({ error: 'Profile not found' });
+  }
+
+  const fields = [
+    'name', 'rate_limit', 'shared_users', 'session_timeout', 'idle_timeout',
+    'keepalive_timeout', 'pause_on_disconnect', 'no_validity', 'allow_random_mac',
+    'mac_cookie', 'transparent_proxy', 'active', 'notes', 'site_id'
+  ];
+  const updates = [];
+  const values = [];
+  for (const field of fields) {
+    if (req.body[field] !== undefined) {
+      updates.push(`${field} = ?`);
+      let val = req.body[field];
+      if (['pause_on_disconnect', 'no_validity', 'allow_random_mac', 'mac_cookie', 'transparent_proxy', 'active'].includes(field)) {
+        val = val ? 1 : 0;
+      }
+      values.push(val);
+    }
+  }
+  if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
+  values.push(profile.id);
+  db.prepare(`UPDATE hotspot_profiles SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  res.json({ profile: db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(profile.id) });
+});
+
+router.delete('/hotspot/profiles/:id', authAdmin, requireRole('admin', 'operator'), (req, res) => {
+  const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
+  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  if (profile.site_id && !getOwnedSite(req.operator, profile.site_id)) {
+    return res.status(404).json({ error: 'Profile not found' });
+  }
+  db.prepare('DELETE FROM hotspot_profiles WHERE id = ?').run(profile.id);
+  res.json({ success: true });
+});
+
+router.get('/hotspot/profiles/:id/script', authAdmin, (req, res) => {
+  const profile = db.prepare('SELECT * FROM hotspot_profiles WHERE id = ?').get(req.params.id);
+  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  const { buildProfileScript } = require('../lib/mikrotik');
+  res.json({ script: buildProfileScript(profile) });
 });
 
 // ─── Vouchers ─────────────────────────────────────────────────

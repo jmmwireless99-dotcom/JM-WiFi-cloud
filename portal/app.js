@@ -57,7 +57,8 @@
           return;
         }
 
-        showStatus('Connected! ' + data.minutes + ' minutes granted.', 'success');
+        showStatus((data.resumed ? 'Resumed! ' : 'Connected! ') +
+          (data.remaining_minutes || data.minutes) + ' min left (pause on disconnect).', 'success');
 
         if (config.linkLogin) {
           var loginUrl = config.linkLogin;

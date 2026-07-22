@@ -1,11 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="refresh" content="0; url=https://jmwifi.jmtechsolution.cloud/portal/index.html?mac=$(mac)&ip=$(ip)&link-login=$(link-login-only)&link-orig=$(link-orig-esc)&site_id=YOUR_SITE_ID">
-<title>JM WiFi - Redirecting...</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JM WiFi</title>
+  <style>
+    body{margin:0;font-family:system-ui,sans-serif;background:#0b6e4f;color:#fff;display:grid;place-items:center;min-height:100vh}
+    .box{text-align:center;padding:24px}
+    .brand{font-size:2rem;font-weight:800;letter-spacing:-.04em}
+    p{opacity:.9}
+  </style>
+  <!--
+    MikroTik variables (hotspot login.html):
+    $(mac) $(ip) $(link-login-only) $(link-orig-esc) $(error)
+    Fast mix: show local splash then jump to cloud portal.
+  -->
+  <script>
+    (function () {
+      var SITE_ID = 'YOUR_SITE_ID';
+      var CLOUD = 'https://jmtechsolution.cloud/allvendo/portal/';
+      var q = location.search || '';
+      // Ensure site_id is present for cloud redeem/resume
+      if (q.indexOf('site_id=') === -1) {
+        q += (q ? '&' : '?') + 'site_id=' + encodeURIComponent(SITE_ID);
+      }
+      // Keep MikroTik vars if already expanded by RouterOS
+      setTimeout(function () {
+        location.replace(CLOUD + q);
+      }, 120);
+    })();
+  </script>
 </head>
 <body>
-<p>Redirecting to JM WiFi login...</p>
-<p>If not redirected, <a href="https://jmwifi.jmtechsolution.cloud/portal/index.html?mac=$(mac)&ip=$(ip)&link-login=$(link-login-only)&link-orig=$(link-orig-esc)&site_id=YOUR_SITE_ID">click here</a>.</p>
+  <div class="box">
+    <div class="brand">JM WiFi</div>
+    <p>Connecting to secure portal…</p>
+  </div>
 </body>
 </html>

@@ -88,9 +88,52 @@ db.exec(`
     username TEXT,
     voucher_id TEXT REFERENCES vouchers(id),
     minutes_granted INTEGER,
+    remaining_seconds INTEGER,
     started_at TEXT DEFAULT (datetime('now')),
+    last_active_at TEXT,
+    resumed_at TEXT,
+    paused_at TEXT,
+    pause_reason TEXT,
     expires_at TEXT,
-    status TEXT DEFAULT 'active'
+    status TEXT DEFAULT 'active',
+    pause_mode INTEGER DEFAULT 1,
+    allow_random_mac INTEGER DEFAULT 1,
+    profile_name TEXT DEFAULT 'jmwifi-pause',
+    auth_password TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS hotspot_servers (
+    id TEXT PRIMARY KEY,
+    site_id TEXT REFERENCES sites(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    hs_address TEXT DEFAULT '0.0.0.0',
+    html_directory TEXT DEFAULT 'hotspot',
+    login_by TEXT DEFAULT 'http-pap,mac-cookie',
+    interface_name TEXT DEFAULT 'bridge-hotspot',
+    vlan_id INTEGER DEFAULT 10,
+    dns_name TEXT DEFAULT 'jmwifi.local',
+    profile_name TEXT DEFAULT 'jmwifi',
+    status TEXT DEFAULT 'active',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS hotspot_profiles (
+    id TEXT PRIMARY KEY,
+    site_id TEXT REFERENCES sites(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    rate_limit TEXT DEFAULT '2M/5M',
+    shared_users INTEGER DEFAULT 1,
+    session_timeout TEXT DEFAULT '',
+    idle_timeout TEXT DEFAULT 'none',
+    keepalive_timeout TEXT DEFAULT '2m',
+    pause_on_disconnect INTEGER DEFAULT 1,
+    no_validity INTEGER DEFAULT 1,
+    allow_random_mac INTEGER DEFAULT 1,
+    mac_cookie INTEGER DEFAULT 1,
+    transparent_proxy INTEGER DEFAULT 0,
+    active INTEGER DEFAULT 1,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS coin_logs (
@@ -159,6 +202,25 @@ if (siteCount.c === 0) {
       INSERT INTO rate_plans (id, site_id, name, coins, minutes, price, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(uuid(), siteId, name, coins, minutes, price, sort);
+  }
+
+  db.prepare(`
+    INSERT INTO hotspot_servers (
+      id, site_id, name, hs_address, html_directory, login_by, vlan_id, profile_name
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(uuid(), siteId, 'JMWIFI', '10.10.10.1', 'hotspot', 'http-pap,mac-cookie', 10, 'jmwifi');
+
+  for (const [name, rate, notes] of [
+    ['jmwifi-pause', '2M/5M', 'Pause on disconnect — no validity'],
+    ['default', '2M/5M', 'Default'],
+    ['KITIFI', '5M/10M', 'Fast profile']
+  ]) {
+    db.prepare(`
+      INSERT INTO hotspot_profiles (
+        id, site_id, name, rate_limit, shared_users, idle_timeout, keepalive_timeout,
+        pause_on_disconnect, no_validity, allow_random_mac, notes
+      ) VALUES (?, ?, ?, ?, 1, 'none', '2m', 1, 1, 1, ?)
+    `).run(uuid(), siteId, name, rate, notes);
   }
 
   console.log('Demo vendo created:');

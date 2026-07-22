@@ -48,6 +48,7 @@
         <button data-page="hotspot" class="nav-item" data-module="hotspot">Cloud Hotspot</button>
         <p class="nav-sec">Cloud Hotspot</p>
         <button data-page="dashboard" class="nav-item">Overview</button>
+        <button data-page="hs-server" class="nav-item">Hotspot Server</button>
         <button data-page="vendos" class="nav-item">Mga Vendo</button>
         <button data-page="devices" class="nav-item">Devices</button>
         <button data-page="sessions" class="nav-item">Sessions</button>
@@ -100,13 +101,79 @@
       <section id="page-hotspot" class="page">
         <div class="panel">
           <h3>Cloud Hotspot</h3>
-          <p class="hub-lead">JM WiFi multi-vendo hotspot — coin, voucher, sessions, at sales reports.</p>
+          <p class="hub-lead">VLAN captive portal · pause on disconnect · auto-resume · random MAC · no validity.</p>
           <div class="action-row">
-            <button class="btn-primary" data-goto="dashboard">Open Hotspot Overview</button>
+            <button class="btn-primary" data-goto="hs-server">Hotspot Server</button>
+            <button class="btn-secondary" data-goto="dashboard">Overview</button>
             <button class="btn-secondary" data-goto="vendos">Mga Vendo</button>
-            <a class="btn-secondary" href="/wifi/login" target="_blank" rel="noopener">Laravel Hotspot Admin</a>
           </div>
         </div>
+      </section>
+
+      <!-- Kitifi-style Hotspot Server -->
+      <section id="page-hs-server" class="page">
+        <div class="hs-tabs" role="tablist">
+          <button type="button" class="hs-tab active" data-hs-tab="server">Server</button>
+          <button type="button" class="hs-tab" data-hs-tab="profile">Profile</button>
+        </div>
+        <div class="toolbar">
+          <p id="hs-toolbar-text">VLAN hotspot servers — mixed MikroTik + cloud captive portal.</p>
+          <div class="filter-row">
+            <button id="btn-add-server" class="btn-primary">+ Server</button>
+            <button id="btn-add-profile" class="btn-primary">+ Profile</button>
+            <button id="btn-refresh-hs" class="btn-secondary">Refresh</button>
+          </div>
+        </div>
+        <div id="hs-server-panel" class="hs-panel">
+          <div id="hs-server-list" class="table-wrap"></div>
+        </div>
+        <div id="hs-profile-panel" class="hs-panel hidden">
+          <div id="hs-profile-list" class="table-wrap"></div>
+        </div>
+
+        <dialog id="hs-server-dialog">
+          <form id="hs-server-form" method="dialog">
+            <h3>Setup Hotspot Server</h3>
+            <label>Name <input name="name" required placeholder="JMWIFI"></label>
+            <div class="form-row">
+              <label>HS Address <input name="hs_address" value="10.10.10.1" required></label>
+              <label>VLAN ID <input name="vlan_id" type="number" value="10" min="1"></label>
+            </div>
+            <div class="form-row">
+              <label>HTML Directory <input name="html_directory" value="hotspot"></label>
+              <label>Login By <input name="login_by" value="http-pap,mac-cookie"></label>
+            </div>
+            <label>DNS name <input name="dns_name" value="jmwifi.local"></label>
+            <p class="hub-lead">Portal mix: MikroTik hotspot HTML + cloud `/portal` for smooth/fast login.</p>
+            <div class="dialog-actions">
+              <button type="button" class="btn-ghost" id="hs-server-cancel">Cancel</button>
+              <button type="submit" class="btn-primary">Save Server</button>
+            </div>
+          </form>
+        </dialog>
+
+        <dialog id="hs-profile-dialog">
+          <form id="hs-profile-form" method="dialog">
+            <h3>+ Profile</h3>
+            <label>Name <input name="name" required placeholder="jmwifi-pause"></label>
+            <div class="form-row">
+              <label>Rate limit <input name="rate_limit" value="2M/5M" placeholder="up/down"></label>
+              <label>Shared users <input name="shared_users" type="number" value="1" min="1"></label>
+            </div>
+            <div class="form-row">
+              <label>Keepalive <input name="keepalive_timeout" value="2m"></label>
+              <label>Idle timeout <input name="idle_timeout" value="none"></label>
+            </div>
+            <label class="check-row"><input type="checkbox" name="pause_on_disconnect" checked> Pause on disconnect (auto-resume when reconnect)</label>
+            <label class="check-row"><input type="checkbox" name="no_validity" checked> No validity (time only while connected)</label>
+            <label class="check-row"><input type="checkbox" name="allow_random_mac" checked> Allow random MAC address</label>
+            <label>Notes <input name="notes" placeholder="Optional"></label>
+            <div class="dialog-actions">
+              <button type="button" class="btn-ghost" id="hs-profile-cancel">Cancel</button>
+              <button type="submit" class="btn-primary">Create Profile</button>
+            </div>
+          </form>
+        </dialog>
       </section>
 
       <!-- Dashboard -->
@@ -120,9 +187,9 @@
           <div class="panel">
             <h3>Quick actions</h3>
             <div class="action-row">
+              <button class="btn-secondary" data-goto="hs-server">Setup Profile</button>
               <button class="btn-secondary" data-goto="vendos">Magdagdag ng Vendo</button>
               <button class="btn-secondary" data-goto="vouchers">Generate Voucher</button>
-              <button class="btn-secondary" data-goto="reports">Tingnan Reports</button>
             </div>
           </div>
         </div>

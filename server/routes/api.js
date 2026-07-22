@@ -3,6 +3,7 @@ const { v4: uuid } = require('uuid');
 const db = require('../db');
 const { createVoucher, redeemVoucher } = require('../lib/voucher');
 const { createHotspotUser } = require('../lib/mikrotik');
+const { pauseSession, resumeSession, keepalive, getResumableSession, getSessionById } = require('../lib/session');
 
 const router = express.Router();
 
@@ -17,11 +18,9 @@ function authDevice(req, res, next) {
   next();
 }
 
-// ─── Public portal config (by site id) ────────────────────────
-
 router.get('/portal-config/:siteId', (req, res) => {
   const site = db.prepare(
-    "SELECT id, name, portal_title, minutes_per_coin, rate_per_hour, coin_value, status FROM sites WHERE id = ?"
+    "SELECT id, name, portal_title, minutes_per_coin, rate_per_hour, coin_value, status, vlan_id FROM sites WHERE id = ?"
   ).get(req.params.siteId);
 
   if (!site || site.status !== 'active') {
@@ -39,13 +38,21 @@ router.get('/portal-config/:siteId', (req, res) => {
       portal_title: site.portal_title || site.name,
       minutes_per_coin: site.minutes_per_coin,
       rate_per_hour: site.rate_per_hour,
-      coin_value: site.coin_value
+      coin_value: site.coin_value,
+      vlan_id: site.vlan_id,
+      pause_mode: true,
+      validity: 'none',
+      random_mac: true
     },
-    plans
+    plans,
+    flow: {
+      connect: 'Client → JM WiFi SSID → MikroTik VLAN hotspot',
+      portal: 'Captive portal mixes MikroTik hotspot + cloud portal',
+      pause: 'Auto-pause on disconnect (no validity expiry)',
+      resume: 'Auto-resume on reconnect — random MAC OK with same voucher'
+    }
   });
 });
-
-// ─── Site / Device Registration ───────────────────────────────
 
 router.post('/register-device', authDevice, (req, res) => {
   const { device_type, mac_address, name } = req.body;
@@ -99,13 +106,13 @@ router.post('/heartbeat', authDevice, (req, res) => {
       minutes_per_coin: site.minutes_per_coin,
       rate_per_hour: site.rate_per_hour,
       coin_value: site.coin_value,
-      hotspot_profile: site.hotspot_profile,
+      hotspot_profile: site.hotspot_profile || 'jmwifi-pause',
+      pause_mode: true,
+      validity: 'none',
       plans
     }
   });
 });
-
-// ─── Coin Insert (ESP8266 / Vendo) ────────────────────────────
 
 router.post('/coin-insert', authDevice, (req, res) => {
   const { device_id, coins = 1 } = req.body;
@@ -130,11 +137,11 @@ router.post('/coin-insert', authDevice, (req, res) => {
     voucher_code: voucher.code,
     minutes,
     amount,
-    message: `Inserted ${coinCount} coin(s) = ${minutes} minutes. Code: ${voucher.code}`
+    pause_mode: true,
+    validity: 'none',
+    message: `Inserted ${coinCount} coin(s) = ${minutes} minutes (pause on disconnect). Code: ${voucher.code}`
   });
 });
-
-// ─── Voucher Redeem (Portal / Client) ─────────────────────────
 
 router.post('/redeem', async (req, res) => {
   const { code, mac, site_id, ip } = req.body;
@@ -152,17 +159,18 @@ router.post('/redeem', async (req, res) => {
   }
   if (!siteId) return res.status(400).json({ error: 'site_id required' });
 
-  const result = redeemVoucher(code, mac, siteId);
+  const result = redeemVoucher(code, mac, siteId, { ip });
   if (result.error) return res.status(400).json(result);
-
-  if (ip && result.sessionId) {
-    db.prepare('UPDATE sessions SET ip_address = ? WHERE id = ?').run(ip, result.sessionId);
-  }
 
   const site = db.prepare('SELECT * FROM sites WHERE id = ?').get(siteId);
   if (site) {
     const mtResult = await createHotspotUser(
-      site, mac, result.username, result.password, result.minutes
+      site,
+      mac,
+      result.username,
+      result.password,
+      result.remaining_minutes || result.minutes,
+      { profileName: result.profile_name || 'jmwifi-pause' }
     );
     result.mikrotik = mtResult;
   }
@@ -170,7 +178,60 @@ router.post('/redeem', async (req, res) => {
   res.json(result);
 });
 
-// ─── Generate Voucher (device / calling) ──────────────────────
+router.post('/session/pause', authDevice, (req, res) => {
+  const { session_id, mac, code, username, reason = 'disconnect' } = req.body || {};
+  let session = session_id ? getSessionById(session_id) : null;
+  if (!session) {
+    session = getResumableSession(req.site.id, { mac, code, username });
+  }
+  if (!session || session.site_id !== req.site.id) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  const result = pauseSession(session.id, reason);
+  if (result.error && result.status !== 'exhausted') return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/session/resume', authDevice, async (req, res) => {
+  const { session_id, mac, code, username, ip } = req.body || {};
+  if (!mac) return res.status(400).json({ error: 'mac required' });
+
+  let session = session_id ? getSessionById(session_id) : null;
+  if (!session) {
+    session = getResumableSession(req.site.id, { mac, code, username });
+  }
+  if (!session || session.site_id !== req.site.id) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const result = resumeSession(session.id, { mac, ip });
+  if (result.error) return res.status(400).json(result);
+
+  const mtResult = await createHotspotUser(
+    req.site,
+    mac,
+    result.username,
+    result.password,
+    result.remaining_minutes,
+    { profileName: result.profile_name || 'jmwifi-pause' }
+  );
+  result.mikrotik = mtResult;
+  res.json(result);
+});
+
+router.post('/session/keepalive', authDevice, (req, res) => {
+  const { session_id, mac, code, username, ip } = req.body || {};
+  let session = session_id ? getSessionById(session_id) : null;
+  if (!session) {
+    session = getResumableSession(req.site.id, { mac, code, username });
+  }
+  if (!session || session.site_id !== req.site.id) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  const result = keepalive(session.id, { mac, ip });
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
 
 router.post('/generate-voucher', authDevice, (req, res) => {
   const { minutes, source = 'calling', price = 0 } = req.body;
@@ -179,10 +240,8 @@ router.post('/generate-voucher', authDevice, (req, res) => {
   }
 
   const voucher = createVoucher(req.site.id, minutes, source, null, price);
-  res.json({ voucher });
+  res.json({ voucher, pause_mode: true, validity: 'none' });
 });
-
-// ─── Site Info (device auth) ──────────────────────────────────
 
 router.get('/site', authDevice, (req, res) => {
   const devices = db.prepare(
@@ -190,7 +249,7 @@ router.get('/site', authDevice, (req, res) => {
   ).all(req.site.id);
 
   const activeSessions = db.prepare(
-    "SELECT COUNT(*) as c FROM sessions WHERE site_id = ? AND status = 'active' AND expires_at > datetime('now')"
+    "SELECT COUNT(*) as c FROM sessions WHERE site_id = ? AND status IN ('active','paused')"
   ).get(req.site.id);
 
   const plans = db.prepare(
@@ -204,7 +263,9 @@ router.get('/site', authDevice, (req, res) => {
       portal_title: req.site.portal_title,
       minutes_per_coin: req.site.minutes_per_coin,
       rate_per_hour: req.site.rate_per_hour,
-      coin_value: req.site.coin_value
+      coin_value: req.site.coin_value,
+      pause_mode: true,
+      validity: 'none'
     },
     devices,
     plans,
@@ -215,13 +276,12 @@ router.get('/site', authDevice, (req, res) => {
 router.get('/sessions', authDevice, (req, res) => {
   const sessions = db.prepare(`
     SELECT * FROM sessions
-    WHERE site_id = ? AND status = 'active' AND expires_at > datetime('now')
+    WHERE site_id = ? AND status IN ('active','paused')
     ORDER BY started_at DESC LIMIT 50
   `).all(req.site.id);
   res.json({ sessions });
 });
 
-// Legacy admin create-site (kept for scripts; prefer dashboard)
 router.post('/admin/create-site', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (process.env.NODE_ENV === 'production' && adminKey !== process.env.ADMIN_KEY) {

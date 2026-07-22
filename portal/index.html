@@ -25,7 +25,7 @@
       </div>
 
       <div id="voucher-panel" class="panel active">
-        <p class="info">Ilagay ang code mula sa coin machine o calling.</p>
+        <p class="info">Ilagay ang code mula sa coin machine o calling. Oras ay magpa-pause kapag disconnect — walang validity expiry. Random MAC OK.</p>
         <form id="voucher-form">
           <input type="text" id="voucher-code" placeholder="XXXXXXXX" maxlength="12" autocomplete="off" required aria-label="Voucher code">
           <button type="submit" class="btn-primary">Connect</button>
@@ -52,7 +52,14 @@
       <p class="mac-info" id="mac-display"></p>
     </footer>
   </main>
-  <script src="/allvendo/config.js"></script>
+  <script>
+  (function () {
+    var p = location.pathname;
+    var base = p.indexOf('/allvendo/') === 0 ? '/allvendo' : '';
+    window.JM_BASE_PATH = base;
+    window.JM_API_BASE = base + '/api';
+  })();
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
