@@ -175,8 +175,9 @@ async function uploadLoginHtml(api, siteId, cloudBase) {
   for (const extra of attempts) {
     try {
       await api.call(['/tool/fetch', `=url=${url}`, '=dst-path=hotspot/login.html', ...extra]);
-      const files = await api.call(['/file/print', '?name=login.html']);
-      const hit = files.find((f) => String(f.name || '').includes('login.html'));
+      await new Promise((r) => setTimeout(r, 2500));
+      const files = await api.call(['/file/print']);
+      const hit = files.find((f) => String(f.name || '').endsWith('login.html'));
       if (hit && Number(hit.size || 0) > 100) return { ok: true, size: hit.size };
     } catch (e) {
       console.log('[mikrotik-push] fetch login warn:', e.message);
