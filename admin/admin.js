@@ -41,15 +41,29 @@
   }
 
   function expandAllVendo() {
-    $('children-allvendo')?.classList.add('open');
+    const children = $('children-allvendo');
+    const btn = $('btn-allvendo-toggle');
+    if (children) {
+      children.classList.remove('collapsed');
+      children.classList.add('open');
+      children.removeAttribute('hidden');
+    }
     $('nav-tree-allvendo')?.classList.add('expanded');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
     const chevron = $('chevron-allvendo');
     if (chevron) chevron.textContent = '▾';
   }
 
   function collapseAllVendo() {
-    $('children-allvendo')?.classList.remove('open');
+    const children = $('children-allvendo');
+    const btn = $('btn-allvendo-toggle');
+    if (children) {
+      children.classList.add('collapsed');
+      children.classList.remove('open');
+      children.setAttribute('hidden', '');
+    }
     $('nav-tree-allvendo')?.classList.remove('expanded');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
     const chevron = $('chevron-allvendo');
     if (chevron) chevron.textContent = '▸';
     collapseHotspot();
@@ -57,15 +71,29 @@
 
   function expandHotspot() {
     expandAllVendo();
-    $('children-vlans')?.classList.add('open');
+    const children = $('children-vlans');
+    const btn = $('btn-hotspot-toggle');
+    if (children) {
+      children.classList.remove('collapsed');
+      children.classList.add('open');
+      children.removeAttribute('hidden');
+    }
     $('nav-tree-hotspot')?.classList.add('expanded');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
     const chevron = $('chevron-hotspot');
     if (chevron) chevron.textContent = '▾';
   }
 
   function collapseHotspot() {
-    $('children-vlans')?.classList.remove('open');
+    const children = $('children-vlans');
+    const btn = $('btn-hotspot-toggle');
+    if (children) {
+      children.classList.add('collapsed');
+      children.classList.remove('open');
+      children.setAttribute('hidden', '');
+    }
     $('nav-tree-hotspot')?.classList.remove('expanded');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
     const chevron = $('chevron-hotspot');
     if (chevron) chevron.textContent = '▸';
   }
@@ -87,6 +115,8 @@
       if (name === 'hotspot-vendo' || name === 'vlan-detail') {
         expandHotspot();
       }
+    } else {
+      collapseAllVendo();
     }
   }
 
@@ -128,19 +158,11 @@
     }
   });
 
-  // Toggle Cloud Hotspot — click to show/hide VLANs
+  // Toggle Cloud Hotspot — click to show VLANs and open page
   $('btn-hotspot-toggle')?.addEventListener('click', function (e) {
     e.stopPropagation();
-    const children = $('children-vlans');
-    const isOpen = children?.classList.contains('open');
-
-    if (isOpen) {
-      collapseHotspot();
-      showView('hotspot-vendo');
-    } else {
-      expandHotspot();
-      showView('hotspot-vendo');
-    }
+    expandHotspot();
+    showView('hotspot-vendo');
   });
 
   document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
@@ -176,7 +198,7 @@
     if (!container) return;
 
     if (!sites || !sites.length) {
-      container.innerHTML = '<div class="nav-vlan-empty">Walang VLAN pa</div>';
+      container.innerHTML = '';
       return;
     }
 
@@ -361,6 +383,9 @@
     if ($('bottle-count')) $('bottle-count').textContent = '0';
     if ($('bottle-sales')) $('bottle-sales').textContent = peso(0);
   }
+
+  // Force collapsed on page load — children hidden until ALL VENDO clicked
+  collapseAllVendo();
 
   // URL hash routing e.g. #allvendo, #hotspot-vendo, #vlan/SITE_ID
   const hash = location.hash.replace('#', '');

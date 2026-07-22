@@ -133,8 +133,46 @@ body {
 /* Nested nav tree */
 .nav-tree { margin: 2px 0; }
 
+.nav-children.collapsed,
+.nav-grandchildren.collapsed,
+.nav-children[hidden],
+.nav-grandchildren[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.nav-children,
+.nav-grandchildren {
+  padding-left: 8px;
+  margin-left: 12px;
+  border-left: 2px solid var(--line);
+  overflow: hidden;
+}
+
+.nav-children.open,
+.nav-grandchildren.open {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  max-height: 600px;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 .nav-parent {
   position: relative;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .nav-chevron {
@@ -142,27 +180,6 @@ body {
   font-size: 11px;
   opacity: 0.6;
   transition: transform 0.2s;
-}
-
-.nav-children,
-.nav-grandchildren {
-  display: none;
-  padding-left: 8px;
-  margin-left: 12px;
-  border-left: 2px solid var(--line);
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
-}
-
-.nav-children.open,
-.nav-grandchildren.open {
-  display: block;
-  max-height: 500px;
-  opacity: 1;
-  padding-top: 4px;
-  padding-bottom: 4px;
 }
 
 .nav-child {
