@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import crypto from 'crypto';
 import { pool, audit } from '../db.js';
 import { requireAdmin } from '../auth.js';
 
@@ -94,6 +95,48 @@ async function pushServerToMikrotik(serverRow, siteRow) {
   });
 }
 
+function coinDeviceView(row) {
+  return {
+    id: row.id,
+    siteId: row.site_id,
+    siteName: row.site_name || null,
+    name: row.name,
+    macAddress: row.mac_address || null,
+    minutesPerCoin: Number(row.minutes_per_coin || 5),
+    ratePerHour: Number(row.rate_per_hour || 10),
+    cloudSiteId: row.cloud_site_id || null,
+    lastSeen: row.last_seen || null,
+    status: row.status || 'offline',
+    notes: row.notes || '',
+    created: row.created_at,
+  };
+}
+
+async function createCloudSite({ name, minutesPerCoin, ratePerHour, mikrotikHost }) {
+  const adminKey = process.env.JM_WIFI_ADMIN_KEY;
+  if (!adminKey) return null;
+  try {
+    const res = await fetch(`${CLOUD_BASE}/api/admin/create-site`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey,
+      },
+      body: JSON.stringify({
+        name,
+        mikrotik_host: mikrotikHost || undefined,
+        minutes_per_coin: minutesPerCoin,
+        rate_per_hour: ratePerHour,
+      }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (e) {
+    console.error('createCloudSite:', e.message);
+    return null;
+  }
+}
+
 function formatIdle(sec) {
   const s = Math.max(0, Number(sec) || 0);
   const d = Math.floor(s / 86400);
@@ -156,10 +199,15 @@ r.get('/overview', async (_req, res) => {
          LEFT JOIN wifi_mikrotik_sites ms ON ms.id = cl.site_id
         ORDER BY cl.id DESC LIMIT 20`
     ).catch(() => ({ rows: [] }));
+    const devices = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'online')::int AS online
+         FROM wifi_coin_devices`
+    ).catch(() => ({ rows: [{ total: 0, online: 0 }] }));
 
     res.json({
       total_revenue_today: 0,
-      active_devices: 0,
+      active_devices: devices.rows[0]?.online || 0,
       wifi: {
         coins_today: coins.rows[0]?.c || 0,
         minutes_today: coins.rows[0]?.m || 0,
@@ -424,6 +472,77 @@ r.get('/servers/:id/script', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: 'not found' });
   res.json({ script: routerosForServer(rows[0], rows[0]) });
+});
+
+/** ESP8266 coin machines (INSERT COIN display) */
+r.get('/coin-devices', async (_req, res) => {
+  const { rows } = await pool.query(
+    `SELECT d.*, ms.name AS site_name
+       FROM wifi_coin_devices d
+       LEFT JOIN wifi_mikrotik_sites ms ON ms.id = d.site_id
+      ORDER BY d.name`
+  ).catch(() => ({ rows: [] }));
+  res.json({ devices: rows.map(coinDeviceView) });
+});
+
+r.post('/coin-devices', async (req, res) => {
+  const {
+    name,
+    siteId,
+    minutesPerCoin = 5,
+    ratePerHour = 10,
+    notes = '',
+  } = req.body || {};
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'name required' });
+  }
+
+  let siteRow = null;
+  if (siteId) {
+    const { rows } = await pool.query(`SELECT * FROM wifi_mikrotik_sites WHERE id = $1`, [Number(siteId)]);
+    siteRow = rows[0] || null;
+  }
+
+  const apiKey = crypto.randomUUID().replace(/-/g, '');
+  const cloud = await createCloudSite({
+    name: String(name).trim(),
+    minutesPerCoin: Math.max(1, Number(minutesPerCoin) || 5),
+    ratePerHour: Number(ratePerHour) || 10,
+    mikrotikHost: siteRow?.mikrotik_host || undefined,
+  });
+
+  const { rows } = await pool.query(
+    `INSERT INTO wifi_coin_devices
+       (site_id, name, api_key, cloud_site_id, minutes_per_coin, rate_per_hour, notes, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'offline')
+     RETURNING *`,
+    [
+      siteRow?.id || null,
+      String(name).trim(),
+      cloud?.api_key || apiKey,
+      cloud?.site_id || null,
+      Math.max(1, Number(minutesPerCoin) || 5),
+      Number(ratePerHour) || 10,
+      String(notes || '').trim(),
+    ]
+  );
+
+  await audit(req, 'wifi_coin_device_create', { id: rows[0].id, name: rows[0].name });
+
+  res.status(201).json({
+    device: coinDeviceView(rows[0]),
+    apiKey: rows[0].api_key,
+    cloudUrl: CLOUD_BASE,
+    firmwarePath: 'firmware/esp8266/jm_wifi_coin_controller/jm_wifi_coin_controller.ino',
+    cloudLinked: !!cloud?.api_key,
+  });
+});
+
+r.delete('/coin-devices/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const { rowCount } = await pool.query(`DELETE FROM wifi_coin_devices WHERE id = $1`, [id]);
+  if (!rowCount) return res.status(404).json({ error: 'not found' });
+  res.json({ ok: true });
 });
 
 export default r;

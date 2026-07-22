@@ -61,3 +61,22 @@ CREATE INDEX IF NOT EXISTS idx_wifi_coin_site ON wifi_coin_logs(site_id);
 
 ALTER TABLE wifi_hotspot_servers ADD COLUMN IF NOT EXISTS last_pushed_at TIMESTAMPTZ;
 ALTER TABLE wifi_hotspot_servers ADD COLUMN IF NOT EXISTS push_status TEXT;
+
+CREATE TABLE IF NOT EXISTS wifi_coin_devices (
+  id SERIAL PRIMARY KEY,
+  site_id INTEGER REFERENCES wifi_mikrotik_sites(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  api_key TEXT NOT NULL UNIQUE,
+  cloud_site_id TEXT,
+  mac_address TEXT,
+  minutes_per_coin INTEGER NOT NULL DEFAULT 5,
+  rate_per_hour NUMERIC(10,2) NOT NULL DEFAULT 10,
+  last_seen TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'offline',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wifi_coin_devices_site ON wifi_coin_devices(site_id);
+CREATE INDEX IF NOT EXISTS idx_wifi_coin_devices_mac ON wifi_coin_devices(mac_address);

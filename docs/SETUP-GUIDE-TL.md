@@ -148,7 +148,7 @@ Dapat kasama ang `jmwifi.jmtechsolution.cloud`.
 ```cpp
 const char* WIFI_SSID     = "YourShopWiFi";
 const char* WIFI_PASS     = "yourpassword";
-const char* CLOUD_URL     = "https://jmwifi.jmtechsolution.cloud";
+const char* CLOUD_URL     = "https://jmtechsolution.cloud/allvendo";
 const char* API_KEY       = "your-api-key-from-step-1";
 const char* DEVICE_NAME   = "CoinMachine-01";
 ```
@@ -194,7 +194,7 @@ Lahat ng devices na may parehong API key ay naka-bind sa iisang site.
 ### Manual Device Registration (MikroTik)
 
 ```bash
-curl -X POST https://jmwifi.jmtechsolution.cloud/api/register-device \
+curl -X POST https://jmtechsolution.cloud/allvendo/api/register-device \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"device_type": "mikrotik", "mac_address": "11:22:33:44:55:66", "name": "Router-Main"}'

@@ -2421,6 +2421,96 @@ function HotspotServerModal({ wifiSites, hotspotServers = [], defaultSiteId, onC
     </div></div>`;
 }
 
+function Esp8266CoinModal({ wifiSites, defaultSiteId, onClose, onDone }) {
+  const [f, setF] = useState({
+    name: 'CoinMachine-01',
+    siteId: defaultSiteId || (wifiSites[0]?.id ? String(wifiSites[0].id) : ''),
+    minutesPerCoin: '5',
+    ratePerHour: '10',
+    notes: '',
+  });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(null);
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+
+  if (created) {
+    return html`<div class="modal-bg"><div class="modal" style=${{ maxWidth: '520px' }}>
+      <h2>ESP8266 Coin Vendo ✓</h2>
+      <p class="dim" style=${{ margin: '0 0 12px', fontSize: '13px' }}>
+        I-copy ang API key sa firmware. Sa OLED dapat lumabas ang <b>INSERT COIN</b>.
+      </p>
+      <label>Cloud URL</label>
+      <div class="row" style=${{ gap: '8px' }}>
+        <input class="mono" readonly value=${created.cloudUrl || 'https://jmtechsolution.cloud/allvendo'} style=${{ flex: 1 }} />
+        <button class="ghost" type="button" onClick=${() => copyTxt(created.cloudUrl || 'https://jmtechsolution.cloud/allvendo')}>Copy</button>
+      </div>
+      <label>API key</label>
+      <div class="row" style=${{ gap: '8px' }}>
+        <input class="mono" readonly value=${created.apiKey || ''} style=${{ flex: 1 }} />
+        <button class="ghost" type="button" onClick=${() => copyTxt(created.apiKey || '')}>Copy</button>
+      </div>
+      <label>Device name</label>
+      <input readonly value=${created.device?.name || f.name} />
+      <label>Firmware</label>
+      <input class="mono" readonly value=${created.firmwarePath || 'firmware/esp8266/jm_wifi_coin_controller/'} />
+      ${!created.cloudLinked && html`<div class="err" style=${{ marginTop: '10px', fontSize: '12px' }}>
+        Cloud site hindi auto-created — i-set ang <span class="mono">JM_WIFI_ADMIN_KEY</span> sa server o manual create-site.
+      </div>`}
+      <div class="row" style=${{ marginTop: '16px', justifyContent: 'flex-end' }}>
+        <button onClick=${onDone}>Done</button>
+      </div>
+    </div></div>`;
+  }
+
+  return html`<div class="modal-bg" onClick=${e => e.target.classList.contains('modal-bg') && onClose()}>
+    <div class="modal" style=${{ maxWidth: '480px' }}><h2>Add ESP8266 Coin Machine</h2>
+      <p class="dim" style=${{ margin: '0 0 12px', fontSize: '13px' }}>
+        NodeMCU + coin acceptor + OLED SSD1306. Idle screen: <b>INSERT COIN</b>.
+      </p>
+      <label>Name</label>
+      <input value=${f.name} onInput=${set('name')} placeholder="CoinMachine-01" autoFocus />
+      <label>MikroTik site</label>
+      <select value=${f.siteId} onChange=${set('siteId')}>
+        <option value="">— optional —</option>
+        ${wifiSites.map(s => html`<option key=${s.id} value=${s.id}>${s.name} · ${s.mikrotikHost || '—'}</option>`)}
+      </select>
+      <div class="row">
+        <div style=${{ flex: 1 }}>
+          <label>Minutes / coin</label>
+          <input type="number" min="1" value=${f.minutesPerCoin} onInput=${set('minutesPerCoin')} />
+        </div>
+        <div style=${{ flex: 1 }}>
+          <label>Rate ₱/hour</label>
+          <input type="number" min="1" value=${f.ratePerHour} onInput=${set('ratePerHour')} />
+        </div>
+      </div>
+      <label>Notes</label>
+      <input value=${f.notes} onInput=${set('notes')} placeholder="pump area / barangay hall" />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{ marginTop: '16px', justifyContent: 'flex-end', gap: '8px' }}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy || !f.name.trim()} onClick=${async () => {
+          setBusy(true); setErr('');
+          try {
+            const d = await api('/hotspot/coin-devices', {
+              method: 'POST',
+              body: {
+                name: f.name.trim(),
+                siteId: f.siteId ? Number(f.siteId) : undefined,
+                minutesPerCoin: Number(f.minutesPerCoin) || 5,
+                ratePerHour: Number(f.ratePerHour) || 10,
+                notes: f.notes.trim() || undefined,
+              },
+            });
+            setCreated(d);
+          } catch (e) { setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy ? 'Saving…' : 'Add ESP8266'}</button>
+      </div>
+    </div></div>`;
+}
+
 // CCTV camera — may location (barangay) + VPN client (station)
 function CameraModal({ barangay, geo, stations, onClose, onDone }) {
   const [f,setF]=useState({
@@ -2848,6 +2938,7 @@ function App() {
   });
   const [wifiSites,setWifiSites]=useState([]);
   const [hotspotServers,setHotspotServers]=useState([]);
+  const [coinDevices,setCoinDevices]=useState([]);
   const [allVendoView,setAllVendoView]=useState('overview'); // overview | hotspot
   const [selectedWifiSiteId,setSelectedWifiSiteId]=useState('');
   const [tab,setTab]=useState('browse'); // browse | wall | dash | vpn | zerotier | gas | allvendo | cctv | server | accounts
@@ -2906,6 +2997,7 @@ function App() {
           setWifiSites(d.sites||[]);
         }).catch(()=>{});
         api('/hotspot/servers').then(d=>setHotspotServers(d.servers||[])).catch(()=>setHotspotServers([]));
+        api('/hotspot/coin-devices').then(d=>setCoinDevices(d.devices||[])).catch(()=>setCoinDevices([]));
       }
     } catch (e) {
       console.error(e);
@@ -3343,6 +3435,9 @@ function App() {
     const shownCoins = (vendoData.recent_coins||[]).filter(c => match(
       (c.site_name||'')+(c.voucher_code||'')+String(c.coins||'')+String(c.minutes_granted||'')
     ));
+    const shownCoinDevices = coinDevices.filter(d => match(
+      (d.name||'')+(d.siteName||'')+(d.macAddress||'')+(d.status||'')
+    ));
 
     if (allVendoView === 'hotspot') {
       body = html`<div>
@@ -3360,6 +3455,10 @@ function App() {
           </div>
           <div class="row" style=${{gap:'8px'}}>
             <button class="ghost" onClick=${loadAll}>↻ Refresh</button>
+            <button class="ghost" onClick=${()=>{
+              if (!wifiSites.length) { setModal({type:'wifiSite'}); return; }
+              setModal({type:'esp8266Coin', siteId: selectedWifiSiteId || wifiSites[0]?.id});
+            }}>+ ESP8266 Coin</button>
             <button onClick=${()=>{
               if (!wifiSites.length) { setModal({type:'wifiSite'}); return; }
               setModal({type:'hotspotServer', siteId: selectedWifiSiteId || wifiSites[0]?.id});
@@ -3413,6 +3512,33 @@ function App() {
             ${shownServers.length===0 && html`<tr><td colSpan="8" class="dim" style=${{textAlign:'center',padding:'28px'}}>
               Wala pang hotspot server — i-click ang “+ Server” (gaya ng KiTifi).
               ${wifiSites.length===0 ? html`<div style=${{marginTop:'8px'}}>Kailangan muna ng <b>MikroTik Site</b>.</div>`:''}
+            </td></tr>`}
+          </tbody></table>
+        </div>
+        <div class="section-head" style=${{marginTop:'8px'}}>
+          <div><h3>ESP8266 coin machines</h3><div class="sub">OLED: INSERT COIN → voucher code</div></div>
+          <button class="ghost" onClick=${()=>setModal({type:'esp8266Coin', siteId: selectedWifiSiteId || wifiSites[0]?.id})}>+ Add ESP8266</button>
+        </div>
+        <div class="table-wrap" style=${{marginBottom:'22px'}}>
+          <table><thead><tr>
+            <th>Name</th><th>Site</th><th>MAC</th><th>Min/coin</th><th>Status</th><th>Last seen</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${shownCoinDevices.map(d=>html`<tr key=${d.id}>
+              <td><b>${d.name}</b></td>
+              <td class="dim">${d.siteName||'—'}</td>
+              <td class="mono">${d.macAddress||'—'}</td>
+              <td class="mono">${d.minutesPerCoin||5}</td>
+              <td><span class="badge ${d.status==='online'?'b-ok':'b-warn'}">${d.status||'offline'}</span></td>
+              <td class="dim">${d.lastSeen ? fmt(d.lastSeen) : '—'}</td>
+              <td><button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+                if(!confirm('Delete coin machine '+d.name+'?')) return;
+                await api('/hotspot/coin-devices/'+d.id,{method:'DELETE'});
+                loadAll();
+              }}>✕</button></td>
+            </tr>`)}
+            ${shownCoinDevices.length===0 && html`<tr><td colSpan="7" class="dim" style=${{textAlign:'center',padding:'20px'}}>
+              Wala pang ESP8266 — i-click ang “+ Add ESP8266”. Flash firmware, OLED dapat may <b>INSERT COIN</b>.
             </td></tr>`}
           </tbody></table>
         </div>
@@ -3511,6 +3637,28 @@ function App() {
             <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>Click to open Gasoline Vendo →</div>
           </div>
         </div>
+      </div>
+
+      <div class="section-head">
+        <div><h3>ESP8266 coin machines</h3><div class="sub">INSERT COIN display · voucher sa OLED</div></div>
+        <button class="ghost" onClick=${()=>setModal({type:'esp8266Coin', siteId: wifiSites[0]?.id})}>+ Add ESP8266</button>
+      </div>
+      <div class="table-wrap" style=${{marginBottom:'22px'}}>
+        <table><thead><tr>
+          <th>Name</th><th>Site</th><th>MAC</th><th>Min/coin</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${shownCoinDevices.slice(0,8).map(d=>html`<tr key=${d.id}>
+            <td><b>${d.name}</b></td>
+            <td class="dim">${d.siteName||'—'}</td>
+            <td class="mono">${d.macAddress||'—'}</td>
+            <td class="mono">${d.minutesPerCoin||5}</td>
+            <td><span class="badge ${d.status==='online'?'b-ok':'b-warn'}">${d.status||'offline'}</span></td>
+          </tr>`)}
+          ${shownCoinDevices.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'16px'}}>
+            Walang coin machine — i-click ang “+ Add ESP8266”.
+          </td></tr>`}
+        </tbody></table>
       </div>
 
       <div class="section-head">
@@ -3739,6 +3887,9 @@ function App() {
       stations=${stations} onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='hotspotServer' && isManager && html`<${HotspotServerModal}
       wifiSites=${wifiSites} hotspotServers=${hotspotServers} defaultSiteId=${modal.siteId}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='esp8266Coin' && isManager && html`<${Esp8266CoinModal}
+      wifiSites=${wifiSites} defaultSiteId=${modal.siteId}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='camera' && isManager && html`<${CameraModal} barangay=${modal.barangay} geo=${geo} stations=${stations} onClose=${()=>setModal(null)}
       onDone=${()=>{setModal(null); loadAll();}} />`}
