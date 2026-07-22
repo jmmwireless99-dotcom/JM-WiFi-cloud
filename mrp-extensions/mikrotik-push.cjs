@@ -705,10 +705,43 @@ async function deleteHotspotProfile(profile, site) {
   }
 }
 
+/** Upload hotspot HTML pack only (no VLAN/hotspot server changes) */
+async function pushHotspotFilesOnly(site, options = {}) {
+  if (!site?.mikrotik_host || !site?.mikrotik_pass) {
+    return { success: false, error: 'Walang MikroTik API password sa site' };
+  }
+  const host = site.mikrotik_host;
+  const port = Number(options.apiPort || process.env.MIKROTIK_API_PORT || 8728);
+  const api = new RouterOS(host, port);
+  const cloud = (options.cloudUrl || process.env.JM_WIFI_CLOUD_URL || 'https://jmtechsolution.cloud/allvendo').replace(/\/$/, '');
+  try {
+    await api.connect();
+    await api.login(site.mikrotik_user || 'admin', site.mikrotik_pass);
+    const identity = await api.call(['/system/identity/print']);
+    const pack = await uploadHotspotPack(api, String(site.id), cloud);
+    api.close();
+    return {
+      success: pack.ok,
+      host,
+      identity: identity[0]?.name,
+      uploaded: pack.uploaded,
+      failed: pack.failed,
+      error: pack.error,
+      steps: pack.ok
+        ? [`Connected: ${identity[0]?.name || host}`, `hotspot files (${pack.uploaded.length}): ${pack.uploaded.join(', ')}`]
+        : [`Connected: ${identity[0]?.name || host}`, `WARN: ${pack.error}`, `Uploaded: ${(pack.uploaded || []).join(', ')}`],
+    };
+  } catch (err) {
+    api.close();
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   CENTRAL_GATEWAY,
   pushHotspotServer,
   pushHotspotProfile,
+  pushHotspotFilesOnly,
   deleteHotspotServer,
   deleteHotspotProfile,
   uploadHotspotPack,

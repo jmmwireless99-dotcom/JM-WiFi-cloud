@@ -9,6 +9,16 @@ MRP=/opt/mrp
 echo "=== Portal HTML ==="
 curl -fsSL "$REPO_RAW/site/monitoring/index.html" -o "$MRP/public/index.html"
 
+echo "=== Hotspot HTML pack (MikroTik files) ==="
+mkdir -p /opt/jm-wifi-cloud/mikrotik/hotspot-pack
+for f in login.html logout.html status.html error.html redirect.html alogin.html radvert.html; do
+  curl -fsSL "$REPO_RAW/mikrotik/hotspot-pack/$f" -o "/opt/jm-wifi-cloud/mikrotik/hotspot-pack/$f"
+done
+if ! grep -q "hotspot-pack" /opt/jm-wifi-cloud/server/index.js; then
+  sed -i "/express.static(path.join(__dirname, '..\/portal'))/a app.use(\`\${BASE_PATH}/hotspot-pack\`, express.static(path.join(__dirname, '../mikrotik/hotspot-pack')));" /opt/jm-wifi-cloud/server/index.js
+  echo "Added hotspot-pack static route"
+fi
+
 echo "=== Hotspot API + MikroTik push ==="
 curl -fsSL "$REPO_RAW/mrp-extensions/hotspot.js" -o "$MRP/src/routes/hotspot.js"
 mkdir -p "$MRP/src/services"

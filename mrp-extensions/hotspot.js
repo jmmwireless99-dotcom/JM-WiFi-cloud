@@ -7,7 +7,7 @@ import { requireAdmin } from '../auth.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const { pushHotspotServer } = require(path.join(__dirname, '../services/mikrotik-push.cjs'));
+const { pushHotspotServer, pushHotspotFilesOnly } = require(path.join(__dirname, '../services/mikrotik-push.cjs'));
 
 const CLOUD_BASE = process.env.JM_WIFI_CLOUD_URL || 'https://jmtechsolution.cloud/allvendo';
 
@@ -263,6 +263,16 @@ r.delete('/sites/:id', async (req, res) => {
   const { rowCount } = await pool.query(`DELETE FROM wifi_mikrotik_sites WHERE id = $1`, [id]);
   if (!rowCount) return res.status(404).json({ error: 'not found' });
   res.json({ ok: true });
+});
+
+/** Upload hotspot HTML files only (login, logout, status, etc.) */
+r.post('/sites/:id/push-files', async (req, res) => {
+  const id = Number(req.params.id);
+  const { rows } = await pool.query(`SELECT * FROM wifi_mikrotik_sites WHERE id = $1`, [id]);
+  if (!rows[0]) return res.status(404).json({ error: 'not found' });
+  const push = await pushHotspotFilesOnly(mapSiteForPush(rows[0]), { cloudUrl: CLOUD_BASE });
+  if (!push?.success) return res.status(502).json(push);
+  res.json(push);
 });
 
 /** Hotspot servers (VLAN per vendo) — KiTifi-style */

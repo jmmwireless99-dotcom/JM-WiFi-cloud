@@ -3428,7 +3428,14 @@ function App() {
               <td class="mono">${s.bridgeInterface||'—'}</td>
               <td class="dim">${s.stationName||'—'}</td>
               <td>${s.serverCount||0}</td>
-              <td><button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+              <td>
+                <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+                  try {
+                    const push = await api('/hotspot/sites/'+s.id+'/push-files',{method:'POST'});
+                    alert(push.success ? '7 hotspot files uploaded!\n'+(push.steps||[]).join('\n') : (push.error||'Failed'));
+                  } catch(e){ alert(e.message); }
+                }}>📁 Upload files</button>
+                <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
                 if(!confirm('Delete site '+s.name+'?')) return;
                 await api('/hotspot/sites/'+s.id,{method:'DELETE'});
                 loadAll();
