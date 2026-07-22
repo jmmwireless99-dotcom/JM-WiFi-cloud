@@ -287,6 +287,15 @@
     box-shadow:0 20px 50px rgba(0,0,0,.45);
   }
   .modal h2 { font-size:17px; margin-bottom:8px; }
+  .modal.wide { width:min(760px,96vw); }
+  .hs-steps { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 16px; }
+  .hs-steps span { font-size:12px; color:var(--dim); padding:4px 10px; border:1px solid var(--line); border-radius:999px; }
+  .hs-steps span.on { color:#93c5fd; border-color:rgba(59,130,246,.5); background:rgba(59,130,246,.1); }
+  .hs-idle { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .hs-idle input { text-align:center; }
+  .hs-idle .lbl { font-size:10px; color:var(--dim); text-align:center; margin-top:2px; }
+  .chk-row { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; color:var(--txt); }
+  .chk-row input { width:auto; accent-color:var(--acc); }
   label { display:block; color:var(--dim); font-size:12px; margin:12px 0 5px; font-weight:500; }
   pre {
     background:rgba(10,16,28,.7); border:1px solid var(--line); border-radius:10px;
@@ -2202,6 +2211,197 @@ function GasOwnerModal({ onClose, onDone }) {
     </div></div>`;
 }
 
+function suggestVlanIps(vlanId) {
+  const v = Number(vlanId);
+  if (!Number.isFinite(v) || v < 1) return { address:'10.10.0.1/24', ipStart:'10.10.0.10', ipEnd:'10.10.0.254' };
+  return {
+    address: `10.${v}.0.1/24`,
+    ipStart: `10.${v}.0.10`,
+    ipEnd: `10.${v}.0.254`,
+  };
+}
+
+function MikrotikSiteModal({ stations, onClose, onDone }) {
+  const [f,setF]=useState({
+    name:'', stationId:'', bridgeInterface:'bridge-local',
+    mikrotikHost:'', apiUser:'admin', apiPassword:'', notes:'',
+  });
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  const pickStation = e => {
+    const id = e.target.value;
+    const st = stations.find(s => String(s.id) === id);
+    setF({
+      ...f, stationId: id,
+      mikrotikHost: st?.vpnIp || f.mikrotikHost,
+      apiUser: st?.apiUser || f.apiUser || 'admin',
+    });
+  };
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Add MikroTik Site</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Parent router / bridge — tulad ng <b>KITIFI</b> sa KiTifi. Dito ilalagay ang VLAN hotspot servers.
+      </p>
+      <label>Site name</label>
+      <input value=${f.name} onInput=${set('name')} placeholder="e.g. Brgy Hall Router" autoFocus />
+      <label>VPN Client <span class="dim">(optional — auto-fill MikroTik IP)</span></label>
+      <select value=${f.stationId} onChange=${pickStation}>
+        <option value="">— manual host —</option>
+        ${stations.map(s=>html`<option key=${s.id} value=${s.id}>${s.name} · ${s.vpnIp||'no IP'}</option>`)}
+      </select>
+      <label>Bridge / parent interface name</label>
+      <input value=${f.bridgeInterface} onInput=${set('bridgeInterface')} placeholder="bridge-local / KITIFI" class="mono" />
+      <label>MikroTik host (VPN IP o LAN)</label>
+      <input value=${f.mikrotikHost} onInput=${set('mikrotikHost')} placeholder="10.8.0.5" class="mono" />
+      <div class="row">
+        <div style=${{flex:1}}><label>API username</label><input value=${f.apiUser} onInput=${set('apiUser')} class="mono" /></div>
+        <div style=${{flex:1}}><label>API password</label><input type="password" value=${f.apiPassword} onInput=${set('apiPassword')} class="mono" /></div>
+      </div>
+      <label>Notes</label>
+      <input value=${f.notes} onInput=${set('notes')} placeholder="location / barangay" />
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy||!f.name.trim()} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            await api('/hotspot/sites',{method:'POST',body:{
+              name:f.name.trim(),
+              stationId: f.stationId ? Number(f.stationId) : undefined,
+              bridgeInterface: f.bridgeInterface.trim() || 'bridge-local',
+              mikrotikHost: f.mikrotikHost.trim() || undefined,
+              apiUser: f.apiUser.trim() || 'admin',
+              apiPassword: f.apiPassword || undefined,
+              notes: f.notes.trim() || undefined,
+            }});
+            onDone();
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save Site'}</button>
+      </div>
+    </div></div>`;
+}
+
+function HotspotServerModal({ wifiSites, defaultSiteId, onClose, onDone }) {
+  const nextVlan = 101 + (wifiSites?.length ? 0 : 0);
+  const ips = suggestVlanIps(nextVlan);
+  const [f,setF]=useState({
+    siteId: defaultSiteId || (wifiSites[0]?.id ? String(wifiSites[0].id) : ''),
+    name:'VLAN101', vlanId:String(nextVlan), parentInterface:'',
+    serverProfile:'default', idleDays:'0', idleHours:'0', idleMinutes:'10', idleSeconds:'0',
+    address: ips.address, ipStart: ips.ipStart, ipEnd: ips.ipEnd,
+    masquerade:true, antiSharing:true,
+  });
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const [made,setMade]=useState(null);
+  const site = wifiSites.find(s => String(s.id) === String(f.siteId));
+  const ifaces = [
+    site?.bridgeInterface || 'bridge-local',
+    'ether1','ether2','ether3','ether4','ether5','wlan1',
+  ].filter((v,i,a)=>v && a.indexOf(v)===i);
+  const set = k => e => setF({...f,[k]:e.target.value});
+  const onVlan = e => {
+    const vlanId = e.target.value;
+    const sug = suggestVlanIps(vlanId);
+    setF({
+      ...f, vlanId,
+      name: vlanId ? `VLAN${vlanId}` : f.name,
+      address: sug.address, ipStart: sug.ipStart, ipEnd: sug.ipEnd,
+      parentInterface: f.parentInterface || site?.bridgeInterface || 'bridge-local',
+    });
+  };
+  if (made) return html`<div class="modal-bg"><div class="modal wide">
+    <h2>Hotspot server created ✓</h2>
+    <p class="dim" style=${{fontSize:'13px'}}>${made.name} · VLAN ${made.vlanId} · ${made.parentInterface}</p>
+    <h3 style=${{marginTop:'16px'}}>MikroTik script <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>copy all</button></h3>
+    <pre>${made.routerosScript||'—'}</pre>
+    <p class="dim" style=${{fontSize:'12px'}}>I-paste sa MikroTik terminal (o Winbox → New Terminal).</p>
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+      <button onClick=${onDone}>Done</button>
+    </div>
+  </div></div>`;
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal wide"><h2>Add Hotspot Server</h2>
+      <div class="hs-steps">
+        <span class="on">1. MikroTik site</span>
+        <span class="on">2. VLAN name</span>
+        <span class="on">3. Interface port</span>
+        <span class="on">4. IP pool</span>
+      </div>
+      <label>MikroTik site</label>
+      <select value=${f.siteId} onChange=${e=>{
+        const siteId = e.target.value;
+        const s = wifiSites.find(x => String(x.id) === siteId);
+        setF({...f, siteId, parentInterface: s?.bridgeInterface || f.parentInterface});
+      }}>
+        <option value="">— piliin ang site —</option>
+        ${wifiSites.map(s=>html`<option key=${s.id} value=${s.id}>${s.name} · ${s.mikrotikHost||'—'}</option>`)}
+      </select>
+      <div class="row">
+        <div style=${{flex:1}}><label>Name</label><input value=${f.name} onInput=${set('name')} placeholder="VLAN101" class="mono" /></div>
+        <div style=${{flex:1}}><label>Vlan ID</label><input type="number" min="1" max="4094" value=${f.vlanId} onInput=${onVlan} class="mono" /></div>
+      </div>
+      <div class="row">
+        <div style=${{flex:1}}>
+          <label>Interface <span class="dim">(MikroTik port / bridge)</span></label>
+          <select value=${f.parentInterface} onChange=${set('parentInterface')}>
+            <option value="">— piliin —</option>
+            ${ifaces.map(i=>html`<option key=${i} value=${i}>${i}</option>`)}
+          </select>
+        </div>
+        <div style=${{flex:1}}>
+          <label>Server Profile</label>
+          <select value=${f.serverProfile} onChange=${set('serverProfile')}>
+            <option value="default">default</option>
+            <option value="jmwifi">jmwifi</option>
+          </select>
+        </div>
+      </div>
+      <label>Idle Timeout</label>
+      <div class="hs-idle">
+        <div><input type="number" min="0" value=${f.idleDays} onInput=${set('idleDays')} /><div class="lbl">D</div></div>
+        <div><input type="number" min="0" value=${f.idleHours} onInput=${set('idleHours')} /><div class="lbl">H</div></div>
+        <div><input type="number" min="0" value=${f.idleMinutes} onInput=${set('idleMinutes')} /><div class="lbl">M</div></div>
+        <div><input type="number" min="0" value=${f.idleSeconds} onInput=${set('idleSeconds')} /><div class="lbl">S</div></div>
+      </div>
+      <label>Address</label>
+      <input value=${f.address} onInput=${set('address')} placeholder="10.101.0.1/24" class="mono" />
+      <div class="row">
+        <div style=${{flex:1}}><label>IP Start</label><input value=${f.ipStart} onInput=${set('ipStart')} class="mono" /></div>
+        <div style=${{flex:1}}><label>IP End</label><input value=${f.ipEnd} onInput=${set('ipEnd')} class="mono" /></div>
+      </div>
+      <label class="chk-row"><input type="checkbox" checked=${f.masquerade} onChange=${e=>setF({...f,masquerade:e.target.checked})} /> Masquerade</label>
+      <label class="chk-row"><input type="checkbox" checked=${f.antiSharing} onChange=${e=>setF({...f,antiSharing:e.target.checked})} /> Anti Hotspot Sharing</label>
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Close</button>
+        <button disabled=${busy||!f.siteId||!f.name.trim()||!f.parentInterface||!f.vlanId} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            const r = await api('/hotspot/servers',{method:'POST',body:{
+              siteId: Number(f.siteId),
+              name: f.name.trim(),
+              vlanId: Number(f.vlanId),
+              parentInterface: f.parentInterface,
+              serverProfile: f.serverProfile,
+              idleDays: Number(f.idleDays)||0,
+              idleHours: Number(f.idleHours)||0,
+              idleMinutes: Number(f.idleMinutes)||0,
+              idleSeconds: Number(f.idleSeconds)||0,
+              address: f.address.trim(),
+              ipStart: f.ipStart.trim(),
+              ipEnd: f.ipEnd.trim(),
+              masquerade: f.masquerade,
+              antiSharing: f.antiSharing,
+            }});
+            setMade(r);
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save'}</button>
+      </div>
+    </div></div>`;
+}
+
 // CCTV camera — may location (barangay) + VPN client (station)
 function CameraModal({ barangay, geo, stations, onClose, onDone }) {
   const [f,setF]=useState({
@@ -2624,9 +2824,13 @@ function App() {
   const [gasOwners,setGasOwners]=useState([]);
   const [vendoData,setVendoData]=useState({
     total_revenue_today:0, active_devices:0,
-    wifi:{coins_today:0,minutes_today:0,sessions_today:0,revenue_today:0,sites_count:0},
+    wifi:{coins_today:0,minutes_today:0,sessions_today:0,revenue_today:0,sites_count:0,servers_count:0},
     sites:[], recent_coins:[]
   });
+  const [wifiSites,setWifiSites]=useState([]);
+  const [hotspotServers,setHotspotServers]=useState([]);
+  const [allVendoView,setAllVendoView]=useState('overview'); // overview | hotspot
+  const [selectedWifiSiteId,setSelectedWifiSiteId]=useState('');
   const [tab,setTab]=useState('browse'); // browse | wall | dash | vpn | zerotier | gas | allvendo | cctv | server | accounts
   const [wallBrand,setWallBrand]=useState('all');
   const [sideOpen,setSideOpen]=useState(false);
@@ -2665,7 +2869,7 @@ function App() {
             }));
           }
         }).catch(()=>{});
-        api('/vendo/overview').then(d=>{
+        api('/hotspot/overview').then(d=>{
           setVendoData({
             total_revenue_today: d.total_revenue_today||0,
             active_devices: d.active_devices||0,
@@ -2675,11 +2879,14 @@ function App() {
               sessions_today: d.wifi?.sessions_today||0,
               revenue_today: d.wifi?.revenue_today||0,
               sites_count: d.wifi?.sites_count||0,
+              servers_count: d.wifi?.servers_count||0,
             },
             sites: d.sites||[],
             recent_coins: d.recent_coins||[],
           });
+          setWifiSites(d.sites||[]);
         }).catch(()=>{});
+        api('/hotspot/servers').then(d=>setHotspotServers(d.servers||[])).catch(()=>setHotspotServers([]));
       }
     } catch (e) {
       console.error(e);
@@ -2698,14 +2905,15 @@ function App() {
   const match = t => (t||'').toLowerCase().includes(q.toLowerCase());
   const openStation = (id, back) => setNav({stationId:id, back: back||{...nav}});
 
-  const goTab = (t) => { setTab(t); setSideOpen(false); if(t==='browse') setNav({}); };
+  const goTab = (t) => { setTab(t); setSideOpen(false); if(t==='browse') setNav({}); if(t!=='allvendo') setAllVendoView('overview'); };
   const pageTitles = {
     dash:'Dashboard', browse: isManager?'Locations':'My Barangays', wall:'Live Wall',
     map:'Fleet Map', vpn:'VPN Clients', zerotier:'ZeroTier', gas:'Gasoline Vendo',
     allvendo:'ALL VENDO',
     cctv:'CCTV Clients', server:'VPN Server', settings:'Settings', accounts:'Accounts',
   };
-  const pageTitle = nav.stationId && isManager ? 'Station Detail' : (pageTitles[tab] || 'Portal');
+  const pageTitle = nav.stationId && isManager ? 'Station Detail'
+    : (allVendoView==='hotspot' && tab==='allvendo' ? 'Cloud Hotspot · Server' : (pageTitles[tab] || 'Portal'));
   const initials = (roleLabel||'U').split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
 
   let body;
@@ -3106,12 +3314,106 @@ function App() {
   // ---- ALL VENDO (WiFi hotspot, bottle, overview) ----
   else if (tab==='allvendo' && isManager) {
     const wifi = vendoData.wifi || {};
-    const shownSites = (vendoData.sites||[]).filter(s => match(
-      (s.name||'')+(s.id||'')+String(s.devices||'')+String(s.coins_today||'')
+    const shownSites = (wifiSites.length ? wifiSites : (vendoData.sites||[])).filter(s => match(
+      (s.name||'')+(s.id||'')+String(s.serverCount||s.devices||'')+String(s.mikrotikHost||'')
     ));
+    const shownServers = hotspotServers.filter(s => {
+      if (selectedWifiSiteId && String(s.siteId) !== String(selectedWifiSiteId)) return false;
+      return match((s.name||'')+(s.siteName||'')+String(s.vlanId||'')+(s.parentInterface||''));
+    });
     const shownCoins = (vendoData.recent_coins||[]).filter(c => match(
       (c.site_name||'')+(c.voucher_code||'')+String(c.coins||'')+String(c.minutes_granted||'')
     ));
+
+    if (allVendoView === 'hotspot') {
+      body = html`<div>
+        <div class="crumbs" style=${{marginBottom:'16px'}}>
+          <a onClick=${()=>setAllVendoView('overview')}>ALL VENDO</a>
+          <span>›</span>
+          <span>Cloud Hotspot</span>
+          <span>›</span>
+          <b>Server</b>
+        </div>
+        <div class="section-head">
+          <div>
+            <h3 style=${{margin:0}}>Hotspot Server</h3>
+            <div class="sub">KiTifi-style: + Server → VLAN name → MikroTik port → IP pool</div>
+          </div>
+          <div class="row" style=${{gap:'8px'}}>
+            <button class="ghost" onClick=${loadAll}>↻ Refresh</button>
+            <button onClick=${()=>{
+              if (!wifiSites.length) { setModal({type:'wifiSite'}); return; }
+              setModal({type:'hotspotServer', siteId: selectedWifiSiteId || wifiSites[0]?.id});
+            }}>+ Server</button>
+          </div>
+        </div>
+        <div class="row" style=${{marginBottom:'14px',flexWrap:'wrap',gap:'10px'}}>
+          <div style=${{minWidth:'220px'}}>
+            <label style=${{margin:'0 0 4px'}}>MikroTik site</label>
+            <select value=${selectedWifiSiteId} onChange=${e=>setSelectedWifiSiteId(e.target.value)}>
+              <option value="">All sites</option>
+              ${wifiSites.map(s=>html`<option key=${s.id} value=${s.id}>${s.name}</option>`)}
+            </select>
+          </div>
+          <button class="ghost" style=${{alignSelf:'flex-end'}} onClick=${()=>setModal({type:'wifiSite'})}>+ MikroTik Site</button>
+        </div>
+        <div class="table-wrap" style=${{marginBottom:'22px'}}>
+          <table><thead><tr>
+            <th>#</th><th>Name</th><th>Interface</th><th>Idle Timeout</th><th>Address</th><th>Pool</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${shownServers.map((s,i)=>html`<tr key=${s.id}>
+              <td class="dim">${i+1}</td>
+              <td><b class="mono">${s.name}</b><div class="dim" style=${{fontSize:'11px'}}>VLAN ${s.vlanId} · ${s.siteName}</div></td>
+              <td class="mono">${s.parentInterface}</td>
+              <td class="dim">${s.idleTimeout||'—'}</td>
+              <td class="mono">${s.address}</td>
+              <td class="mono dim">${s.ipStart} – ${s.ipEnd}</td>
+              <td>
+                <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+                  try {
+                    const r = await api('/hotspot/servers/'+s.id+'/script');
+                    await copyScript(r.script||'');
+                  } catch(e){ alert(e.message); }
+                }}>Script</button>
+                <button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+                  if(!confirm('Delete hotspot server '+s.name+'?')) return;
+                  await api('/hotspot/servers/'+s.id,{method:'DELETE'});
+                  loadAll();
+                }}>✕</button>
+              </td>
+            </tr>`)}
+            ${shownServers.length===0 && html`<tr><td colSpan="7" class="dim" style=${{textAlign:'center',padding:'28px'}}>
+              Wala pang hotspot server — i-click ang “+ Server” (gaya ng KiTifi).
+              ${wifiSites.length===0 ? html`<div style=${{marginTop:'8px'}}>Kailangan muna ng <b>MikroTik Site</b>.</div>`:''}
+            </td></tr>`}
+          </tbody></table>
+        </div>
+        <div class="section-head"><div><h3>MikroTik sites</h3><div class="sub">Parent router / bridge (KITIFI)</div></div></div>
+        <div class="table-wrap">
+          <table><thead><tr>
+            <th>Site</th><th>Host</th><th>Bridge</th><th>VPN</th><th>Servers</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${shownSites.map(s=>html`<tr key=${s.id}>
+              <td><b>${s.name}</b></td>
+              <td class="mono">${s.mikrotikHost||'—'}</td>
+              <td class="mono">${s.bridgeInterface||'—'}</td>
+              <td class="dim">${s.stationName||'—'}</td>
+              <td>${s.serverCount||0}</td>
+              <td><button class="danger" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${async()=>{
+                if(!confirm('Delete site '+s.name+'?')) return;
+                await api('/hotspot/sites/'+s.id,{method:'DELETE'});
+                loadAll();
+              }}>✕</button></td>
+            </tr>`)}
+            ${shownSites.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'16px'}}>
+              Walang MikroTik site — i-click ang “+ MikroTik Site”.
+            </td></tr>`}
+          </tbody></table>
+        </div>
+      </div>`;
+    } else {
     body = html`<div>
       <div class="dash-grid" style=${{marginBottom:'14px'}}>
         <div class="metric">
@@ -3141,16 +3443,16 @@ function App() {
         <button class="ghost" onClick=${loadAll}>↻ Refresh</button>
       </div>
       <div class="grid g-devices" style=${{marginBottom:'22px'}}>
-        <div class="tile device-card" style=${{cursor:'default'}}>
+        <div class="tile device-card" style=${{cursor:'pointer'}} onClick=${()=>setAllVendoView('hotspot')}>
           <div class="dev-id">📶 Cloud Hotspot</div>
           <div class="dev-name">MikroTik + ESP8266 coin machine</div>
           <div class="dev-meta">
-            <span class="badge ${(vendoData.active_devices||0)>0?'b-ok':'b-warn'}">${(vendoData.active_devices||0)>0?'online':'no devices'}</span>
+            <span class="badge ${(wifi.servers_count||hotspotServers.length)>0?'b-ok':'b-warn'}">${(wifi.servers_count||hotspotServers.length)>0?'active':'no devices'}</span>
             <div style=${{marginTop:'8px'}}>
-              <b>${wifi.coins_today||0}</b> coins · <b>${wifi.sessions_today||0}</b> sessions · <b>₱${Number(wifi.revenue_today||0).toLocaleString()}</b>
+              <b>${wifi.coins_today||0}</b> coins · <b>${wifi.sessions_today||0}</b> sessions · <b>${hotspotServers.length}</b> VLAN
             </div>
             <div class="dim" style=${{fontSize:'11px',marginTop:'6px'}}>
-              Captive portal: <a href="/portal/" target="_blank" rel="noopener">/portal/</a>
+              Click → Hotspot Server (+ VLAN) · <a href="/portal/" target="_blank" rel="noopener" onClick=${e=>e.stopPropagation()}>/portal/</a>
             </div>
           </div>
         </div>
@@ -3178,23 +3480,24 @@ function App() {
       </div>
 
       <div class="section-head">
-        <div><h3>Cloud Hotspot sites</h3><div class="sub">WiFi vendo locations · MikroTik VLAN hotspot</div></div>
+        <div><h3>Cloud Hotspot sites</h3><div class="sub">WiFi vendo · MikroTik VLAN hotspot</div></div>
+        <button class="ghost" onClick=${()=>setAllVendoView('hotspot')}>Manage servers →</button>
       </div>
       <div class="table-wrap" style=${{marginBottom:'22px'}}>
         <table><thead><tr>
-          <th>Site</th><th>Devices</th><th>Sessions</th><th>Coins today</th><th>Rate</th><th>Status</th>
+          <th>Site</th><th>Host</th><th>Bridge</th><th>Servers</th><th>VPN</th><th>Status</th>
         </tr></thead>
         <tbody>
           ${shownSites.map(s=>html`<tr key=${s.id}>
             <td><b>${s.name}</b></td>
-            <td>${s.devices||0} <span class="dim">(${s.online_devices||0} online)</span></td>
-            <td>${s.active_sessions||0}</td>
-            <td class="mono">${s.coins_today||0}</td>
-            <td class="dim mono">₱${s.rate_per_hour||'—'}/hr · ${s.minutes_per_coin||'—'}m/coin</td>
-            <td><span class="badge ${(s.online_devices||0)>0?'b-ok':'b-warn'}">${(s.online_devices||0)>0?'online':'offline'}</span></td>
+            <td class="mono">${s.mikrotikHost||'—'}</td>
+            <td class="mono">${s.bridgeInterface||'—'}</td>
+            <td>${s.serverCount||0}</td>
+            <td class="dim">${s.stationName||'—'}</td>
+            <td><span class="badge ${(s.serverCount||0)>0?'b-ok':'b-warn'}">${(s.serverCount||0)>0?'configured':'empty'}</span></td>
           </tr>`)}
           ${shownSites.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'16px'}}>
-            Walang hotspot site pa — gumawa via JM WiFi Cloud API.
+            Walang hotspot site pa — i-click ang Cloud Hotspot card → + MikroTik Site.
           </td></tr>`}
         </tbody></table>
       </div>
@@ -3220,6 +3523,7 @@ function App() {
         </tbody></table>
       </div>
     </div>`;
+    }
   }
   // ---- Accounts tab (staff + client viewers) ----
   else if (tab==='accounts' && isManager) {
@@ -3396,6 +3700,11 @@ function App() {
       device=${modal.device} owners=${gasOwners}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='gasOwner' && isManager && html`<${GasOwnerModal}
+      onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='wifiSite' && isManager && html`<${MikrotikSiteModal}
+      stations=${stations} onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='hotspotServer' && isManager && html`<${HotspotServerModal}
+      wifiSites=${wifiSites} defaultSiteId=${modal.siteId}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='camera' && isManager && html`<${CameraModal} barangay=${modal.barangay} geo=${geo} stations=${stations} onClose=${()=>setModal(null)}
       onDone=${()=>{setModal(null); loadAll();}} />`}
