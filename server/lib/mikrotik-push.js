@@ -2,7 +2,6 @@
  * Push Hotspot Server settings from DB directly to MikroTik (RouterOS API :8728).
  */
 const net = require('net');
-const http = require('http');
 const db = require('../db');
 
 const CENTRAL_GATEWAY = '10.0.0.1';
