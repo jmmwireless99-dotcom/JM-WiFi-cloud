@@ -36,19 +36,39 @@ Buong board map: [HARDWARE-PINS.md](HARDWARE-PINS.md)
 
 ## Flash sa COM6 (PC mo)
 
-| Arduino IDE setting | Value |
-|---------------------|-------|
+**Dati:** terminal/command line ang ginamit (Cursor agent → `arduino-cli` o `esptool`), **hindi Arduino IDE GUI**.
+
+### Option 1 — Terminal flash (recommended, same as dati)
+
+Double-click o run sa **Command Prompt** sa PC mo:
+
+```bat
+cd firmware\esp32\jm_wifi_lcd7
+flash-com6-terminal.bat
+```
+
+Kailangan: [arduino-cli](https://arduino.github.io/arduino-cli/) + ESP32 core:
+```bat
+arduino-cli core install esp32:esp32
+arduino-cli lib install "ArduinoJson"
+```
+
+### Option 2 — Arduino IDE GUI
+
+| Setting | Value |
+|---------|-------|
 | **Port** | **COM6** |
-| **Board** | ESP32S3 Dev Module (Waveshare LCD7) |
+| **Board** | ESP32S3 Dev Module |
 | **USB CDC On Boot** | Enabled |
-| **Upload Speed** | 921600 |
 
-1. `cp config.h.example config.h`
-2. Buksan ang folder `jm_wifi_lcd7` sa Arduino IDE
-3. **Tools → Port → COM6** → **Upload**
-4. **Serial Monitor 115200** — dapat: `Cloud OK — BANKERO GASOLINE LCD-7`
+### Option 3 — PlatformIO (kung dati PIO ang ginamit)
 
-Windows test: double-click `flash-com6.bat` o `find-com-port.bat`
+```bat
+cd firmware\esp32
+pio run -t upload --upload-port COM6
+```
+
+Test COM6: `flash-com6.bat`
 
 
 ## Dapat makita sa Serial (115200)
