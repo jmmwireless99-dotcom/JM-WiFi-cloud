@@ -148,6 +148,31 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
 `);
 
+// Expand devices.device_type CHECK for ESP32 variants (SQLite table rebuild)
+const deviceTypeCheck = db.prepare(`
+  SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'devices'
+`).get();
+if (deviceTypeCheck?.sql && !deviceTypeCheck.sql.includes('esp32-s3')) {
+  db.exec(`
+    CREATE TABLE devices_new (
+      id TEXT PRIMARY KEY,
+      site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+      device_type TEXT NOT NULL CHECK(device_type IN ('esp8266', 'esp32', 'esp32-s3', 'mikrotik', 'vendo')),
+      mac_address TEXT,
+      name TEXT,
+      last_seen TEXT,
+      status TEXT DEFAULT 'offline',
+      config_json TEXT DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    INSERT INTO devices_new SELECT * FROM devices;
+    DROP TABLE devices;
+    ALTER TABLE devices_new RENAME TO devices;
+    CREATE INDEX IF NOT EXISTS idx_devices_site ON devices(site_id);
+  `);
+  console.log('Migrated devices table for esp32 / esp32-s3 types');
+}
+
 // Backfill remaining_seconds for old sessions
 db.prepare(`
   UPDATE sessions

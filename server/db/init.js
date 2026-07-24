@@ -57,7 +57,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
     site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    device_type TEXT NOT NULL CHECK(device_type IN ('esp8266', 'mikrotik', 'vendo')),
+    device_type TEXT NOT NULL CHECK(device_type IN ('esp8266', 'esp32', 'esp32-s3', 'mikrotik', 'vendo')),
     mac_address TEXT,
     name TEXT,
     last_seen TEXT,
