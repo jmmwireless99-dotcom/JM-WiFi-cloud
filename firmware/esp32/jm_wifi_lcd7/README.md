@@ -1,70 +1,41 @@
-# ESP32-S3 LCD7 — JM WiFi Cloud heartbeat
+# BANKERO GASOLINE LCD-7 — MRP Vendo Cloud
 
-Para **ONLINE** ang device sa dashboard, kailangan mag-send ang ESP32 ng heartbeat sa cloud **every 30 seconds**.
+Ang device card sa **vendo-admin** (`/vendo-admin`) ay galing sa **MRP backend** (`/api/vendo`), **hindi** sa `/allvendo` hotspot admin.
 
-## 1. I-configure bago i-flash
+## ONLINE rule
 
-```bash
-cp config.h.example config.h
-```
+- **ONLINE** = may `GET /api/vendo/config` within **2 minutes**
+- **OFFLINE** = walang ping > 2 min
 
-Edit `config.h`:
+## Config (`config.h`)
 
 | Setting | Value |
 |---------|--------|
 | `WIFI_SSID` | `PPPOE-ACCESS` |
 | `WIFI_PASS` | `Father@services1985` |
-| `CLOUD_URL` | `https://jmtechsolution.cloud/allvendo` |
-| `API_KEY` | mula sa **Admin → Vendo List → API Key** (BANKERO site) |
-| `DEVICE_NAME` | hal. `BANKERO-GAS-LCD7` |
+| `CLOUD_HOST` | `jmtechsolution.cloud` |
+| `DEVICE_ID` | `LCD7S3` |
+| `API_KEY` | mula sa vendo-admin device card |
 
-## 2. Flash firmware
+## Flash
 
-1. Arduino IDE → Board: **ESP32-S3**
-2. Port: **COM6** (o kung saan naka-plug ang ESP)
-3. Upload `jm_wifi_lcd7.ino`
-4. Serial Monitor → **115200**
+1. `cp config.h.example config.h` — fill API key
+2. Arduino IDE → ESP32-S3 → COM6 → Upload
+3. Serial Monitor 115200
 
-## 3. Serial Monitor — dapat makita ito
-
-**Kung connected sa `PPPOE-ACCESS` at tama ang API key:**
-
+**Dapat makita:**
 ```
-WiFi connecting to SSID: PPPOE-ACCESS
 WiFi OK
-  SSID: PPPOE-ACCESS
-  IP:   192.168.x.x
-POST https://jmtechsolution.cloud/allvendo/api/heartbeat -> 200
-Heartbeat OK — online sa cloud
+GET /api/vendo/config -> 200
+Cloud OK — BANKERO GASOLINE LCD-7 · ₱95/L
 ```
 
-**Kung hindi connected sa WiFi:**
-
-```
-WiFi FAILED — check SSID/password (PPPOE-ACCESS)
-WiFi: DISCONNECTED
-```
-
-**Kung WiFi OK pero OFFLINE pa rin sa dashboard:**
-
-- Mali ang `API_KEY` sa `config.h`
-- Walang internet ang `PPPOE-ACCESS` network (kailangan may outbound HTTPS)
-- Mali ang `CLOUD_URL` — dapat may `/allvendo`
-
-## Dashboard rule
-
-- **Online** = may heartbeat within **5 minutes**
-- **Offline** = walang heartbeat > 5 min (kahit naka-on ang ESP)
-
-## Test mula sa PC (optional)
-
-Palitan ang `YOUR_API_KEY` mula sa Vendo List:
+## Test mula sa PC
 
 ```bash
-curl -X POST "https://jmtechsolution.cloud/allvendo/api/heartbeat" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"mac_address":"AA:BB:CC:DD:EE:FF","device_type":"esp32-s3","name":"BANKERO-GAS-LCD7"}'
+curl -s "https://jmtechsolution.cloud/api/vendo/config" \
+  -H "X-Device-Id: LCD7S3" \
+  -H "X-Api-Key: YOUR_GV_KEY"
 ```
 
-Dapat: `{ "ok": true, "status": "online" }`
+Pag 200 ang response, magiging **ONLINE** sa vendo-admin within ~1 min (refresh page).

@@ -1,14 +1,13 @@
 /*
- * Copy to config.h and fill API_KEY from Admin → Vendo List → API Key
- * (Do not commit config.h with real API key to public repos)
+ * Copy to config.h before flash.
+ * BANKERO GASOLINE LCD-7 → MRP Vendo Cloud (vendo-admin dashboard)
  */
 #pragma once
 
 #define WIFI_SSID     "PPPOE-ACCESS"
 #define WIFI_PASS     "Father@services1985"
 
-#define CLOUD_URL     "https://jmtechsolution.cloud/allvendo"
+// MRP backend — NOT /allvendo
+#define CLOUD_HOST    "jmtechsolution.cloud"
+#define DEVICE_ID     "LCD7S3"
 #define API_KEY       "PASTE_VENDO_API_KEY_HERE"
-
-#define DEVICE_NAME   "BANKERO-GAS-LCD7"
-#define DEVICE_TYPE   "esp32-s3"
