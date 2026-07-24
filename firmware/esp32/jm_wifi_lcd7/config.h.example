@@ -1,13 +1,17 @@
 /*
+ * BANKERO GASOLINE LCD-7 — MRP Vendo Cloud
  * Copy to config.h before flash.
- * BANKERO GASOLINE LCD-7 → MRP Vendo Cloud (vendo-admin dashboard)
  */
 #pragma once
 
 #define WIFI_SSID     "PPPOE-ACCESS"
 #define WIFI_PASS     "Father@services1985"
 
-// MRP backend — NOT /allvendo
 #define CLOUD_HOST    "jmtechsolution.cloud"
 #define DEVICE_ID     "LCD7S3"
 #define API_KEY       "PASTE_VENDO_API_KEY_HERE"
+
+// Dispense hardware (adjust kung iba ang wiring)
+#define PIN_DISPENSE_RELAY  16
+#define PIN_FLOW_METER      17
+#define DEFAULT_PULSES_PER_LITER  100

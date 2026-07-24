@@ -1,129 +1,138 @@
 /*
- * BANKERO GASOLINE LCD-7 — MRP Vendo Cloud keepalive
- *
+ * BANKERO GASOLINE LCD-7 — full MRP Vendo firmware
+ * Board: Waveshare ESP32-S3-Touch-LCD-7
+ * Cloud: https://jmtechsolution.cloud/api/vendo
  * Dashboard: https://jmtechsolution.cloud/vendo-admin
- * ONLINE = GET /api/vendo/config every ~30s (last_seen < 2 min)
- *
- * Setup: copy config.h.example → config.h, then flash ESP32-S3.
  */
 
 #include <WiFi.h>
-#include <HTTPClient.h>
-#include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
 #include "config.h"
+#include "vendo_client.h"
+#include "dispense.h"
+#include "ui_bankero.h"
 
-#ifndef DEVICE_ID
-#error Copy config.h.example to config.h and set DEVICE_ID + API_KEY
-#endif
+enum AppState {
+  ST_BOOT,
+  ST_IDLE,
+  ST_QR_WAIT,
+  ST_DISPENSE,
+  ST_ERROR
+};
 
-const unsigned long PING_MS = 30000;
+const unsigned long CONFIG_MS = 30000;
+const unsigned long READY_MS = 3000;
 const unsigned long WIFI_RETRY_MS = 15000;
 
-unsigned long lastPing = 0;
+AppState state = ST_BOOT;
+VendoConfig cfg;
+VendoSession activeSession;
+unsigned long lastConfig = 0;
+unsigned long lastReady = 0;
 unsigned long lastWifiTry = 0;
+bool cloudOnline = false;
 
-String apiUrl(const char* path) {
-  return String("https://") + CLOUD_HOST + path;
-}
-
-bool wifiConnected() {
-  return WiFi.status() == WL_CONNECTED;
-}
+static uint8_t qrBuf[4 + 128 * 128];
 
 bool connectWiFi() {
-  if (wifiConnected()) return true;
+  if (WiFi.status() == WL_CONNECTED) return true;
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.printf("WiFi connecting to SSID: %s\n", WIFI_SSID);
-  for (int i = 0; i < 40 && !wifiConnected(); i++) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-  if (wifiConnected()) {
-    Serial.println("WiFi OK");
-    Serial.println("  IP:   " + WiFi.localIP().toString());
-    Serial.println("  RSSI: " + String(WiFi.RSSI()) + " dBm");
+  Serial.printf("WiFi -> %s\n", WIFI_SSID);
+  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi OK " + WiFi.localIP().toString());
     return true;
   }
-  Serial.printf("WiFi FAILED — check SSID/password (%s)\n", WIFI_SSID);
+  Serial.println("WiFi FAILED");
   return false;
 }
 
-bool vendoGetConfig() {
-  if (!wifiConnected()) return false;
-
-  WiFiClientSecure client;
-  client.setInsecure();
-
-  HTTPClient http;
-  http.setTimeout(15000);
-  http.begin(client, apiUrl("/api/vendo/config"));
-  http.addHeader("X-Device-Id", DEVICE_ID);
-  http.addHeader("X-Api-Key", API_KEY);
-
-  int code = http.GET();
-  String body = (code > 0) ? http.getString() : "";
-  Serial.printf("GET /api/vendo/config -> %d\n", code);
-  if (code <= 0) {
-    Serial.println(http.errorToString(code));
-    http.end();
-    return false;
-  }
-  http.end();
-
-  if (code == 401) {
-    Serial.println("ERROR: invalid DEVICE_ID or API_KEY");
-    return false;
-  }
-  if (code != 200) {
-    Serial.println("Response: " + body);
-    return false;
-  }
-
-  StaticJsonDocument<512> doc;
-  if (!deserializeJson(doc, body)) {
-    Serial.printf("Cloud OK — %s · ₱%.0f/L\n",
-      doc["name"] | DEVICE_ID,
-      doc["pricePerLiter"].as<float>());
+void refreshConfig() {
+  if (vendoFetchConfig(cfg)) {
+    cloudOnline = true;
+    Serial.printf("Cloud OK — %s · PHP %.0f/L · %d pulses/L\n",
+      cfg.name.c_str(), cfg.pricePerLiter, cfg.pulsesPerLiter);
   } else {
-    Serial.println("Cloud OK — online sa vendo-admin");
+    cloudOnline = false;
   }
+}
+
+bool showSessionQr(const VendoSession& s) {
+  size_t len = 0;
+  if (!vendoDownloadQrMono(s.id, qrBuf, sizeof(qrBuf), len)) {
+    Serial.println("QR download failed");
+    return false;
+  }
+  uiDrawQrMono(qrBuf, len);
+  uiShowQr(s.amountPesos, s.liters);
   return true;
+}
+
+void runDispense(const VendoSession& s) {
+  state = ST_DISPENSE;
+  uiShowDispense(s.liters);
+  vendoMarkDispensing(s.id);
+  int ppl = cfg.pulsesPerLiter > 0 ? cfg.pulsesPerLiter : DEFAULT_PULSES_PER_LITER;
+  bool ok = dispenseLiters(s.liters, ppl);
+  vendoMarkComplete(s.id);
+  if (ok) {
+    uiShowMessage("SALAMAT", "Dispense complete");
+    state = ST_IDLE;
+  } else {
+    uiShowMessage("ERROR", "Dispense timeout");
+    state = ST_ERROR;
+  }
+  lastConfig = 0;
+  lastReady = 0;
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
-  Serial.println("\n=== BANKERO GASOLINE LCD-7 — MRP Vendo ===");
-  Serial.println("Device ID: " + String(DEVICE_ID));
-  Serial.println("Cloud: https://" + String(CLOUD_HOST) + "/api/vendo");
+  delay(400);
+  Serial.println("\n=== BANKERO GASOLINE LCD-7 ===");
+  Serial.printf("Device: %s\nCloud: https://%s/api/vendo\n", DEVICE_ID, CLOUD_HOST);
 
-  if (strcmp(API_KEY, "PASTE_VENDO_API_KEY_HERE") == 0) {
-    Serial.println("ERROR: I-set ang API_KEY sa config.h (vendo-admin → Rotate key / device card)");
-  }
+  dispenseInit();
+  uiInit();
+  uiShowBoot();
 
   connectWiFi();
-  vendoGetConfig();
-  lastPing = millis();
-  Serial.println("Hint: dapat makita 'Cloud OK' every 30s para ONLINE sa vendo-admin");
+  refreshConfig();
+  uiShowIdle(cfg, cloudOnline);
+
+  lastConfig = millis();
+  lastReady = millis();
+  state = cloudOnline ? ST_IDLE : ST_ERROR;
 }
 
 void loop() {
-  if (!wifiConnected()) {
+  uiLoop();
+
+  if (WiFi.status() != WL_CONNECTED) {
     if (millis() - lastWifiTry > WIFI_RETRY_MS) {
       lastWifiTry = millis();
       connectWiFi();
     }
-    delay(200);
+    delay(50);
     return;
   }
 
-  if (millis() - lastPing > PING_MS) {
-    vendoGetConfig();
-    lastPing = millis();
+  if (millis() - lastConfig > CONFIG_MS) {
+    refreshConfig();
+    if (state == ST_IDLE) uiShowIdle(cfg, cloudOnline);
+    lastConfig = millis();
   }
 
-  delay(100);
+  if (state == ST_IDLE && millis() - lastReady > READY_MS) {
+    VendoSession ready;
+    if (vendoPollReady(ready) && ready.valid) {
+      Serial.printf("Paid session #%d · PHP %.2f · %.3f L\n",
+        ready.id, ready.amountPesos, ready.liters);
+      activeSession = ready;
+      runDispense(activeSession);
+    }
+    lastReady = millis();
+  }
+
+  delay(20);
 }
