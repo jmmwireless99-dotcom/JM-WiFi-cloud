@@ -17,7 +17,7 @@
 #include <Preferences.h>
 
 // ─── CONFIG — palitan bago upload ─────────────────────────────
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_SSID     = "candelaria-kitifi";
 const char* WIFI_PASS     = "YOUR_WIFI_PASSWORD";
 const char* CLOUD_URL     = "https://jmtechsolution.cloud/allvendo";
 const char* API_KEY       = "YOUR_SITE_API_KEY";
@@ -44,18 +44,34 @@ bool connectWiFi() {
   if (wifiConnected()) return true;
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("WiFi connecting");
+  Serial.printf("WiFi connecting to SSID: %s\n", WIFI_SSID);
   for (int i = 0; i < 40 && !wifiConnected(); i++) {
     delay(500);
     Serial.print(".");
   }
   Serial.println();
   if (wifiConnected()) {
-    Serial.println("WiFi OK: " + WiFi.localIP().toString());
+    Serial.println("WiFi OK");
+    Serial.println("  SSID: " + WiFi.SSID());
+    Serial.println("  IP:   " + WiFi.localIP().toString());
+    Serial.println("  RSSI: " + String(WiFi.RSSI()) + " dBm");
     return true;
   }
-  Serial.println("WiFi FAILED");
+  Serial.println("WiFi FAILED — check password o SSID candelaria-kitifi");
   return false;
+}
+
+void printStatus() {
+  Serial.println("--- STATUS ---");
+  if (wifiConnected()) {
+    Serial.println("WiFi: CONNECTED -> " + WiFi.SSID());
+    Serial.println("IP:   " + WiFi.localIP().toString());
+  } else {
+    Serial.println("WiFi: DISCONNECTED");
+  }
+  Serial.println("Device ID: " + (deviceId.length() ? deviceId : String("(wala pa)")));
+  Serial.println("Cloud: " + String(CLOUD_URL));
+  Serial.println("--------------");
 }
 
 String httpPostJson(const String& url, const String& body) {
@@ -155,9 +171,11 @@ void setup() {
   if (deviceId.length()) Serial.println("Saved device_id: " + deviceId);
 
   connectWiFi();
+  printStatus();
   if (!deviceId.length()) registerDevice();
   else sendHeartbeat();
   lastHeartbeat = millis();
+  Serial.println("Hint: dapat makita 'Heartbeat OK' every 30s para ONLINE sa dashboard");
 }
 
 void loop() {
@@ -173,6 +191,7 @@ void loop() {
   if (millis() - lastHeartbeat > HEARTBEAT_MS) {
     if (!sendHeartbeat() && !deviceId.length()) registerDevice();
     lastHeartbeat = millis();
+    printStatus();
   }
 
   delay(100);
