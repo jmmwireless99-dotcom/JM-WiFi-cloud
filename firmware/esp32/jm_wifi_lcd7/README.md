@@ -34,12 +34,22 @@ Relay: **LOW = ON** (active-low module). Flow: **FALLING edge**, 100 pulses/L.
 
 Buong board map: [HARDWARE-PINS.md](HARDWARE-PINS.md)
 
-## Flash (Arduino IDE)
+## Flash sa COM6 (PC mo)
 
-1. Board: **ESP32-S3** (Waveshare ESP32-S3-Touch-LCD-7), USB CDC On Boot: **Enabled**
-2. Waveshare demo libs (para sa LCD): [ESP32-S3-Touch-LCD-7 wiki](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7)
-3. `cp config.h.example config.h` — siguraduhing may tamang `API_KEY` (mula sa vendo-admin)
-4. Buksan ang folder `jm_wifi_lcd7` → Upload → Serial Monitor **115200**
+| Arduino IDE setting | Value |
+|---------------------|-------|
+| **Port** | **COM6** |
+| **Board** | ESP32S3 Dev Module (Waveshare LCD7) |
+| **USB CDC On Boot** | Enabled |
+| **Upload Speed** | 921600 |
+
+1. `cp config.h.example config.h`
+2. Buksan ang folder `jm_wifi_lcd7` sa Arduino IDE
+3. **Tools → Port → COM6** → **Upload**
+4. **Serial Monitor 115200** — dapat: `Cloud OK — BANKERO GASOLINE LCD-7`
+
+Windows test: double-click `flash-com6.bat` o `find-com-port.bat`
+
 
 ## Dapat makita sa Serial (115200)
 
