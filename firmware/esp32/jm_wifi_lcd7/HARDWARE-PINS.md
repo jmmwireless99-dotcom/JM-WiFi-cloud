@@ -96,15 +96,15 @@ Coin acceptor (kung meron):
 
 ---
 
-## Repo `pins.h` — current placeholder
+## Repo `pins.h` — BANKERO LCD7 allocation
 
-| Function | Pin sa `pins.h` | Status |
-|----------|-----------------|--------|
-| Dispense relay | GPIO **6** | **TODO verify** |
-| Flow meter | GPIO **43** | **TODO verify** |
-| Coin pulse | GPIO **44** | **TODO verify** |
+| Function | GPIO | Header |
+|----------|------|--------|
+| Dispense relay | **6** | Sensor AD (PH2.0) |
+| Flow meter | **43** | UART1 P1 TX |
+| Coin pulse | **44** | UART1 P1 RX |
 
-**Babala:** Ang lumang `dispense.cpp` ay gumamit ng GPIO **16** at **17** — **MALI** sa Waveshare LCD7 (RS485 + LCD blue channel). Huwag gamitin iyon.
+**Babala:** Ang unang repo draft ay gumamit ng GPIO **16** at **17** — **MALI** sa Waveshare LCD7 (RS485 + LCD blue channel).
 
 ---
 

@@ -1,36 +1,70 @@
-# BANKERO GASOLINE LCD-7 — MRP Vendo Cloud
+# BANKERO GASOLINE LCD-7 — ESP32-S3 Firmware
 
-Ang device card sa **vendo-admin** (`/vendo-admin`) ay galing sa **MRP backend** (`/api/vendo`), **hindi** sa `/allvendo` hotspot admin.
+Buong firmware para sa **Waveshare ESP32-S3-Touch-LCD-7** (`LCD7S3`) sa **MRP Vendo Cloud**.
 
-## ONLINE rule
+| | |
+|---|---|
+| Dashboard | https://jmtechsolution.cloud/vendo-admin |
+| Pay page (phone) | https://jmtechsolution.cloud/pay/LCD7S3 |
+| Device ID | `LCD7S3` |
+| Cloud API | `https://jmtechsolution.cloud/api/vendo` |
 
-- **ONLINE** = may `GET /api/vendo/config` within **2 minutes**
-- **OFFLINE** = walang ping > 2 min
+## Bakit OFFLINE sa vendo-admin?
 
-## Config (`config.h`)
+Ang card ay **OFFLINE** kapag walang `GET /api/vendo/config` sa loob ng **2 minuto**.
 
-| Setting | Value |
-|---------|--------|
-| `WIFI_SSID` | `PPPOE-ACCESS` |
-| `WIFI_PASS` | `Father@services1985` |
-| `CLOUD_HOST` | `jmtechsolution.cloud` |
-| `DEVICE_ID` | `LCD7S3` |
-| `API_KEY` | mula sa vendo-admin device card |
+Karaniwang dahilan:
+1. **Hindi pa na-flash** ang bagong firmware (o mali ang `config.h` — blank API key)
+2. **Mali ang WiFi** — dapat `PPPOE-ACCESS`
+3. **Lumang firmware** — gumagamit pa ng `/allvendo` heartbeat (mali ang endpoint)
 
-## Flash
+**Solusyon:** i-flash ulit gamit ang steps sa ibaba. Tingnan din ang [FLASH-GUIDE-TL.md](FLASH-GUIDE-TL.md).
 
-1. `cp config.h.example config.h` — fill API key
-2. Arduino IDE → ESP32-S3 → COM6 → Upload
-3. Serial Monitor 115200
+## GPIO Pinout (Waveshare LCD7)
 
-**Dapat makita:**
+**Huwag gamitin ang GPIO 16 at 17** — RS485 at LCD blue channel iyon sa board na ito.
+
+| Function | GPIO | Waveshare header | Wire |
+|----------|------|------------------|------|
+| **Relay (pump/solenoid)** | **6** | Sensor AD (PH2.0) | Relay IN → AD pin |
+| **Flow meter (YF-S201)** | **43** | UART1 P1 — TX | Flow signal → TX |
+| **Coin acceptor** (optional) | **44** | UART1 P1 — RX | Coin pulse → RX |
+
+Relay: **LOW = ON** (active-low module). Flow: **FALLING edge**, 100 pulses/L.
+
+Buong board map: [HARDWARE-PINS.md](HARDWARE-PINS.md)
+
+## Flash (Arduino IDE)
+
+1. Board: **ESP32-S3** (Waveshare ESP32-S3-Touch-LCD-7), USB CDC On Boot: **Enabled**
+2. Waveshare demo libs (para sa LCD): [ESP32-S3-Touch-LCD-7 wiki](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7)
+3. `cp config.h.example config.h` — siguraduhing may tamang `API_KEY` (mula sa vendo-admin)
+4. Buksan ang folder `jm_wifi_lcd7` → Upload → Serial Monitor **115200**
+
+## Dapat makita sa Serial (115200)
+
 ```
-WiFi OK
-GET /api/vendo/config -> 200
-Cloud OK — BANKERO GASOLINE LCD-7 · ₱95/L
+=== BANKERO GASOLINE LCD-7 ===
+Device: LCD7S3
+PINS: relay=GPIO6 flow=GPIO43 pulses/L default=100
+WiFi OK 192.168.x.x
+Cloud OK — BANKERO GASOLINE LCD-7 · PHP 95/L · 100 pulses/L
 ```
 
-## Test mula sa PC
+Every 15s: `Cloud OK` → **ONLINE** sa vendo-admin (hard refresh ang page).
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `jm_wifi_lcd7.ino` | Main loop |
+| `config.h` | WiFi, DEVICE_ID, API_KEY |
+| `pins.h` | GPIO relay / flow / coin |
+| `vendo_client.cpp` | MRP API client |
+| `dispense.cpp` | Relay + flow pulses |
+| `ui_bankero.cpp` | Waveshare LCD + LVGL |
+
+## Test cloud mula sa PC
 
 ```bash
 curl -s "https://jmtechsolution.cloud/api/vendo/config" \
@@ -38,4 +72,4 @@ curl -s "https://jmtechsolution.cloud/api/vendo/config" \
   -H "X-Api-Key: YOUR_GV_KEY"
 ```
 
-Pag 200 ang response, magiging **ONLINE** sa vendo-admin within ~1 min (refresh page).
+Kung HTTP 200, tama ang cloud. Ang ESP32 lang ang kailangan mag-flash para mag-ONLINE ang card.

@@ -19,9 +19,9 @@ enum AppState {
   ST_ERROR
 };
 
-const unsigned long CONFIG_MS = 30000;
+const unsigned long CONFIG_MS = 15000;   // keepalive — ONLINE kung < 2 min sa vendo-admin
 const unsigned long READY_MS = 3000;
-const unsigned long WIFI_RETRY_MS = 15000;
+const unsigned long WIFI_RETRY_MS = 10000;
 
 AppState state = ST_BOOT;
 VendoConfig cfg;
@@ -30,6 +30,7 @@ unsigned long lastConfig = 0;
 unsigned long lastReady = 0;
 unsigned long lastWifiTry = 0;
 bool cloudOnline = false;
+bool wasWifiConnected = false;
 
 static uint8_t qrBuf[4 + 128 * 128];
 
@@ -90,31 +91,45 @@ void setup() {
   Serial.begin(115200);
   delay(400);
   Serial.println("\n=== BANKERO GASOLINE LCD-7 ===");
-  Serial.printf("Device: %s\nCloud: https://%s/api/vendo\n", DEVICE_ID, CLOUD_HOST);
+  Serial.printf("Device: %s\n", DEVICE_ID);
+  Serial.printf("Cloud:  https://%s/api/vendo\n", CLOUD_HOST);
+  Serial.printf("WiFi:   %s\n", WIFI_SSID);
+  Serial.printf("Pay:    https://%s/pay/%s\n", CLOUD_HOST, DEVICE_ID);
 
   dispenseInit();
   uiInit();
   uiShowBoot();
 
-  connectWiFi();
+  wasWifiConnected = connectWiFi();
   refreshConfig();
   uiShowIdle(cfg, cloudOnline);
 
   lastConfig = millis();
   lastReady = millis();
   state = cloudOnline ? ST_IDLE : ST_ERROR;
+  if (!cloudOnline) {
+    Serial.println("WARN: Cloud OFFLINE — check API_KEY sa config.h at WiFi");
+  }
 }
 
 void loop() {
   uiLoop();
 
-  if (WiFi.status() != WL_CONNECTED) {
+  bool wifiOk = WiFi.status() == WL_CONNECTED;
+  if (!wifiOk) {
     if (millis() - lastWifiTry > WIFI_RETRY_MS) {
       lastWifiTry = millis();
       connectWiFi();
     }
+    wasWifiConnected = false;
     delay(50);
     return;
+  }
+
+  if (!wasWifiConnected) {
+    wasWifiConnected = true;
+    Serial.println("WiFi reconnected — syncing cloud...");
+    lastConfig = 0;
   }
 
   if (millis() - lastConfig > CONFIG_MS) {

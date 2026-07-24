@@ -9,9 +9,7 @@
 
 #define CLOUD_HOST    "jmtechsolution.cloud"
 #define DEVICE_ID     "LCD7S3"
-#define API_KEY       "PASTE_VENDO_API_KEY_HERE"
+#define API_KEY       "gv_a7c91e4f2b68d05e3a19c84f6b2d70e15c93a8f4e6b1d207"
 
-// Dispense hardware (adjust kung iba ang wiring)
-#define PIN_DISPENSE_RELAY  16
-#define PIN_FLOW_METER      17
-#define DEFAULT_PULSES_PER_LITER  100
+// GPIO pins — edit pins.h (see HARDWARE-PINS.md)
+#include "pins.h"
