@@ -34,41 +34,34 @@ Relay: **LOW = ON** (active-low module). Flow: **FALLING edge**, 100 pulses/L.
 
 Buong board map: [HARDWARE-PINS.md](HARDWARE-PINS.md)
 
-## Flash sa COM6 (PC mo)
+## Flash sa COM6 — PlatformIO (same as dati)
 
-**Dati:** terminal/command line ang ginamit (Cursor agent → `arduino-cli` o `esptool`), **hindi Arduino IDE GUI**.
+Naka-set na ang **COM6** sa `platformio.ini`.
 
-### Option 1 — Terminal flash (recommended, same as dati)
+### Quick flash (Windows)
 
-Double-click o run sa **Command Prompt** sa PC mo:
+Double-click sa PC mo:
+
+```
+flash-com6-pio.bat
+```
+
+### Manual (Cursor terminal sa PC)
 
 ```bat
 cd firmware\esp32\jm_wifi_lcd7
-flash-com6-terminal.bat
+pio run -e lcd7s3 -t upload
+pio device monitor -e lcd7s3
 ```
 
-Kailangan: [arduino-cli](https://arduino.github.io/arduino-cli/) + ESP32 core:
-```bat
-arduino-cli core install esp32:esp32
-arduino-cli lib install "ArduinoJson"
-```
+Kung wala ang `pio`: `pip install platformio` o VS Code + **PlatformIO extension**.
 
-### Option 2 — Arduino IDE GUI
+Build only: `pio run -e lcd7s3`
 
-| Setting | Value |
-|---------|-------|
-| **Port** | **COM6** |
-| **Board** | ESP32S3 Dev Module |
-| **USB CDC On Boot** | Enabled |
+### VS Code PlatformIO
 
-### Option 3 — PlatformIO (kung dati PIO ang ginamit)
-
-```bat
-cd firmware\esp32
-pio run -t upload --upload-port COM6
-```
-
-Test COM6: `flash-com6.bat`
+1. Open folder `firmware/esp32/jm_wifi_lcd7`
+2. Bottom bar: **lcd7s3** → **Upload** → **Monitor**
 
 
 ## Dapat makita sa Serial (115200)

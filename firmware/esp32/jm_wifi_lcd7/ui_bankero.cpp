@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "ui_bankero.h"
 #include "config.h"
 #include <WiFi.h>

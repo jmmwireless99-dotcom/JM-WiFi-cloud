@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "vendo_client.h"
 #include "config.h"
 #include <WiFi.h>
@@ -8,7 +9,7 @@ static String apiUrl(const char* path) {
   return String("https://") + CLOUD_HOST + path;
 }
 
-static bool vendoRequest(const char* method, const String& path, const String& body,
+static bool vendoRequest(const char* method, const char* path, const String& body,
                          String& response, int& code) {
   response = "";
   code = -1;
@@ -19,7 +20,8 @@ static bool vendoRequest(const char* method, const String& path, const String& b
 
   HTTPClient http;
   http.setTimeout(20000);
-  http.begin(client, apiUrl(path));
+  String url = apiUrl(path);
+  http.begin(client, url.c_str());
   http.addHeader("X-Device-Id", DEVICE_ID);
   http.addHeader("X-Api-Key", API_KEY);
   if (body.length()) http.addHeader("Content-Type", "application/json");
@@ -63,7 +65,8 @@ bool vendoFetchConfig(VendoConfig& out) {
   out.name = doc["name"] | DEVICE_ID;
   out.pricePerLiter = doc["pricePerLiter"] | 0.0f;
   out.pulsesPerLiter = doc["pulsesPerLiter"] | 0;
-  out.mqttTopic = doc["mqttTopic"] | String("vendo/") + DEVICE_ID;
+  const char* mqtt = doc["mqttTopic"];
+  out.mqttTopic = mqtt ? mqtt : String("vendo/") + DEVICE_ID;
 
   out.presetCount = 0;
   JsonArray presets = doc["presets"].as<JsonArray>();
@@ -147,8 +150,8 @@ bool vendoDownloadQrMono(int sessionId, uint8_t* buf, size_t cap, size_t& outLen
   client.setInsecure();
   HTTPClient http;
   http.setTimeout(30000);
-  String url = apiUrl(String("/api/vendo/sessions/") + sessionId + "/qr.mono");
-  http.begin(client, url);
+  String url = apiUrl((String("/api/vendo/sessions/") + sessionId + "/qr.mono").c_str());
+  http.begin(client, url.c_str());
   http.addHeader("X-Device-Id", DEVICE_ID);
   http.addHeader("X-Api-Key", API_KEY);
 
