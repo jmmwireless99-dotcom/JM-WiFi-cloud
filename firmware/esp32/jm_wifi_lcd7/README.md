@@ -2,69 +2,69 @@
 
 Para **ONLINE** ang device sa dashboard, kailangan mag-send ang ESP32 ng heartbeat sa cloud **every 30 seconds**.
 
-## Serial Monitor (COM6) — paano malaman kung connected
+## 1. I-configure bago i-flash
 
-1. Arduino IDE → Tools → Port → **COM6**
-2. Tools → Baud → **115200**
-3. I-reset ang ESP32 (button EN) o i-unplug/plug USB
-
-**Kung connected sa `candelaria-kitifi`:**
+```bash
+cp config.h.example config.h
 ```
-WiFi connecting to SSID: candelaria-kitifi
+
+Edit `config.h`:
+
+| Setting | Value |
+|---------|--------|
+| `WIFI_SSID` | `PPPOE-ACCESS` |
+| `WIFI_PASS` | `Father@services1985` |
+| `CLOUD_URL` | `https://jmtechsolution.cloud/allvendo` |
+| `API_KEY` | mula sa **Admin → Vendo List → API Key** (BANKERO site) |
+| `DEVICE_NAME` | hal. `BANKERO-GAS-LCD7` |
+
+## 2. Flash firmware
+
+1. Arduino IDE → Board: **ESP32-S3**
+2. Port: **COM6** (o kung saan naka-plug ang ESP)
+3. Upload `jm_wifi_lcd7.ino`
+4. Serial Monitor → **115200**
+
+## 3. Serial Monitor — dapat makita ito
+
+**Kung connected sa `PPPOE-ACCESS` at tama ang API key:**
+
+```
+WiFi connecting to SSID: PPPOE-ACCESS
 WiFi OK
-  SSID: candelaria-kitifi
+  SSID: PPPOE-ACCESS
   IP:   192.168.x.x
+POST https://jmtechsolution.cloud/allvendo/api/heartbeat -> 200
 Heartbeat OK — online sa cloud
 ```
 
-**Kung hindi connected:**
+**Kung hindi connected sa WiFi:**
+
 ```
-WiFi FAILED — check password o SSID candelaria-kitifi
+WiFi FAILED — check SSID/password (PPPOE-ACCESS)
 WiFi: DISCONNECTED
 ```
 
 **Kung WiFi OK pero OFFLINE pa rin sa dashboard:**
-- Mali ang `API_KEY` sa firmware
-- Kulang ang URL — dapat `https://jmtechsolution.cloud/allvendo`
-- Walang internet ang WiFi (local LAN lang)
 
-## CONFIG sa firmware
-
-```cpp
-const char* WIFI_SSID = "candelaria-kitifi";
-const char* WIFI_PASS = "password_ng_kitifi_wifi";
-const char* API_KEY   = "api_key_mula_sa_Vendo_List";
-```
-
-1. **WiFi** — naka-connect ba sa internet? (hindi lang sa local LAN)
-2. **CLOUD_URL** — dapat `https://jmtechsolution.cloud/allvendo` (may `/allvendo`)
-3. **API_KEY** — same key sa Vendo site sa admin (X-API-Key header)
-4. **Heartbeat loop** — dapat tumatakbo every 30s:
-   - `POST /allvendo/api/register-device`
-   - `POST /allvendo/api/heartbeat` with `device_id` + `mac_address`
-5. **Last seen** — kung lumang date (hal. 7/19), huminto ang heartbeat mula noon
+- Mali ang `API_KEY` sa `config.h`
+- Walang internet ang `PPPOE-ACCESS` network (kailangan may outbound HTTPS)
+- Mali ang `CLOUD_URL` — dapat may `/allvendo`
 
 ## Dashboard rule
 
 - **Online** = may heartbeat within **5 minutes**
 - **Offline** = walang heartbeat > 5 min (kahit naka-on ang ESP)
 
-## Test mula sa VPS/PC
+## Test mula sa PC (optional)
+
+Palitan ang `YOUR_API_KEY` mula sa Vendo List:
 
 ```bash
 curl -X POST "https://jmtechsolution.cloud/allvendo/api/heartbeat" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"mac_address":"AA:BB:CC:DD:EE:FF","device_type":"esp32-s3","name":"LCD7S3-test"}'
+  -d '{"mac_address":"AA:BB:CC:DD:EE:FF","device_type":"esp32-s3","name":"BANKERO-GAS-LCD7"}'
 ```
 
-Dapat `{ "ok": true, "status": "online" }`
-
-## Flash firmware
-
-Edit `jm_wifi_lcd7.ino`:
-- `WIFI_SSID`, `WIFI_PASS`
-- `API_KEY` from Vendo List
-- `DEVICE_NAME` (hal. LCD7S3)
-
-Upload sa ESP32-S3, buksan Serial Monitor 115200 — dapat makita `Heartbeat OK`.
+Dapat: `{ "ok": true, "status": "online" }`

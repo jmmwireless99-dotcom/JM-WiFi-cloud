@@ -3,11 +3,10 @@
  *
  * Keeps device ONLINE sa dashboard via POST /api/heartbeat every 30s.
  *
- * Arduino IDE / PlatformIO:
- *   - Board: ESP32-S3
- *   - Libraries: WiFi, HTTPClient, ArduinoJson, Preferences
- *
- * I-set ang CLOUD_URL, API_KEY, DEVICE_NAME bago i-flash.
+ * Setup:
+ *   1. Copy config.h.example → config.h
+ *   2. Ilagay ang API_KEY mula sa Admin → Vendo List
+ *   3. Flash sa ESP32-S3, Serial Monitor 115200
  */
 
 #include <WiFi.h>
@@ -15,14 +14,11 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include "config.h"
 
-// ─── CONFIG — palitan bago upload ─────────────────────────────
-const char* WIFI_SSID     = "candelaria-kitifi";
-const char* WIFI_PASS     = "YOUR_WIFI_PASSWORD";
-const char* CLOUD_URL     = "https://jmtechsolution.cloud/allvendo";
-const char* API_KEY       = "YOUR_SITE_API_KEY";
-const char* DEVICE_NAME   = "LCD7S3";
-const char* DEVICE_TYPE   = "esp32-s3";
+#ifndef WIFI_SSID
+#error Copy config.h.example to config.h and set WIFI_SSID
+#endif
 
 const unsigned long HEARTBEAT_MS = 30000;
 const unsigned long WIFI_RETRY_MS = 15000;
@@ -57,7 +53,7 @@ bool connectWiFi() {
     Serial.println("  RSSI: " + String(WiFi.RSSI()) + " dBm");
     return true;
   }
-  Serial.println("WiFi FAILED — check password o SSID candelaria-kitifi");
+  Serial.printf("WiFi FAILED — check SSID/password (%s)\n", WIFI_SSID);
   return false;
 }
 
@@ -78,7 +74,7 @@ String httpPostJson(const String& url, const String& body) {
   if (!wifiConnected()) return "";
 
   WiFiClientSecure client;
-  client.setInsecure();  // HTTPS without cert bundle — OK for cloud API
+  client.setInsecure();
 
   HTTPClient http;
   http.setTimeout(15000);
@@ -164,6 +160,10 @@ void setup() {
   delay(500);
   Serial.println("\n=== JM WiFi ESP32-S3 LCD7 ===");
   Serial.println(CLOUD_URL);
+
+  if (strcmp(API_KEY, "PASTE_VENDO_API_KEY_HERE") == 0) {
+    Serial.println("ERROR: I-set ang API_KEY sa config.h (Admin -> Vendo List -> API Key)");
+  }
 
   prefs.begin("jmwifi", true);
   deviceId = prefs.getString("device_id", "");

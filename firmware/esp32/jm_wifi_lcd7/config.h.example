@@ -1,0 +1,14 @@
+/*
+ * Copy to config.h and fill API_KEY from Admin → Vendo List → API Key
+ * (Do not commit config.h with real API key to public repos)
+ */
+#pragma once
+
+#define WIFI_SSID     "PPPOE-ACCESS"
+#define WIFI_PASS     "Father@services1985"
+
+#define CLOUD_URL     "https://jmtechsolution.cloud/allvendo"
+#define API_KEY       "PASTE_VENDO_API_KEY_HERE"
+
+#define DEVICE_NAME   "BANKERO-GAS-LCD7"
+#define DEVICE_TYPE   "esp32-s3"
