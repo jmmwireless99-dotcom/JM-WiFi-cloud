@@ -592,7 +592,7 @@
     }
     $('#device-list').innerHTML = `
       <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Vendo</th><th>MAC</th><th>Status</th><th>Last seen</th></tr></thead>
+        <thead><tr><th>Name</th><th>Type</th><th>Vendo</th><th>MAC</th><th>Status</th><th>Last seen</th><th>Diagnose</th></tr></thead>
         <tbody>
           ${data.devices.map((d) => `
             <tr>
@@ -601,7 +601,8 @@
               <td>${esc(d.site_name)}</td>
               <td class="mono">${esc(d.mac_address || '—')}</td>
               <td><span class="badge ${d.status}">${esc(d.status)}</span></td>
-              <td>${esc(d.last_seen || '—')}</td>
+              <td class="mono">${esc(d.last_seen || '—')}</td>
+              <td class="muted" style="font-size:0.85rem;max-width:260px">${esc(d.offline_reason || '')}</td>
             </tr>
           `).join('')}
         </tbody>

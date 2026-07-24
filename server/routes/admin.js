@@ -329,26 +329,24 @@ router.delete('/plans/:id', authAdmin, requireRole('admin', 'operator'), (req, r
 
 // ─── Devices ──────────────────────────────────────────────────
 
+const { refreshDeviceStatuses, offlineReason } = require('../lib/devices');
+
 router.get('/devices', authAdmin, (req, res) => {
+  refreshDeviceStatuses();
   const f = siteIdsSubquery(req.operator, MODULE);
   const devices = db.prepare(`
-    SELECT d.*, s.name as site_name
+    SELECT d.*, s.name as site_name,
+      CAST((julianday('now') - julianday(d.last_seen)) * 86400 AS INTEGER) as seconds_since_seen
     FROM devices d
     JOIN sites s ON s.id = d.site_id
     WHERE ${f.sql}
     ORDER BY d.last_seen DESC
-  `).all(...f.params);
+  `).all(...f.params).map((d) => ({
+    ...d,
+    offline_reason: offlineReason(d.last_seen)
+  }));
   res.json({ devices });
 });
-
-// Mark offline devices (no heartbeat > 5 min)
-function refreshDeviceStatuses() {
-  db.prepare(`
-    UPDATE devices SET status = 'offline'
-    WHERE status = 'online'
-      AND (last_seen IS NULL OR last_seen < datetime('now', '-5 minutes'))
-  `).run();
-}
 
 router.get('/devices/refresh', authAdmin, (req, res) => {
   refreshDeviceStatuses();

@@ -1,7 +1,14 @@
 const express = require('express');
 const { v4: uuid } = require('uuid');
 const db = require('../db');
-const { createVoucher, redeemVoucher } = require('../lib/voucher');
+const {
+  registerDevice: registerDeviceRecord,
+  findDevice,
+  touchDevice,
+  refreshDeviceStatuses,
+  isAllowedDeviceType,
+  DEVICE_TYPES
+} = require('../lib/devices');
 const { createHotspotUser } = require('../lib/mikrotik');
 const { pauseSession, resumeSession, keepalive, getResumableSession, getSessionById } = require('../lib/session');
 
@@ -56,44 +63,42 @@ router.get('/portal-config/:siteId', (req, res) => {
 
 router.post('/register-device', authDevice, (req, res) => {
   const { device_type, mac_address, name } = req.body;
-  if (!device_type || !['esp8266', 'mikrotik', 'vendo'].includes(device_type)) {
-    return res.status(400).json({ error: 'device_type must be esp8266, mikrotik, or vendo' });
+  if (!isAllowedDeviceType(device_type)) {
+    return res.status(400).json({ error: `device_type must be one of: ${DEVICE_TYPES.join(', ')}` });
   }
 
-  const existing = db.prepare(
-    'SELECT * FROM devices WHERE site_id = ? AND mac_address = ?'
-  ).get(req.site.id, mac_address);
-
-  if (existing) {
-    db.prepare(
-      "UPDATE devices SET last_seen = datetime('now'), status = 'online', name = COALESCE(?, name) WHERE id = ?"
-    ).run(name, existing.id);
-    return res.json({ device: existing, registered: false });
-  }
-
-  const id = uuid();
-  db.prepare(`
-    INSERT INTO devices (id, site_id, device_type, mac_address, name, last_seen, status)
-    VALUES (?, ?, ?, ?, ?, datetime('now'), 'online')
-  `).run(id, req.site.id, device_type, mac_address, name || `${device_type}-${mac_address}`);
+  const result = registerDeviceRecord(req.site.id, { device_type, mac_address, name });
+  if (result.error) return res.status(400).json({ error: result.error });
 
   res.json({
-    registered: true,
-    device: { id, site_id: req.site.id, device_type, mac_address, name }
+    registered: result.registered,
+    device: result.device,
+    device_id: result.device.id,
+    online: true
   });
 });
 
 router.post('/heartbeat', authDevice, (req, res) => {
-  const { device_id } = req.body;
-  const device = db.prepare(
-    'SELECT * FROM devices WHERE id = ? AND site_id = ?'
-  ).get(device_id, req.site.id);
+  const { device_id, mac_address, name, device_type } = req.body;
+  let device = findDevice(req.site.id, { device_id, mac_address });
 
-  if (!device) return res.status(404).json({ error: 'Device not found' });
+  if (!device && mac_address) {
+    const reg = registerDeviceRecord(req.site.id, {
+      device_type: device_type || 'esp32',
+      mac_address,
+      name: name || `device-${mac_address}`
+    });
+    if (reg.device) device = reg.device;
+  }
 
-  db.prepare(
-    "UPDATE devices SET last_seen = datetime('now'), status = 'online' WHERE id = ?"
-  ).run(device_id);
+  if (!device) {
+    return res.status(404).json({
+      error: 'Device not found — send device_id o mac_address sa heartbeat',
+      hint: 'POST /api/register-device muna, tapos heartbeat every 30s'
+    });
+  }
+
+  device = touchDevice(device.id, { name });
 
   const site = req.site;
   const plans = db.prepare(
@@ -102,6 +107,8 @@ router.post('/heartbeat', authDevice, (req, res) => {
 
   res.json({
     ok: true,
+    device_id: device.id,
+    status: 'online',
     config: {
       minutes_per_coin: site.minutes_per_coin,
       rate_per_hour: site.rate_per_hour,
