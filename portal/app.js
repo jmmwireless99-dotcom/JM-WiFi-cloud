@@ -1,0 +1,101 @@
+(function () {
+  'use strict';
+
+  const params = new URLSearchParams(window.location.search);
+  const config = {
+    apiBase: params.get('api') || '/api',
+    siteId: params.get('site_id') || '',
+    mac: params.get('mac') || params.get('mac-esc') || '',
+    ip: params.get('ip') || '',
+    linkLogin: params.get('link-login') || params.get('link-login-only') || '',
+    linkOrig: params.get('link-orig') || params.get('dst') || 'http://www.google.com',
+    error: params.get('error') || ''
+  };
+
+  // MikroTik passes variables via URL when using external login page
+  // e.g. ?mac=$(mac)&ip=$(ip)&link-login=$(link-login-only)&link-orig=$(link-orig-esc)
+
+  const statusEl = document.getElementById('status');
+  const macDisplay = document.getElementById('mac-display');
+  const form = document.getElementById('voucher-form');
+  const codeInput = document.getElementById('voucher-code');
+
+  if (config.mac) {
+    macDisplay.textContent = 'MAC: ' + config.mac;
+  }
+
+  if (config.error) {
+    showStatus('Login failed: ' + config.error, 'error');
+  }
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab + '-panel').classList.add('active');
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var code = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!code) return;
+
+    var btn = form.querySelector('button');
+    btn.disabled = true;
+    showStatus('Verifying voucher...', 'info');
+
+    fetch(config.apiBase + '/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        mac: config.mac,
+        site_id: config.siteId
+      })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.error) {
+          showStatus(data.error, 'error');
+          btn.disabled = false;
+          return;
+        }
+
+        showStatus('Connected! ' + data.minutes + ' minutes granted.', 'success');
+
+        // Redirect to MikroTik login URL with credentials
+        if (config.linkLogin) {
+          var loginUrl = config.linkLogin;
+          if (loginUrl.indexOf('?') === -1) {
+            loginUrl += '?username=' + encodeURIComponent(data.username) +
+              '&password=' + encodeURIComponent(data.password);
+          }
+          setTimeout(function () {
+            window.location.href = loginUrl;
+          }, 1500);
+        } else {
+          showStatus('Access granted for ' + data.minutes + ' min. Username: ' + data.username, 'success');
+          btn.disabled = false;
+        }
+      })
+      .catch(function () {
+        showStatus('Connection error. Please try again.', 'error');
+        btn.disabled = false;
+      });
+  });
+
+  function showStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status ' + type;
+    statusEl.classList.remove('hidden');
+  }
+
+  // Load site config for coin rate display
+  if (config.siteId) {
+    fetch(config.apiBase + '/site?api_key=' + config.siteId)
+      .catch(function () { /* ignore */ });
+  }
+})();

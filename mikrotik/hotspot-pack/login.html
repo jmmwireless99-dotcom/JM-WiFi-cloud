@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="-1">
+<title>JM WiFi — Login</title>
+<style>
+  body{margin:0;font-family:system-ui,sans-serif;background:#0b6e4f;color:#fff;display:grid;place-items:center;min-height:100vh}
+  .box{text-align:center;padding:24px;max-width:360px}
+  .brand{font-size:1.8rem;font-weight:800}
+  p{opacity:.9;line-height:1.5}
+  a{color:#fff}
+</style>
+<script>
+  (function () {
+    var q = 'mac=$(mac-esc)&ip=$(ip)&username=$(username)&link-login=$(link-login-only-esc)&link-orig=$(link-orig-esc)&error=$(error-esc)&chap-id=$(chap-id)&chap-challenge=$(chap-challenge)';
+    var portal = 'https://jmtechsolution.cloud/allvendo/portal/?' + q;
+    setTimeout(function () { location.replace(portal); }, 80);
+  })();
+</script>
+</head>
+<body>
+  <div class="box">
+    <div class="brand">JM WiFi</div>
+    <p>Redirecting to secure login portal…</p>
+    <p><a href="https://jmtechsolution.cloud/allvendo/portal/?mac=$(mac-esc)&ip=$(ip)&link-login=$(link-login-only-esc)&link-orig=$(link-orig-esc)">Click here</a> if not redirected.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30">
+<title>JM WiFi — Status</title>
+<style>
+  body{margin:0;font-family:system-ui,sans-serif;background:#0b6e4f;color:#fff;min-height:100vh;padding:20px}
+  .card{max-width:400px;margin:40px auto;background:rgba(255,255,255,.08);border-radius:14px;padding:20px}
+  h2{margin:0 0 12px}
+  table{width:100%;font-size:14px}
+  td{padding:6px 0;vertical-align:top}
+  td:first-child{opacity:.75;width:42%}
+  a{color:#fff;font-weight:600}
+  .btns{margin-top:16px;display:flex;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>JM WiFi</h2>
+    <table>
+      <tr><td>User</td><td>$(username)</td></tr>
+      <tr><td>IP</td><td>$(ip)</td></tr>
+      <tr><td>MAC</td><td>$(mac)</td></tr>
+      <tr><td>Session</td><td>$(uptime)</td></tr>
+      <tr><td>Time left</td><td>$(session-time-left)</td></tr>
+      <tr><td>Download</td><td>$(bytes-in-nice)</td></tr>
+      <tr><td>Upload</td><td>$(bytes-out-nice)</td></tr>
+    </table>
+    <div class="btns">
+      <a href="$(link-logout)">Logout</a>
+      <a href="$(link-orig)">Continue browsing</a>
+    </div>
+  </div>
+</body>
+</html>
