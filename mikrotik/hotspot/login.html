@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JM WiFi — Login</title>
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <main class="shell">
+    <header class="brand">
+      <p class="brand-name" id="brand-name">JM WiFi</p>
+      <p class="brand-domain">{{DOMAIN}}</p>
+      <p class="tagline" id="site-name">Connect to the internet</p>
+    </header>
+    <section class="card" aria-label="WiFi login">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="voucher">Vouchers</button>
+        <button type="button" class="tab" data-tab="coin">Coins</button>
+      </div>
+      <div id="voucher-panel" class="panel active">
+        <p class="info">Enter the code from the coin machine or calling. Time will pause when disconnected — no validity expiry. Random MAC OK.</p>
+        <form id="voucher-form">
+          <input type="text" id="voucher-code" placeholder="XXXXXXXX" maxlength="12" autocomplete="off" required>
+          <button type="submit" class="btn">Connect</button>
+        </form>
+      </div>
+      <div id="coin-panel" class="panel">
+        <h2 style="font-size:1.2rem;margin-bottom:8px;">Insert coin</h2>
+        <p class="info">Go to the coin machine, get your code, then enter it in the Vouchers tab.</p>
+        <p class="rate" id="coin-rate">1 coin = 5 minutes</p>
+        <ol class="steps">
+          <li>Insert coin in the machine</li>
+          <li>Read the voucher code</li>
+          <li>Enter here and tap Connect</li>
+        </ol>
+        <div id="plans" class="plans"></div>
+      </div>
+      <div id="status" class="status hidden" role="status"></div>
+    </section>
+    <footer class="footer">
+      <p>Powered by JM Tech Solution</p>
+      <p class="mac-info" id="mac-display"></p>
+    </footer>
+  </main>
+  <script src="portal.js"></script>
+</body>
+</html>

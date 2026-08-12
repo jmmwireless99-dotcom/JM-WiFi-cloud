@@ -1,0 +1,15 @@
+/*
+ * BANKERO GASOLINE LCD-7 — MRP Vendo Cloud
+ * Copy to config.h before flash.
+ */
+#pragma once
+
+#define WIFI_SSID     "PPPOE-ACCESS"
+#define WIFI_PASS     "Father@services1985"
+
+#define CLOUD_HOST    "jmtechsolution.cloud"
+#define DEVICE_ID     "LCD7S3"
+#define API_KEY       "gv_a7c91e4f2b68d05e3a19c84f6b2d70e15c93a8f4e6b1d207"
+
+// GPIO pins — edit pins.h (see HARDWARE-PINS.md)
+#include "pins.h"

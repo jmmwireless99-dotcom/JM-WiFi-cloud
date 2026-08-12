@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JM WiFi — Status</title>
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <main class="shell">
+    <header class="brand">
+      <p class="brand-name">JM WiFi</p>
+      <p class="brand-domain">{{DOMAIN}}</p>
+      <p class="tagline">Your session</p>
+    </header>
+    <section class="card">
+      <div class="stat-grid">
+        <div class="stat-row"><span>User</span><span>$(username)</span></div>
+        <div class="stat-row"><span>IP</span><span>$(ip)</span></div>
+        <div class="stat-row"><span>MAC</span><span>$(mac)</span></div>
+        <div class="stat-row"><span>Uptime</span><span>$(uptime)</span></div>
+        <div class="stat-row"><span>Download</span><span>$(bytes-in-nice)</span></div>
+        <div class="stat-row"><span>Upload</span><span>$(bytes-out-nice)</span></div>
+      </div>
+      <a class="btn" href="$(link-logout)">Logout</a>
+      <a class="btn btn-ghost" href="$(link-login-only)">Buy more time</a>
+    </section>
+    <footer class="footer"><p>Powered by JM Tech Solution</p></footer>
+  </main>
+</body>
+</html>

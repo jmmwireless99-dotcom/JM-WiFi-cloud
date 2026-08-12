@@ -1,0 +1,10 @@
+node_modules/
+server/db/jmwifi.db
+server/db/jmwifi.db-wal
+server/db/jmwifi.db-shm
+.env
+firmware/esp32/jm_wifi_lcd7/config.h
+firmware/esp32/jm_wifi_lcd7/.pio/
+*.log
+out/
+.DS_Store

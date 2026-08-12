@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JM WiFi — Connected</title>
+  <link rel="stylesheet" href="portal.css">
+  <meta http-equiv="refresh" content="2;url=$(link-redirect)">
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <main class="shell">
+    <header class="brand">
+      <p class="brand-name">JM WiFi</p>
+      <p class="brand-domain">{{DOMAIN}}</p>
+      <p class="tagline">You are connected</p>
+    </header>
+    <section class="card">
+      <div class="icon-ok">✓</div>
+      <p class="info" style="text-align:center;">Login successful. Redirecting to the internet…</p>
+      <div class="spinner"></div>
+      <a class="btn" href="$(link-redirect)">Continue now</a>
+    </section>
+    <footer class="footer"><p>Powered by JM Tech Solution</p></footer>
+  </main>
+  <script>
+    setTimeout(function () { location.href = '$(link-redirect)'; }, 1500);
+  </script>
+</body>
+</html>
