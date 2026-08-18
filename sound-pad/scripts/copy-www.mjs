@@ -13,6 +13,7 @@ const files = [
   "styles.css",
   "app.js",
   "mobile.js",
+  "desktop.js",
   "sounds.js",
   "manifest.json",
   "sw.js",

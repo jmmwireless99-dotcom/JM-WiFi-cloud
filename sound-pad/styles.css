@@ -359,3 +359,102 @@ body.native-app {
     position: static;
   }
 }
+
+/* Laptop / Desktop layout */
+body.desktop-app {
+  padding-top: 0;
+}
+
+body.desktop-app .app {
+  max-width: 1400px;
+  padding: 16px 20px 24px;
+}
+
+body.desktop-app .brand h1 {
+  font-size: 1.45rem;
+}
+
+body.desktop-app .banner {
+  font-size: 0.85rem;
+  padding: 10px 18px;
+}
+
+body.desktop-app .pad-row,
+body.desktop-app .pad-grid {
+  gap: 10px;
+}
+
+body.desktop-app .pad-row {
+  grid-template-columns: repeat(10, 1fr);
+}
+
+body.desktop-app .pad-grid {
+  grid-template-columns: repeat(10, 1fr);
+}
+
+body.desktop-app .pad {
+  min-height: 78px;
+  font-size: 0.72rem;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+body.desktop-app .pad:hover {
+  filter: brightness(1.08);
+}
+
+body.desktop-app .controls {
+  position: static;
+  grid-template-columns: 1fr 1fr 160px;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+
+body.desktop-app .stop-btn {
+  min-height: 56px;
+  font-size: 0.95rem;
+}
+
+body.desktop-app .stop-btn:hover {
+  filter: brightness(1.05);
+}
+
+.desktop-shortcuts {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.desktop-shortcuts.hidden {
+  display: none;
+}
+
+.desktop-shortcuts h3 {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.desktop-shortcuts p {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.72rem;
+  font-family: inherit;
+}
+
+@media (min-width: 900px) and (hover: hover) {
+  .controls {
+    position: static;
+  }
+}
+

@@ -1,66 +1,83 @@
-# John & Joy – Sound Pad (Mobile App)
+# John & Joy – Sound Pad
 
-DJ-style sound pad app para sa **Sand & Gravel Remix** — pwede sa phone, tablet, at Android APK.
+DJ-style sound pad app para sa **Sand & Gravel Remix** — pwede sa **phone**, **laptop**, at **desktop**.
 
 ## Features
 
 - 10 **Ambient** pads (loop ∞)
 - 40 **Effect** pads (one-shot DJ drops)
 - Pitch & Gain sliders
-- Long-press to upload MP3/WAV
-- **Installable sa phone** (PWA)
-- **Android APK** via Capacitor
+- Upload MP3/WAV sa bawat pad
+- **Phone app** (PWA + Android APK)
+- **Laptop/Desktop app** (Electron — Windows, Mac, Linux)
 
 ---
 
-## Option 1: I-install sa Phone (Pinakamadali)
+## Laptop / Desktop App (Electron)
 
-### Android (Chrome)
+### Run sa laptop (development)
 
-1. I-host ang app o buksan sa browser
-2. Tap **Install** sa banner, o Menu → **Add to Home screen**
-3. May icon na sa home screen — parang tunay na app
+```bash
+cd sound-pad
+npm install
+npm run desktop
+```
 
-### iPhone (Safari)
+Bubukas ang app na parang tunay na desktop program — may menu bar, fullscreen, at keyboard shortcuts.
 
-1. Buksan sa Safari
-2. Tap **Share** (box with arrow)
-3. **Add to Home Screen**
-4. Tap **Add**
+### Build installer (.exe / .dmg / .AppImage)
+
+```bash
+cd sound-pad
+npm install
+npm run desktop:build        # Lahat ng platform
+npm run desktop:build:win    # Windows .exe installer
+npm run desktop:build:mac    # Mac .dmg
+npm run desktop:build:linux  # Linux AppImage
+```
+
+Output nasa: `dist-desktop/`
+
+### Laptop keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Space** | Stop All |
+| **Right-click** pad | Upload MP3/WAV |
+| **1–0** | Effects 1–10 |
+| **Q–P** | Effects 11–20 |
+| **A–L** | Effects 21–30 |
+| **Z–/** | Effects 31–40 |
+| **Ctrl+Shift+S** | Stop All (menu) |
+
+### Browser sa laptop
+
+Buksan lang sa Chrome/Edge — automatic na 10-column grid at keyboard shortcuts kapag malaki ang screen.
 
 ---
 
-## Option 2: Android APK (Play Store ready)
+## Phone App
 
-### Requirements
+### I-install sa Phone (PWA)
 
-- Node.js 18+
-- Android Studio (para mag-build ng APK)
+**Android:** Chrome → Install / Add to Home screen  
+**iPhone:** Safari → Share → Add to Home Screen
 
-### Steps
+### Android APK
 
 ```bash
 cd sound-pad
 npm install
 npm run build:web
 npx cap add android
-npx cap sync android
 npx cap open android
 ```
 
-Sa Android Studio:
-1. **Build → Build Bundle(s) / APK(s) → Build APK(s)**
-2. APK nasa: `android/app/build/outputs/apk/debug/`
-
-### Install APK sa phone
-
-1. Copy ang APK sa phone
-2. Enable **Install from unknown sources**
-3. Tap ang APK file → Install
+Build APK sa Android Studio.
 
 ---
 
-## Local testing
+## Local testing (browser)
 
 ```bash
 cd sound-pad
@@ -73,16 +90,15 @@ Buksan: http://localhost:8080
 
 ---
 
-## Phone tips
+## Controls
 
-| Action | Result |
-|--------|--------|
-| **Tap** pad | Play sound |
-| **Long-press** (0.6s) | Upload MP3/WAV |
-| **Tap** ambient | Start/stop loop |
-| **Stop All** | Stop all loops |
+| Platform | Play | Upload |
+|----------|------|--------|
+| **Phone** | Tap | Long-press |
+| **Laptop** | Click | Right-click |
+| **Desktop app** | Click | Right-click |
 
-Custom sounds are saved sa phone browser storage.
+Custom sounds saved sa local storage ng device.
 
 ---
 

@@ -463,12 +463,12 @@
   function bindPadEvents(pad) {
     const startPress = () => {
       longPressTimer = setTimeout(() => {
-        pendingUploadPadId = pad.dataset.id;
-        fileInput.click();
+        requestUploadForPad(pad.dataset.id);
       }, 600);
     };
 
     const endPress = (e) => {
+      if (e.button !== 0) return;
       clearTimeout(longPressTimer);
       if (pendingUploadPadId) return;
       e.preventDefault();
@@ -478,6 +478,11 @@
     pad.addEventListener("mousedown", startPress);
     pad.addEventListener("mouseup", endPress);
     pad.addEventListener("mouseleave", () => clearTimeout(longPressTimer));
+    pad.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      clearTimeout(longPressTimer);
+      requestUploadForPad(pad.dataset.id);
+    });
     pad.addEventListener("touchstart", (e) => {
       startPress();
       e.preventDefault();
@@ -517,8 +522,39 @@
     if (masterGain) masterGain.gain.value = gain;
   });
 
+  function requestUploadForPad(id) {
+    pendingUploadPadId = id;
+    fileInput.click();
+  }
+
+  function triggerById(id) {
+    const pad = document.querySelector(`.pad[data-id="${id}"]`);
+    if (pad) triggerPad(pad);
+  }
+
+  function getShortcutMap() {
+    const keys = [
+      "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+      "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
+      "a", "s", "d", "f", "g", "h", "j", "k", "l", ";",
+      "z", "x", "c", "v", "b", "n", "m", ",", ".", "/",
+    ];
+    const map = {};
+    window.SOUND_PAD.effects.forEach((effect, index) => {
+      if (keys[index]) map[keys[index]] = effect.id;
+    });
+    return map;
+  }
+
   stopAllBtn.addEventListener("click", stopAll);
 
   renderPads();
   document.querySelectorAll(".pad").forEach(bindPadEvents);
+
+  window.jjPad = {
+    triggerById,
+    uploadToPad: requestUploadForPad,
+    stopAll,
+    getShortcuts: getShortcutMap,
+  };
 })();

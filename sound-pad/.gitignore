@@ -3,5 +3,6 @@ www/
 android/
 ios/
 .capacitor/
+dist-desktop/
 *.log
 .DS_Store
