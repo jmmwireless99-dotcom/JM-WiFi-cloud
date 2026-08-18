@@ -421,6 +421,7 @@
 
   async function triggerPad(pad) {
     ensureAudio();
+    window.jjHaptic?.(15);
     const id = pad.dataset.id;
     const isLoop = pad.dataset.loop === "1";
 

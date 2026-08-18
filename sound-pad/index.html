@@ -2,11 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#d97706" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="J&J Pad" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="DJ sound pad for John & Joy Sand & Gravel Remix" />
   <title>John & Joy – Sound Pad</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="install-banner" class="install-banner hidden">
+    <div>
+      <strong>I-install sa phone</strong>
+      <p>Idagdag sa Home Screen para parang tunay na app</p>
+    </div>
+    <button id="install-btn" type="button">Install</button>
+    <button id="install-dismiss" type="button" aria-label="Dismiss">✕</button>
+  </div>
+
   <div class="app">
     <header class="header">
       <div class="brand">
@@ -40,12 +58,13 @@
       <button id="stop-all" class="stop-btn" type="button">Stop All</button>
     </footer>
 
-    <p class="note">Tip: Long-press any pad to upload your own MP3/WAV sound.</p>
+    <p class="note">Tap = play · Long-press = upload MP3/WAV</p>
   </div>
 
   <input id="file-input" type="file" accept="audio/*" hidden />
 
   <script src="sounds.js"></script>
+  <script src="mobile.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
