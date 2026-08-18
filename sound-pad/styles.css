@@ -1,0 +1,245 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --bg: #1a1208;
+  --panel: #d97706;
+  --panel-dark: #b45309;
+  --pad: #111827;
+  --pad-active: #f59e0b;
+  --text: #fef3c7;
+  --muted: #fcd34d;
+  --loop: #22c55e;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(circle at top, #3b2f1a 0%, var(--bg) 55%);
+  color: var(--text);
+  min-height: 100%;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 12px 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  font-size: 1.8rem;
+}
+
+.brand h1 {
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+.banner {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #1a1208;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.ambients-section {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)),
+    linear-gradient(180deg, #92400e, #78350f);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.section-title {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hint {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.effects-section {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.03) 0 8px,
+      transparent 8px 16px
+    ),
+    linear-gradient(180deg, var(--panel), var(--panel-dark));
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.pad-row,
+.pad-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.pad-row {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.pad-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (min-width: 700px) {
+  .pad-row {
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  .pad-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+}
+
+.pad {
+  position: relative;
+  aspect-ratio: 1.15;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1f2937, var(--pad));
+  color: #f9fafb;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 8px 6px;
+  cursor: pointer;
+  box-shadow:
+    0 3px 0 #030712,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.05s ease, background 0.1s ease, box-shadow 0.05s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.pad span {
+  display: block;
+  pointer-events: none;
+}
+
+.pad:active,
+.pad.playing {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #030712,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pad.playing {
+  background: linear-gradient(180deg, #fde68a, var(--pad-active));
+  color: #1a1208;
+}
+
+.pad.loop::after {
+  content: "∞";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.7rem;
+  color: var(--loop);
+}
+
+.pad.loop.playing::after {
+  color: #14532d;
+}
+
+.pad.custom::before {
+  content: "★";
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 0.55rem;
+  color: #fbbf24;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+}
+
+.control label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+.control input[type="range"] {
+  width: 100%;
+  accent-color: #f59e0b;
+}
+
+.control span {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.stop-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: #ef4444;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #991b1b;
+}
+
+.stop-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #991b1b;
+}
+
+.note {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}

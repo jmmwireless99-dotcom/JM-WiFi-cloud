@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>John & Joy – Sound Pad</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <span class="brand-icon">🚛</span>
+        <h1>John & Joy Sound Pad</h1>
+      </div>
+      <div class="banner">SAND & GRAVEL REMIX</div>
+    </header>
+
+    <section class="section ambients-section">
+      <h2 class="section-title">Ambients <span class="hint">tap to loop ∞</span></h2>
+      <div id="ambients-grid" class="pad-row ambients"></div>
+    </section>
+
+    <section class="section effects-section">
+      <h2 class="section-title">Effects</h2>
+      <div id="effects-grid" class="pad-grid effects"></div>
+    </section>
+
+    <footer class="controls">
+      <div class="control">
+        <label for="pitch">♪ Pitch</label>
+        <input id="pitch" type="range" min="0.5" max="2" step="0.01" value="1" />
+        <span id="pitch-value">1.00x</span>
+      </div>
+      <div class="control">
+        <label for="gain">🔊 Gain</label>
+        <input id="gain" type="range" min="0" max="1" step="0.01" value="0.85" />
+        <span id="gain-value">85%</span>
+      </div>
+      <button id="stop-all" class="stop-btn" type="button">Stop All</button>
+    </footer>
+
+    <p class="note">Tip: Long-press any pad to upload your own MP3/WAV sound.</p>
+  </div>
+
+  <input id="file-input" type="file" accept="audio/*" hidden />
+
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
