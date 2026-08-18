@@ -1,0 +1,19 @@
+{
+  "appId": "com.johnjoy.soundpad",
+  "appName": "John & Joy Sound Pad",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#1a1208",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#1a1208"
+    }
+  }
+}

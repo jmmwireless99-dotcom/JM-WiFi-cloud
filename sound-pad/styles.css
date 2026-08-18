@@ -1,0 +1,460 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --bg: #1a1208;
+  --panel: #d97706;
+  --panel-dark: #b45309;
+  --pad: #111827;
+  --pad-active: #f59e0b;
+  --text: #fef3c7;
+  --muted: #fcd34d;
+  --loop: #22c55e;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at top, #3b2f1a 0%, var(--bg) 55%);
+  color: var(--text);
+  min-height: 100%;
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  touch-action: manipulation;
+}
+
+body.native-app {
+  padding-top: calc(var(--safe-top) + 4px);
+}
+
+.install-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #1a1208;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.install-banner.hidden {
+  display: none;
+}
+
+.install-banner p {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.install-banner strong {
+  font-size: 0.85rem;
+}
+
+#install-btn {
+  margin-left: auto;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #1a1208;
+  color: #fef3c7;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+#install-dismiss {
+  border: none;
+  background: transparent;
+  color: #1a1208;
+  font-size: 1rem;
+  padding: 4px;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 10px calc(24px + var(--safe-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.brand h1 {
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.banner {
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #1a1208;
+  font-weight: 800;
+  font-size: 0.62rem;
+  padding: 7px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+}
+
+.section {
+  margin-bottom: 12px;
+}
+
+.ambients-section {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12)),
+    linear-gradient(180deg, #92400e, #78350f);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.section-title {
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.hint {
+  font-size: 0.68rem;
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.effects-section {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.03) 0 8px,
+      transparent 8px 16px
+    ),
+    linear-gradient(180deg, var(--panel), var(--panel-dark));
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.pad-row,
+.pad-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.pad-row,
+.pad-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (min-width: 480px) {
+  .pad-row,
+  .pad-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .brand h1 {
+    font-size: 1.15rem;
+  }
+
+  .banner {
+    font-size: 0.72rem;
+  }
+}
+
+@media (min-width: 700px) {
+  .pad-row {
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  .pad-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  .app {
+    padding: 12px 12px 24px;
+  }
+}
+
+.pad {
+  position: relative;
+  aspect-ratio: 1.05;
+  min-height: 64px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1f2937, var(--pad));
+  color: #f9fafb;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 8px 4px;
+  cursor: pointer;
+  box-shadow:
+    0 3px 0 #030712,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.05s ease, background 0.1s ease, box-shadow 0.05s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+@media (min-width: 480px) {
+  .pad {
+    font-size: 0.62rem;
+    aspect-ratio: 1.15;
+  }
+}
+
+.pad span {
+  display: block;
+  pointer-events: none;
+}
+
+.pad:active,
+.pad.playing {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 1px 0 #030712,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pad.playing {
+  background: linear-gradient(180deg, #fde68a, var(--pad-active));
+  color: #1a1208;
+}
+
+.pad.loop::after {
+  content: "∞";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.7rem;
+  color: var(--loop);
+}
+
+.pad.loop.playing::after {
+  color: #14532d;
+}
+
+.pad.custom::before {
+  content: "★";
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 0.55rem;
+  color: #fbbf24;
+}
+
+.controls {
+  position: sticky;
+  bottom: calc(8px + var(--safe-bottom));
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.control label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.control input[type="range"] {
+  width: 100%;
+  accent-color: #f59e0b;
+  min-height: 28px;
+}
+
+.control span {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.stop-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  min-height: 48px;
+  background: #ef4444;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #991b1b;
+}
+
+.stop-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #991b1b;
+}
+
+.note {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  padding-bottom: var(--safe-bottom);
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .header {
+    margin-bottom: 8px;
+  }
+
+  .brand h1 {
+    font-size: 0.9rem;
+  }
+
+  .pad {
+    min-height: 52px;
+    font-size: 0.52rem;
+  }
+
+  .controls {
+    position: static;
+  }
+}
+
+/* Laptop / Desktop layout */
+body.desktop-app {
+  padding-top: 0;
+}
+
+body.desktop-app .app {
+  max-width: 1400px;
+  padding: 16px 20px 24px;
+}
+
+body.desktop-app .brand h1 {
+  font-size: 1.45rem;
+}
+
+body.desktop-app .banner {
+  font-size: 0.85rem;
+  padding: 10px 18px;
+}
+
+body.desktop-app .pad-row,
+body.desktop-app .pad-grid {
+  gap: 10px;
+}
+
+body.desktop-app .pad-row {
+  grid-template-columns: repeat(10, 1fr);
+}
+
+body.desktop-app .pad-grid {
+  grid-template-columns: repeat(10, 1fr);
+}
+
+body.desktop-app .pad {
+  min-height: 78px;
+  font-size: 0.72rem;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+body.desktop-app .pad:hover {
+  filter: brightness(1.08);
+}
+
+body.desktop-app .controls {
+  position: static;
+  grid-template-columns: 1fr 1fr 160px;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+
+body.desktop-app .stop-btn {
+  min-height: 56px;
+  font-size: 0.95rem;
+}
+
+body.desktop-app .stop-btn:hover {
+  filter: brightness(1.05);
+}
+
+.desktop-shortcuts {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.desktop-shortcuts.hidden {
+  display: none;
+}
+
+.desktop-shortcuts h3 {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.desktop-shortcuts p {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.72rem;
+  font-family: inherit;
+}
+
+@media (min-width: 900px) and (hover: hover) {
+  .controls {
+    position: static;
+  }
+}
+
