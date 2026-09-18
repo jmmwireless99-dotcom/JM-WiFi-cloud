@@ -8,7 +8,8 @@
 # Gaya ng existing 2/3-WAN script (dhcp-client recursive + PCC mangle).
 # Probe IP magkakaiba per WAN para hindi mag-collide ang check-gateway.
 #
-# IMPORT: paste sa Terminal ng CLEAN CCR1036  O  /import file=ccr-v7-8wan-pcc.rsc
+# IMPORT: paste sa Terminal  O  SSH: /import file=ccr-v7-8wan-pcc.rsc
+# Remote apply: mikrotik/apply-via-ssh.sh  (SSH 22)  o  RouterOS API 8728
 # Pagkatapos:
 #   /interface sstp-client set sstp-cctv password="..."
 #   /interface sstp-client set sstp-out1 password="..."
@@ -29,7 +30,8 @@ set allow-fast-path=no rp-filter=loose
 /ip dns
 set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4
 /ip service
-set api address=10.90.0.0/21
+set ssh disabled=no port=22
+set api disabled=no port=8728
 set winbox address=10.90.0.0/21
 
 ###############################################################################
@@ -124,6 +126,8 @@ add address=10.90.0.0/21 list=lan-ip comment="JM TECH VPN"
 add address=jmtechsolution.cloud list=vpn-hub
 add address=72.62.73.235 list=vpn-hub
 add address=124.105.235.44 list=vpn-hub
+add address=13.58.39.217 list=mgmt comment="cursor apply host"
+add address=3.149.179.208 list=mgmt comment="cursor apply host 2"
 
 ###############################################################################
 # DHCP clients — recursive routes (paste-safe { } scripts)
@@ -274,6 +278,10 @@ add action=accept chain=input comment="JM TECH SOLUTION: Winbox via VPN" \
     dst-port=8291 protocol=tcp src-address=10.90.0.0/21
 add action=accept chain=input comment="JM TECH SOLUTION: API via VPN" \
     dst-port=8728 protocol=tcp src-address=10.90.0.0/21
+add action=accept chain=input comment="mgmt SSH" src-address-list=mgmt \
+    protocol=tcp dst-port=22
+add action=accept chain=input comment="mgmt API" src-address-list=mgmt \
+    protocol=tcp dst-port=8728
 add action=drop chain=input comment="drop WAN input" in-interface-list=WAN
 add action=accept chain=forward comment="JM TECH SOLUTION: established" \
     connection-state=established,related,untracked
