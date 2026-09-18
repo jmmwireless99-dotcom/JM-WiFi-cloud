@@ -2,6 +2,8 @@
 # Push ccr-v7-8wan-pcc.rsc to a RouterOS v7 box over SSH, then /import.
 #
 #   MT_HOST=x.x.x.x MT_USER=admin MT_PASS='secret' ./apply-via-ssh.sh
+#   MT_HOST=10.90.0.33 MT_USER=admin MT_PASS='secret' ./apply-via-ssh.sh
+#   SSTP_PASS='...' MT_HOST=... MT_USER=admin MT_PASS='...' ./apply-via-ssh.sh
 #   MT_HOST=x.x.x.x MT_USER=admin MT_PASS='secret' ./apply-via-ssh.sh --bootstrap
 #
 set -euo pipefail
@@ -51,8 +53,17 @@ echo "==> upload $RSC -> $FILE_REMOTE"
 "${SCP[@]}" "$RSC" "${USER}@${HOST}:${FILE_REMOTE}"
 echo "==> /import $FILE_REMOTE"
 run "/import file-name=$FILE_REMOTE verbose=yes"
-echo "==> identity / WAN / dhcp"
+
+if [[ -n "${SSTP_PASS:-}" ]]; then
+  echo "==> set sstp-cctv password"
+  run "/interface sstp-client set [find name=sstp-cctv] user=magsay2x-core-td8k password=\"${SSTP_PASS}\" profile=default verify-server-certificate=no verify-server-address-from-certificate=no disabled=no"
+fi
+
+echo "==> identity / SSTP / WAN / dhcp"
 run "/system identity print"
+run "/interface sstp-client print"
+run "/interface sstp-client monitor [find name=sstp-cctv] once"
+run "/ip address print where interface=sstp-cctv"
 run "/interface ethernet print where comment~\"WAN\""
 run "/ip dhcp-client print"
 run "/routing table print"

@@ -8,13 +8,13 @@
 # Gaya ng existing 2/3-WAN script (dhcp-client recursive + PCC mangle).
 # Probe IP magkakaiba per WAN para hindi mag-collide ang check-gateway.
 #
-# IMPORT: paste sa Terminal  O  SSH: /import file=ccr-v7-8wan-pcc.rsc
-# Remote apply: mikrotik/apply-via-ssh.sh  (SSH 22)  o  RouterOS API 8728
-# Pagkatapos:
-#   /interface sstp-client set sstp-cctv password="..."
-#   /interface sstp-client set sstp-out1 password="..."
-#   /ip dhcp-client renew [find]
-# Unused WAN: /ip dhcp-client disable [find interface="etherN-ISPN"]
+# IMPORT: paste sa Terminal  O  SSH via VPN (10.90.0.33)  O  /import file=...
+# SSTP user magsay2x-core-td8k  tunnel 10.90.0.33
+#   Winbox: jmtechsolution.cloud:52711 → 10.90.0.33:8291
+#   API:    jmtechsolution.cloud:52712 → 10.90.0.33:8728
+#   SSH:    10.90.0.33:22 via VPN (hub DNAT kung kailangan ng public map)
+# Password: /interface sstp-client set [find name=sstp-cctv] password="..."
+# Pagkatapos: /ip dhcp-client renew [find]
 # HUWAG mag-FastTrack — masisira ang PCC.
 
 /system identity
@@ -31,8 +31,8 @@ set allow-fast-path=no rp-filter=loose
 set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4
 /ip service
 set ssh disabled=no port=22
-set api disabled=no port=8728
-set winbox address=10.90.0.0/21
+set api disabled=no port=8728 address=10.90.0.0/21
+set winbox disabled=no address=10.90.0.0/21
 
 ###############################################################################
 # Ethernet — 8 WAN, no rename of SFP (LAN L3 ports)
@@ -63,15 +63,14 @@ add disabled=no fib name=to-WAN7
 add disabled=no fib name=to-WAN8
 
 ###############################################################################
-# SSTP
+# SSTP — JM TECH hub (password i-set sa device, huwag i-commit sa git)
+# user magsay2x-core-td8k  tunnel 10.90.0.33
 ###############################################################################
 /interface sstp-client
 add connect-to=jmtechsolution.cloud disabled=no name=sstp-cctv port=4443 \
-    user=MAGSAY2X-CORE profile=default-encryption \
-    verify-server-address-from-certificate=no comment="JM TECH hub :4443"
-add connect-to=124.105.235.44 disabled=no name=sstp-out1 profile=\
-    default-encryption user=MALUBECORE \
-    verify-server-address-from-certificate=no comment="legacy SSTP :443"
+    user="magsay2x-core-td8k" password="" profile=default \
+    verify-server-certificate=no verify-server-address-from-certificate=no \
+    comment="JM TECH hub 10.90.0.33"
 
 ###############################################################################
 # Lists
@@ -93,7 +92,6 @@ add interface=ether8-ISP8 list=WAN
 add interface=sfp-sfpplus1 list=LAN
 add interface=sfp-sfpplus2 list=LAN
 add interface=sstp-cctv list=VPN
-add interface=sstp-out1 list=VPN
 
 ###############################################################################
 # LAN IPs — diretso sa SFP, walang bridge
@@ -125,7 +123,6 @@ add address=192.168.123.0/24 list=lan-ip
 add address=10.90.0.0/21 list=lan-ip comment="JM TECH VPN"
 add address=jmtechsolution.cloud list=vpn-hub
 add address=72.62.73.235 list=vpn-hub
-add address=124.105.235.44 list=vpn-hub
 add address=13.58.39.217 list=mgmt comment="cursor apply host"
 add address=3.149.179.208 list=mgmt comment="cursor apply host 2"
 
@@ -262,8 +259,6 @@ add add-default-route=no interface=ether8-ISP8 use-peer-dns=no use-peer-ntp=no c
 /ip route
 add dst-address=72.62.73.235/32 gateway=1.1.1.1 check-gateway=ping distance=1 \
     target-scope=11 comment="SSTP jmtech via WAN1"
-add dst-address=124.105.235.44/32 gateway=1.1.1.1 check-gateway=ping distance=1 \
-    target-scope=11 comment="SSTP 124.105 via WAN1"
 
 ###############################################################################
 # Filter
@@ -278,6 +273,8 @@ add action=accept chain=input comment="JM TECH SOLUTION: Winbox via VPN" \
     dst-port=8291 protocol=tcp src-address=10.90.0.0/21
 add action=accept chain=input comment="JM TECH SOLUTION: API via VPN" \
     dst-port=8728 protocol=tcp src-address=10.90.0.0/21
+add action=accept chain=input comment="JM TECH SOLUTION: SSH via VPN" \
+    dst-port=22 protocol=tcp src-address=10.90.0.0/21
 add action=accept chain=input comment="mgmt SSH" src-address-list=mgmt \
     protocol=tcp dst-port=22
 add action=accept chain=input comment="mgmt API" src-address-list=mgmt \
