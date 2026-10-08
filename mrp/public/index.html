@@ -2693,41 +2693,53 @@ function Esp8266CoinModal({ wifiSites, defaultSiteId, onClose, onDone }) {
     </div></div>`;
 }
 
-function NvrModal({ station, nvr, onClose, onDone }) {
+function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
   const [f,setF]=useState({
     name: nvr?.name || '',
-    notes: nvr?.notes || '',
+    area: nvr?.notes || '',
+    stationId: station?.id || nvr?.stationId || (stations[0]?.id ?? ''),
     lat: nvr?.lat != null ? String(nvr.lat) : '',
     lng: nvr?.lng != null ? String(nvr.lng) : '',
   });
   const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
   const set = k => e => setF({...f,[k]:e.target.value});
   const isEdit = !!nvr?.id;
+  const canSave = f.name.trim() && f.area.trim() && (isEdit || Number(f.stationId));
   return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
-    <div class="modal"><h2>${isEdit?'Edit NVR area':'Add NVR area'}</h2>
+    <div class="modal"><h2>${isEdit?'Edit NVR Area':'Add NVR Area'}</h2>
       <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
-        MikroTik site: <b>${station?.name||'—'}</b> — ilagay ang location/name ng NVR (hal. <span class="mono">SOSCIAL NVR-1</span>). Sa loob nito mag-a-add ng CCTV cameras.
+        Gumawa ng <b>NVR Name</b> at <b>Area</b>. Pagkatapos i-save, lalabas bilang NVR Area button — sa loob mag-a-add ng cameras.
       </p>
-      <label>NVR name / location</label>
+      <label>NVR Name</label>
       <input value=${f.name} onInput=${set('name')} placeholder="SOSCIAL NVR-1" autoFocus />
-      <label>Notes <span class="dim">(optional)</span></label>
-      <input value=${f.notes} onInput=${set('notes')} placeholder="building / floor / rack" />
+      <label>Area</label>
+      <input value=${f.area} onInput=${set('area')} placeholder="Gate / Building A / Parking" />
+      ${!isEdit && html`
+        <label>MikroTik site <span class="dim">(VPN tunnel)</span></label>
+        <select value=${f.stationId||''} onChange=${set('stationId')}>
+          <option value="">— piliin ang site —</option>
+          ${stations.map(s=>html`<option key=${s.id} value=${s.id}>${s.name}${s.online?' · online':''}</option>`)}
+        </select>
+      `}
+      ${isEdit && html`<p class="dim" style=${{margin:'0 0 10px',fontSize:'13px'}}>
+        Site: <b>${station?.name || nvr?.stationName || '—'}</b>
+      </p>`}
       <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})}
         hint="Optional — NVR map pin." />
       ${err && html`<div class="err">${err}</div>`}
       <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
         <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
-        <button disabled=${busy||!f.name.trim()} onClick=${async()=>{
+        <button disabled=${busy||!canSave} onClick=${async()=>{
           setBusy(true); setErr('');
           try {
             const coords = parseFormLatLng(f.lat, f.lng);
-            const body = { name:f.name.trim(), notes:f.notes.trim(), lat:coords.lat, lng:coords.lng };
+            const body = { name:f.name.trim(), notes:f.area.trim(), lat:coords.lat, lng:coords.lng };
             if (isEdit) await api('/nvrs/'+nvr.id,{method:'PATCH',body});
-            else await api('/nvrs',{method:'POST',body:{...body, stationId: station.id}});
+            else await api('/nvrs',{method:'POST',body:{...body, stationId: Number(f.stationId)}});
             onDone();
           } catch(e){ setErr(e.message); }
           finally { setBusy(false); }
-        }}>${busy?'Saving…':(isEdit?'Save NVR':'Create NVR area')}</button>
+        }}>${busy?'Saving…':(isEdit?'Save NVR Area':'Create NVR Area')}</button>
       </div>
     </div></div>`;
 }
@@ -3282,7 +3294,7 @@ function App() {
     dash:'Dashboard', browse: isManager?'Locations':'My Barangays', wall:'Live Wall',
     map:'Fleet Map', vpn:'MikroTik Sites', zerotier:'ZeroTier', gas:'Gasoline Vendo',
     allvendo:'ALL VENDO',
-    cctv: nav.cctvNvrId ? 'NVR Cameras' : (nav.cctvSiteId ? 'NVR Areas' : 'CCTV · MikroTik Sites'),
+    cctv: nav.cctvNvrId ? 'NVR Cameras' : 'CCTV · NVR Areas',
     server:'VPN Server', settings:'Settings', accounts:'Accounts',
   };
   const pageTitle = nav.stationId && isManager ? 'Station Detail'
@@ -3355,7 +3367,7 @@ function App() {
       <div class="quick" onClick=${()=>goTab('gas')}><b>Record Sale</b><span>Gasoline vendo</span></div>
       <div class="quick" onClick=${()=>goTab('allvendo')}><b>ALL VENDO</b><span>WiFi · Bottle · Hotspot</span></div>
       <div class="quick" onClick=${()=>goTab('vpn')}><b>MikroTik Sites</b><span>Add VPN Client · unlimited</span></div>
-      <div class="quick" onClick=${()=>goTab('cctv')}><b>CCTV</b><span>Site → NVR → cameras</span></div>
+      <div class="quick" onClick=${()=>goTab('cctv')}><b>CCTV</b><span>NVR Area → cameras</span></div>
       <div class="quick" onClick=${()=>goTab('zerotier')}><b>ZeroTier</b><span>Network members</span></div>
       <div class="quick" onClick=${()=>goTab('map')}><b>Fleet Map</b><span>Vendo · CCTV · VPN</span></div>
       <div class="quick" onClick=${()=>goTab('wall')}><b>Live Wall</b><span>Multi-cam view</span></div>
@@ -3391,35 +3403,36 @@ function App() {
       <div class="grid g-cams">${shown.map(c=>html`<${Player} key=${c.id} cam=${c} />`)}
       ${shown.length===0 && html`<div class="empty">Walang cameras${wallBrand==='v380'?' (V380)':''}. I-add sa CCTV → Camera type = V380.</div>`}</div>`;
   }
-  // ---- CCTV: MikroTik site → NVR area → cameras ----
+  // ---- CCTV: Add NVR Area → NVR buttons → Add Camera + live view ----
   else if (tab==='cctv') {
-    const siteId = nav.cctvSiteId || null;
     const nvrId = nav.cctvNvrId || null;
-    const site = siteId ? stations.find(s => s.id === siteId) : null;
     const nvr = nvrId ? nvrs.find(n => n.id === nvrId) : null;
-    const siteNvrs = siteId ? nvrs.filter(n => n.stationId === siteId && match(n.name+(n.notes||'')+(n.stationName||''))) : [];
+    const site = nvr ? stations.find(s => s.id === nvr.stationId) : null;
+    const shownNvrs = nvrs.filter(n => match(n.name+(n.notes||'')+(n.stationName||'')));
     const nvrCams = nvrId ? cams.filter(c => c.nvrAreaId === nvrId && match(c.name+(c.lanIp||'')+(c.brand||''))) : [];
 
     if (nvrId && nvr) {
       body = html`<div>
         <div class="crumbs" style=${{marginBottom:'12px'}}>
-          <a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${()=>setNav({})}>MikroTik Sites</a>
-          <span class="dim"> / </span>
-          <a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${()=>setNav({cctvSiteId:nvr.stationId})}>${site?.name || nvr.stationName || 'Site'}</a>
+          <a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${()=>setNav({})}>NVR Areas</a>
           <span class="dim"> / </span>
           <b>${nvr.name}</b>
         </div>
         <div class="section-head">
           <div>
-            <h3>Cameras · ${nvr.name}</h3>
-            <div class="sub">${nvrCams.length} camera(s) · site ${site?.name || nvr.stationName || '—'} · Dahua / Hikvision / V380</div>
+            <h3>${nvr.name}</h3>
+            <div class="sub">Area: ${nvr.notes || '—'} · site ${site?.name || nvr.stationName || '—'} · ${nvrCams.length} camera(s)</div>
           </div>
-          <button onClick=${()=>setModal({type:'camera', station: site || {id:nvr.stationId, name:nvr.stationName}, nvr})}>+ Add CCTV Camera</button>
+          <button onClick=${()=>setModal({type:'camera', station: site || {id:nvr.stationId, name:nvr.stationName}, nvr})}>+ Add Camera</button>
         </div>
-        <div class="table-wrap">
+        <div class="grid g-cams" style=${{marginBottom:'18px'}}>
+          ${nvrCams.map(c=>html`<${Player} key=${c.id} cam=${c} />`)}
+          ${nvrCams.length===0 && html`<div class="empty">Wala pang camera — i-click ang “+ Add Camera”, tapos live view dito.</div>`}
+        </div>
+        ${nvrCams.length>0 && html`<div class="table-wrap">
           <table><thead><tr><th></th><th>Camera</th><th>Type</th><th>LAN IP</th><th>Tunnel</th><th>Status</th><th></th></tr></thead>
           <tbody>
-            ${nvrCams.map(c=>html`<tr key=${c.id}>
+            ${nvrCams.map(c=>html`<tr key=${'d'+c.id}>
               <td><span class="dot ${c.live?'on':'off'}"></span></td>
               <td><b>${c.name}</b></td>
               <td><span class="badge b-ok">${(CAM_BRANDS.find(b=>b.id===c.brand)||{label:c.brand||'dahua'}).label}</span></td>
@@ -3435,88 +3448,48 @@ function App() {
                   onClick=${async()=>{if(confirm('Delete camera '+c.name+'?')){await api('/cameras/'+c.id,{method:'DELETE'}); loadAll();}}}>✕</button>
               </td>
             </tr>`)}
-            ${nvrCams.length===0 && html`<tr><td colSpan="7" class="dim" style=${{textAlign:'center',padding:'28px'}}>
-              Wala pang camera sa NVR na ito — i-click ang “+ Add CCTV Camera”.
-            </td></tr>`}
           </tbody></table>
-        </div>
-      </div>`;
-    } else if (siteId && site) {
-      body = html`<div>
-        <div class="crumbs" style=${{marginBottom:'12px'}}>
-          <a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${()=>setNav({})}>MikroTik Sites</a>
-          <span class="dim"> / </span>
-          <b>${site.name}</b>
-        </div>
-        <div class="section-head">
-          <div>
-            <h3>NVR areas · ${site.name}</h3>
-            <div class="sub">${siteNvrs.length} NVR · ${cams.filter(c=>c.stationId===site.id).length} cameras · Winbox ${site.vpnAddress||'—'}</div>
-          </div>
-          <button onClick=${()=>setModal({type:'nvr', station:site})}>+ Add NVR area</button>
-        </div>
-        <div class="site-grid" style=${{padding:'8px 0'}}>
-          ${siteNvrs.map(n=>html`<div key=${n.id} class="site-card" style=${{cursor:'pointer'}} onClick=${()=>setNav({cctvSiteId:site.id, cctvNvrId:n.id})}>
-            <div class="site-card-head">
-              <div class="site-card-icon">🖥</div>
-              <div class="site-card-title">
-                <b>${n.name}</b>
-                <div class="site-card-meta">${n.notes || 'NVR / DVR area'}</div>
-                <div class="site-card-badges">
-                  <span class="site-badge def">${n.cameraCount||0} cam</span>
-                </div>
-              </div>
-            </div>
-            <div class="site-card-foot" onClick=${e=>e.stopPropagation()}>
-              <button class="mini go" onClick=${()=>setNav({cctvSiteId:site.id, cctvNvrId:n.id})}>Open</button>
-              <button class="mini" onClick=${()=>setModal({type:'nvr', station:site, nvr:n})}>Edit</button>
-              <button class="mini" onClick=${()=>setModal({type:'camera', station:site, nvr:n})}>+ Cam</button>
-              <button class="mini danger" onClick=${async()=>{
-                if(!confirm('Delete NVR '+n.name+'? Cameras sa loob ay mawawalan ng NVR link.')) return;
-                await api('/nvrs/'+n.id,{method:'DELETE'}); loadAll();
-              }}>✕</button>
-            </div>
-          </div>`)}
-          ${siteNvrs.length===0 && html`<div class="site-empty"><div class="ico">🖥</div>
-            <b>Walang NVR area pa</b><br/>Mag-add muna ng NVR (hal. SOSCIAL NVR-1), tapos sa loob mag-add ng CCTV cameras.
-          </div>`}
-        </div>
+        </div>`}
       </div>`;
     } else {
-      const shownSites = stations.filter(s => match(s.name+s.username+(s.vpnIp||'')+(s.vpnAddress||'')));
       body = html`<div>
         <div class="sites-hub" style=${{border:'1px solid var(--line)',borderRadius:'14px',marginBottom:'14px'}}>
-          <h3>CCTV · piliin ang MikroTik site</h3>
-          <p>Flow: <b style=${{color:'var(--txt)'}}>MikroTik site</b> → <b style=${{color:'var(--txt)'}}>NVR area</b> (hal. SOSCIAL NVR-1) → <b style=${{color:'var(--txt)'}}>CCTV cameras</b> sa loob ng NVR.</p>
+          <h3>CCTV · NVR Areas</h3>
+          <p>Pindutin ang <b style=${{color:'var(--txt)'}}>Add NVR Area</b> → ilagay ang <b style=${{color:'var(--txt)'}}>NVR Name</b> at <b style=${{color:'var(--txt)'}}>Area</b>. Pagkatapos, pindutin ang NVR Area button para mag-add at mag-view ng cameras.</p>
         </div>
         <div class="section-head">
-          <div><h3>MikroTik Sites</h3><div class="sub">${stations.length} sites · ${nvrs.length} NVR · ${cams.length} cameras</div></div>
+          <div><h3>NVR Areas</h3><div class="sub">${nvrs.length} NVR · ${cams.length} cameras</div></div>
+          <button onClick=${()=>setModal({type:'nvr'})}>+ Add NVR Area</button>
         </div>
         <div class="site-grid" style=${{padding:'8px 0'}}>
-          ${shownSites.map(s=>{
-            const nCount = nvrs.filter(n=>n.stationId===s.id).length;
-            const cCount = cams.filter(c=>c.stationId===s.id).length;
-            return html`<div key=${s.id} class=${'site-card'+(s.online?' up':' down')} style=${{cursor:'pointer'}}
-              onClick=${()=>setNav({cctvSiteId:s.id})}>
+          ${shownNvrs.map(n=>{
+            const st = stations.find(s=>s.id===n.stationId);
+            return html`<div key=${n.id} class=${'site-card'+(st?.online?' up':' down')} style=${{cursor:'pointer'}}
+              onClick=${()=>setNav({cctvNvrId:n.id})}>
               <div class="site-card-head">
-                <div class="site-card-icon">🖧</div>
+                <div class="site-card-icon">🖥</div>
                 <div class="site-card-title">
-                  <b>${s.name}</b>
-                  <div class="site-card-meta">${s.vpnIp||'—'} · ${s.vpnAddress||'—'}</div>
+                  <b>${n.name}</b>
+                  <div class="site-card-meta">${n.notes || 'Area'} · ${st?.name || n.stationName || '—'}</div>
                   <div class="site-card-badges">
-                    ${s.online?html`<span class="site-badge def">VPN up</span>`:html`<span class="site-badge off">VPN down</span>`}
-                    <span class="site-badge">${nCount} NVR</span>
-                    <span class="site-badge">${cCount} cam</span>
+                    <span class="site-badge def">${n.cameraCount||0} cam</span>
+                    ${st?.online?html`<span class="site-badge def">VPN up</span>`:html`<span class="site-badge off">VPN down</span>`}
                   </div>
                 </div>
               </div>
-              <div class="site-card-foot">
-                <button class="mini go" onClick=${(e)=>{e.stopPropagation(); setNav({cctvSiteId:s.id});}}>Open site →</button>
+              <div class="site-card-foot" onClick=${e=>e.stopPropagation()}>
+                <button class="mini go" onClick=${()=>setNav({cctvNvrId:n.id})}>Open →</button>
+                <button class="mini" onClick=${()=>setModal({type:'nvr', station:st, nvr:n})}>Edit</button>
+                <button class="mini" onClick=${()=>setModal({type:'camera', station:st || {id:n.stationId, name:n.stationName}, nvr:n})}>+ Cam</button>
+                <button class="mini danger" onClick=${async()=>{
+                  if(!confirm('Delete NVR '+n.name+'? Cameras sa loob ay mawawalan ng NVR link.')) return;
+                  await api('/nvrs/'+n.id,{method:'DELETE'}); loadAll();
+                }}>✕</button>
               </div>
             </div>`;
           })}
-          ${shownSites.length===0 && html`<div class="site-empty"><div class="ico">🖧</div>
-            <b>Walang MikroTik site</b><br/>Gumawa muna sa <b>MikroTik Sites</b> (+ Add VPN Client).
+          ${shownNvrs.length===0 && html`<div class="site-empty"><div class="ico">🖥</div>
+            <b>Walang NVR Area pa</b><br/>I-click ang <b>+ Add NVR Area</b> — NVR Name + Area.
           </div>`}
         </div>
       </div>`;
@@ -4364,7 +4337,7 @@ function App() {
       wifiSites=${wifiSites} defaultSiteId=${modal.siteId}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='nvr' && isManager && html`<${NvrModal}
-      station=${modal.station} nvr=${modal.nvr}
+      station=${modal.station} stations=${stations} nvr=${modal.nvr}
       onClose=${()=>setModal(null)} onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='camera' && isManager && html`<${CameraModal}
       barangay=${modal.barangay} geo=${geo} stations=${stations}
