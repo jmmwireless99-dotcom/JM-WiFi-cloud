@@ -1,0 +1,20 @@
+{
+  "name": "SOSCIAL Park CCTV",
+  "short_name": "SOSCIAL CCTV",
+  "description": "Live CCTV monitoring for SOSCIAL Park",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1410",
+  "theme_color": "#0c1410",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["security", "utilities"]
+}

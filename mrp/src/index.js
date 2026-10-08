@@ -122,6 +122,11 @@ app.get(`${BASE}/forex`, (_req, res) => {
   res.sendFile(path.join(publicDir, 'forex.html'));
 });
 
+// SOSCIAL Park mobile CCTV PWA (strict:false — /soscial and /soscial/ both hit this)
+app.get(`${BASE}/soscial`, (_req, res) => {
+  res.sendFile(path.join(publicDir, 'soscial', 'index.html'));
+});
+
 // ---- panel (static) ----
 app.use(BASE || '/', express.static(publicDir, {
   maxAge: '1h',
