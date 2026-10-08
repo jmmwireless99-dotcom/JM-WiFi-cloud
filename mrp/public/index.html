@@ -1903,11 +1903,14 @@ function NameModal({ title, onClose, onSave }) {
 
 // Add VPN client — standalone, walang location
 function StationModal({ hub, onClose, onDone }) {
-  const [f,setF]=useState({name:'',days:'',username:'',password:'',winboxPort:'',apiUser:'admin',apiPassword:'',lat:'',lng:''});
+  const [f,setF]=useState({name:'',days:'',username:'',password:'',winboxPort:'',apiUser:'jmcloud',apiPassword:'',lat:'',lng:''});
   const [err,setErr]=useState(''); const [made,setMade]=useState(null);
   const set = k => e => setF({...f,[k]:e.target.value});
   if (made) return html`<div class="modal-bg"><div class="modal">
     <h2>VPN client created ✓</h2>
+    <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+      API user/password <b style=${{color:'var(--ok)'}}>naka-save na sa VPS</b> at kasama sa paste script — matik integrated pag na-paste sa MikroTik.
+    </p>
     <table><tbody>
       <tr><td class="dim">Client name</td><td>${made.name}</td></tr>
       <tr><td class="dim">SSTP server IP</td><td class="mono">${made.sstpServer}</td></tr>
@@ -1916,13 +1919,17 @@ function StationModal({ hub, onClose, onDone }) {
       <tr><td class="dim">SSTP password</td><td class="mono">${made.password}</td></tr>
       <tr><td class="dim">Tunnel IP</td><td class="mono">${made.vpnIp}</td></tr>
       <tr><td class="dim">Winbox address</td><td class="mono">${made.vpnAddress}</td></tr>
-      <tr><td class="dim">Billing API</td><td class="mono">${made.apiAddress}</td></tr>
-      <tr><td class="dim">API username</td><td class="mono">${made.apiUser||'admin'}</td></tr>
+      <tr><td class="dim">API address</td><td class="mono">${made.apiAddress}</td></tr>
+      <tr><td class="dim">API username</td><td class="mono">${made.apiUser||'jmcloud'}</td></tr>
       <tr><td class="dim">API password</td><td class="mono">${made.apiPassword||'—'}</td></tr>
     </tbody></table>
-    <h3 style=${{marginTop:'16px'}}>MikroTik SSTP script <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>copy all</button></h3>
+    <h3 style=${{marginTop:'16px'}}>Paste sa MikroTik terminal
+      <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>copy all</button>
+    </h3>
     <pre>${made.routerosScript}</pre>
-    <p class="dim" style=${{marginTop:'8px',fontSize:'12px'}}>I-paste ang script sa MikroTik terminal para mag-connect ang SSTP VPN client.</p>
+    <p class="dim" style=${{marginTop:'8px',fontSize:'12px'}}>
+      Script = SSTP VPN + cloud API user (<span class="mono">${made.apiUser||'jmcloud'}</span>) + Winbox/API/REST. Pag online na ang VPN, i-click <b>Test</b> sa MikroTik Sites.
+    </p>
     <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
       <button type="button" class="ghost" onClick=${e=>{e.stopPropagation(); copyScript(made.routerosScript);}}>Copy script</button>
       <button onClick=${onDone}>Done</button>
@@ -1930,7 +1937,7 @@ function StationModal({ hub, onClose, onDone }) {
   return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
     <div class="modal"><h2>Add VPN Client</h2>
       <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
-        Gumagawa ito ng SSTP VPN client para sa branch MikroTik (Winbox + API ports). Unlimited — gaya ng dating VPN Clients / jmwifi.pro sites.
+        Gumagawa ng SSTP VPN + <b>API user/password</b> na kasama sa paste script — automatic integrate sa VPS portal (Test / hotspot push).
       </p>
       <label>Client / site name</label><input value=${f.name} onInput=${set('name')} placeholder="e.g. Brgy Hall Router / Candelaria Main" autoFocus />
       <div class="row">
@@ -1940,9 +1947,18 @@ function StationModal({ hub, onClose, onDone }) {
       <label>Expiration days <span class="dim">(blanko = walang expiry)</span></label>
       <input type="number" value=${f.days} onInput=${set('days')} placeholder="never" />
       <div class="row">
-        <div style=${{flex:1}}><label>MikroTik API username <span class="dim">(billing)</span></label><input value=${f.apiUser} onInput=${set('apiUser')} placeholder="admin" class="mono" /></div>
-        <div style=${{flex:1}}><label>MikroTik API password</label><input value=${f.apiPassword} onInput=${set('apiPassword')} placeholder="RouterOS API pass" class="mono" /></div>
+        <div style=${{flex:1}}>
+          <label>API username <span class="dim">(sa MikroTik + VPS)</span></label>
+          <input value=${f.apiUser} onInput=${set('apiUser')} placeholder="jmcloud" class="mono" />
+        </div>
+        <div style=${{flex:1}}>
+          <label>API password <span class="dim">(blanko = auto-generate)</span></label>
+          <input value=${f.apiPassword} onInput=${set('apiPassword')} placeholder="auto — mapupunta sa paste script" class="mono" />
+        </div>
       </div>
+      <p class="dim" style=${{fontSize:'12px',margin:'-4px 0 10px'}}>
+        Default user <span class="mono">jmcloud</span> (full group). Kasama sa paste script ang credentials — huwag palitan ang password sa MikroTik nang hindi ina-update sa portal.
+      </p>
       <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})} />
       <details class="adv"><summary>Manual SSTP credentials (optional — auto-generate kung blanko)</summary>
         <div class="row">
@@ -1962,7 +1978,7 @@ function StationModal({ hub, onClose, onDone }) {
             setMade(await api('/stations',{method:'POST',body:{
             name:f.name, days:Number.isFinite(daysNum)&&daysNum>0?daysNum:null,
             username:f.username||undefined, password:f.password||undefined,
-            apiUser:f.apiUser||undefined, apiPassword:f.apiPassword||undefined,
+            apiUser:f.apiUser||'jmcloud', apiPassword:f.apiPassword||undefined,
             winboxPort:f.winboxPort?Number(f.winboxPort):undefined,
             lat: coords.lat, lng: coords.lng }})); }
           catch(e){ setErr(e.message); }}}>Create VPN Client</button>

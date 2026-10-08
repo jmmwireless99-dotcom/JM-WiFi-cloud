@@ -40,26 +40,55 @@ function toView(s, online, { includeSecrets = false } = {}) {
   return view;
 }
 
+/** Escape for RouterOS quoted strings in pasted scripts. */
+function rosQuote(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Paste-once script: SSTP VPN + Winbox/API/REST services + cloud API user.
+ * Credentials match what the VPS portal stores (api_user / api_password).
+ */
 export function routerosScript(s, cams = []) {
   const iface = 'sstp-cctv';
   const tag = 'JM TECH SOLUTION';
+  const apiUser = String(s.api_user || s.apiUser || 'jmcloud').trim() || 'jmcloud';
+  const apiPass = String(s.api_password || s.apiPassword || s.password || '');
+  const apiUserQ = rosQuote(apiUser);
+  const apiPassQ = rosQuote(apiPass);
+  const sstpUserQ = rosQuote(s.username);
+  const sstpPassQ = rosQuote(s.password);
   const lines = [
     `# --- ${tag}: i-paste sa MikroTik terminal ng "${s.name}" ---`,
+    `# Pagkatapos nito: VPN + Winbox + API/REST ready; credentials naka-save na sa VPS portal.`,
     '',
-    `# SSTP VPN client`,
+    `# 1) SSTP VPN client → ${HUB()}:${SSTP_PORT()}`,
+    `:do { /interface sstp-client remove [find name="${iface}"] } on-error={}`,
     `/interface sstp-client add name=${iface} connect-to=${HUB()} port=${SSTP_PORT()} \\`,
-    `    user="${s.username}" password="${s.password}" profile=default \\`,
+    `    user="${sstpUserQ}" password="${sstpPassQ}" profile=default \\`,
     `    verify-server-certificate=no verify-server-address-from-certificate=no disabled=no`,
     '',
-    `# Winbox + API — hub reaches router through VPN tunnel`,
-    `#   Winbox: ${HUB()}:${s.winbox_port} → ${s.vpn_ip}:8291`,
-    `#   API (billing): ${HUB()}:${s.api_port} → ${s.vpn_ip}:8728 (user: ${s.api_user || 'admin'})`,
+    `# 2) Cloud API user (same as portal) — REST + binary API`,
+    `#    user=${apiUser}  · password naka-save na sa VPS (portal Test / hotspot push)`,
+    `:if ([:len [/user find where name="${apiUserQ}"]] = 0) do={`,
+    `  /user add name="${apiUserQ}" password="${apiPassQ}" group=full comment="${tag} cloud API"`,
+    `} else={`,
+    `  /user set [find where name="${apiUserQ}"] password="${apiPassQ}"`,
+    `}`,
+    '',
+    `# 3) Winbox + API (:8728) + www/REST (:80) — VPN subnet only`,
+    `#    Winbox: ${HUB()}:${s.winbox_port} → ${s.vpn_ip}:8291`,
+    `#    API:    ${HUB()}:${s.api_port} → ${s.vpn_ip}:8728`,
+    `#    REST:   http://${s.vpn_ip}/rest/  (from VPS over tunnel)`,
     `/ip service set winbox disabled=no address=10.90.0.0/21`,
     `/ip service set api disabled=no address=10.90.0.0/21`,
+    `/ip service set www disabled=no address=10.90.0.0/21`,
+    `:do { /ip firewall filter remove [find where comment~"${tag}:"] } on-error={}`,
     `/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8291 src-address=10.90.0.0/21 comment="${tag}: Winbox via VPN"`,
     `/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8728 src-address=10.90.0.0/21 comment="${tag}: API via VPN"`,
+    `/ip firewall filter add chain=input action=accept protocol=tcp dst-port=80 src-address=10.90.0.0/21 comment="${tag}: REST www via VPN"`,
     '',
-    `# Firewall — allow hub to reach cameras (forward / dst-nat)`,
+    `# 4) Firewall — allow hub to reach cameras (forward / dst-nat)`,
     `/ip firewall filter add chain=forward action=accept connection-state=established,related,untracked comment="${tag}: established"`,
     `/ip firewall filter add chain=forward action=accept connection-nat-state=dstnat in-interface=${iface} comment="${tag}: hub to camera"`,
   ];
@@ -74,6 +103,10 @@ export function routerosScript(s, cams = []) {
   } else {
     lines.push('', `# (Add CCTV sa portal para makakuha ng NAT rules — o idagdag manually later)`);
   }
+  lines.push(
+    '',
+    `# Done. Sa portal: MikroTik Sites → Test (dapat online pag naka-VPN na).`,
+  );
   return lines.join('\n');
 }
 
@@ -123,8 +156,14 @@ r.post('/', async (req, res) => {
     return res.status(400).json({ error: 'password: minimum 8 characters' });
   if (!password) password = generatePassword();
 
-  const apiUser = String(req.body.apiUser ?? req.body.api_user ?? 'admin').trim() || 'admin';
-  const apiPassword = String(req.body.apiPassword ?? req.body.api_password ?? '').trim();
+  // Dedicated cloud API user by default — auto password so paste script + VPS match
+  let apiUser = String(req.body.apiUser ?? req.body.api_user ?? 'jmcloud').trim() || 'jmcloud';
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,30}$/.test(apiUser))
+    return res.status(400).json({ error: 'apiUser: letters/numbers/._- only (max 31)' });
+  let apiPassword = String(req.body.apiPassword ?? req.body.api_password ?? '').trim();
+  if (apiPassword && apiPassword.length < 8)
+    return res.status(400).json({ error: 'apiPassword: minimum 8 characters' });
+  if (!apiPassword) apiPassword = generatePassword(18);
 
   let vpnIp = (req.body.vpnIp || '').trim();
   if (vpnIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(vpnIp))
