@@ -285,6 +285,10 @@
       </div>
       <div class="err hidden" id="loginErr"></div>
       <button type="submit" id="loginBtn">Open cameras</button>
+      <a href="./soscial-park-cctv.apk" download="soscial-park-cctv.apk"
+        style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px">
+        ⬇ Download Android APK
+      </a>
       <div class="login-foot">JM TECH SOLUTION · SOSCIAL Park monitoring</div>
     </form>
   </div>
@@ -298,28 +302,22 @@
       <span class="pill" id="vpnPill">VPN</span>
     </div>
     <div id="installBar" class="install-bar">
-      <h3>📱 Paano i-install sa cellphone</h3>
-      <div id="installIos">
-        <ol>
-          <li>Buksan ang link sa <b>Safari</b> (iPhone)</li>
-          <li>Pindutin ang <b>Share</b> button (□↑) sa baba</li>
-          <li>Piliin <b>Add to Home Screen</b></li>
-          <li>Pindutin <b>Add</b> — lalabas ang SOSCIAL CCTV icon</li>
-        </ol>
-      </div>
-      <div id="installAndroid" class="hidden">
-        <ol>
-          <li>Buksan sa <b>Chrome</b></li>
-          <li>Pindutin ang <b>⋮</b> (3 dots) sa taas-kanan</li>
-          <li>Piliin <b>Install app</b> o <b>Add to Home screen</b></li>
-          <li>Confirm — one-tap open na tulad ng app</li>
-        </ol>
-      </div>
+      <h3>📱 Android APK — i-download at i-install</h3>
+      <ol>
+        <li>Pindutin ang <b>Download APK</b></li>
+        <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps / Chrome kung tanungin)</li>
+        <li>Open ang <b>SOSCIAL Park CCTV</b> app → login</li>
+      </ol>
       <div class="actions">
-        <button type="button" id="installBtn" class="hidden">Install app</button>
-        <button type="button" class="ghost" id="installToggle">Android / iPhone</button>
+        <a id="apkBtn" href="./soscial-park-cctv.apk" download="soscial-park-cctv.apk"
+          style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
+          Download APK
+        </a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
+      <p style="margin:12px 0 0;font-size:12px;color:var(--dim);line-height:1.45">
+        iPhone: walang APK — gamitin ang Safari → Share → Add to Home Screen.
+      </p>
     </div>
     <div class="content" id="viewCams"></div>
     <div class="content hidden" id="viewWall"></div>
@@ -497,12 +495,14 @@
           App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
         </p>
         <div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2)">
-          <b style="color:var(--acc2)">Walang “Install app” button?</b>
-          <p style="margin:8px 0 0;font-size:13px;color:var(--dim);line-height:1.5">
-            <b>iPhone:</b> Safari → Share (□↑) → <b>Add to Home Screen</b><br/>
-            <b>Android:</b> Chrome → ⋮ → <b>Install app</b> / Add to Home screen<br/>
-            Kung wala pa rin: i-bookmark muna ang page, o subukan ulit sa Chrome/Safari (hindi FB/Messenger browser).
+          <b style="color:var(--acc2)">Android APK</b>
+          <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
+            I-download ang APK tapos i-install (payagan ang Unknown sources).
           </p>
+          <a href="./soscial-park-cctv.apk" download="soscial-park-cctv.apk"
+            style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
+            Download APK
+          </a>
         </div>
         <button type="button" class="ghost" id="logoutBtn" style="width:100%;margin-top:16px">Log out</button>
       </div>`;
@@ -643,39 +643,11 @@
   };
   $('playerRefresh').onclick = () => playCurrent($('playerVideo').muted);
 
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  let showIosHelp = isIos;
-  function syncInstallHelp() {
-    show($('installIos'), showIosHelp);
-    show($('installAndroid'), !showIosHelp);
-    $('installToggle').textContent = showIosHelp ? 'Android steps' : 'iPhone steps';
-  }
-  syncInstallHelp();
-  $('installToggle').onclick = () => { showIosHelp = !showIosHelp; syncInstallHelp(); };
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    show($('installBtn'), true);
-    show($('installBar'), true);
-  });
-  // Standalone = already installed
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  // Standalone / installed WebView app — hide banner
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+    || /SoscialParkCctvApp/i.test(navigator.userAgent);
   if (isStandalone) show($('installBar'), false);
 
-  $('installBtn').onclick = async () => {
-    if (!deferredPrompt) {
-      alert(isIos
-        ? 'Sa iPhone: Safari → Share (□↑) → Add to Home Screen'
-        : 'Sa Android: Chrome → ⋮ (3 dots) → Install app / Add to Home screen');
-      return;
-    }
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    show($('installBtn'), false);
-  };
   $('installDismiss').onclick = () => show($('installBar'), false);
 
   if ('serviceWorker' in navigator) {
