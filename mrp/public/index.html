@@ -1907,7 +1907,7 @@ function StationModal({ hub, onClose, onDone }) {
   const [err,setErr]=useState(''); const [made,setMade]=useState(null);
   const set = k => e => setF({...f,[k]:e.target.value});
   if (made) return html`<div class="modal-bg"><div class="modal">
-    <h2>MikroTik site connected ✓</h2>
+    <h2>VPN client created ✓</h2>
     <table><tbody>
       <tr><td class="dim">Client name</td><td>${made.name}</td></tr>
       <tr><td class="dim">SSTP server IP</td><td class="mono">${made.sstpServer}</td></tr>
@@ -1928,11 +1928,11 @@ function StationModal({ hub, onClose, onDone }) {
       <button onClick=${onDone}>Done</button>
     </div></div></div>`;
   return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
-    <div class="modal"><h2>Connect a new MikroTik site</h2>
+    <div class="modal"><h2>Add VPN Client</h2>
       <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
-        Unlimited sites — gaya ng jmwifi.pro. Bawat branch MikroTik = isang site (SSTP VPN + Winbox + API).
+        Gumagawa ito ng SSTP VPN client para sa branch MikroTik (Winbox + API ports). Unlimited — gaya ng dating VPN Clients / jmwifi.pro sites.
       </p>
-      <label>Site name</label><input value=${f.name} onInput=${set('name')} placeholder="e.g. Candelaria Main / Brgy Hall" autoFocus />
+      <label>Client / site name</label><input value=${f.name} onInput=${set('name')} placeholder="e.g. Brgy Hall Router / Candelaria Main" autoFocus />
       <div class="row">
         <div style=${{flex:1}}><label>SSTP server IP</label><input value=${hub?.sstpServer||''} disabled class="mono" /></div>
         <div style=${{flex:1}}><label>SSTP port</label><input value=${hub?.sstpPort||4443} disabled class="mono" /></div>
@@ -1965,7 +1965,7 @@ function StationModal({ hub, onClose, onDone }) {
             apiUser:f.apiUser||undefined, apiPassword:f.apiPassword||undefined,
             winboxPort:f.winboxPort?Number(f.winboxPort):undefined,
             lat: coords.lat, lng: coords.lng }})); }
-          catch(e){ setErr(e.message); }}}>Save &amp; connect site</button>
+          catch(e){ setErr(e.message); }}}>Create VPN Client</button>
       </div></div></div>`;
 }
 
@@ -3173,7 +3173,7 @@ function App() {
     <div class="quick-grid">
       <div class="quick" onClick=${()=>goTab('gas')}><b>Record Sale</b><span>Gasoline vendo</span></div>
       <div class="quick" onClick=${()=>goTab('allvendo')}><b>ALL VENDO</b><span>WiFi · Bottle · Hotspot</span></div>
-      <div class="quick" onClick=${()=>goTab('vpn')}><b>MikroTik Sites</b><span>Unlimited branch routers</span></div>
+      <div class="quick" onClick=${()=>goTab('vpn')}><b>MikroTik Sites</b><span>Add VPN Client · unlimited</span></div>
       <div class="quick" onClick=${()=>goTab('cctv')}><b>CCTV Clients</b><span>Cameras & tunnels</span></div>
       <div class="quick" onClick=${()=>goTab('zerotier')}><b>ZeroTier</b><span>Network members</span></div>
       <div class="quick" onClick=${()=>goTab('map')}><b>Fleet Map</b><span>Vendo · CCTV · VPN</span></div>
@@ -3274,7 +3274,7 @@ function App() {
         <div class="site-guide-body">
           <p style=${{margin:'0 0 4px'}}>Layout: <b style=${{color:'var(--txt)'}}>Panel (VPS)</b> → VPN → each branch MikroTik. Walang limit sa bilang ng sites.</p>
           <div class="site-guide-steps">
-            <div class="site-guide-step"><b>1 · Connect site</b><span>I-click <b style=${{color:'var(--txt)'}}>+ Connect a new MikroTik site</b>. Auto-allocate ang VPN IP, Winbox port, at API port.</span></div>
+            <div class="site-guide-step"><b>1 · Add VPN Client</b><span>I-click <b style=${{color:'var(--txt)'}}>+ Add VPN Client</b>. Auto-allocate ang VPN IP, Winbox port, at API port.</span></div>
             <div class="site-guide-step"><b>2 · Paste script</b><span>I-copy ang SSTP script sa MikroTik terminal ng branch router.</span></div>
             <div class="site-guide-step"><b>3 · Set API password</b><span>Ilagay ang RouterOS API password para gumana ang <b style=${{color:'var(--txt)'}}>Test</b> at hotspot push.</span></div>
             <div class="site-guide-step"><b>4 · Test</b><span>Press <b style=${{color:'var(--txt)'}}>Test</b> hanggang mag-green (online). Offline = check VPN tunnel.</span></div>
@@ -3290,8 +3290,11 @@ function App() {
         <div class="site-kpi"><div class="k">VPN · API</div><div class="v" style=${{fontSize:'13px',marginTop:'8px'}}>SSTP + REST</div></div>
       </div>
       <div class="section-head" style=${{padding:'12px 18px 0',margin:0,border:0}}>
-        <div><h3 style=${{margin:0}}>Multi-site routers</h3><div class="sub">VPN → MikroTik API per site · unlimited</div></div>
-        <button class="ghost" onClick=${checkAll}>↻ Check all sites</button>
+        <div><h3 style=${{margin:0}}>VPN Clients · Multi-site routers</h3><div class="sub">SSTP VPN → Winbox + MikroTik API · unlimited</div></div>
+        <div class="row" style=${{gap:'8px'}}>
+          <button class="ghost" onClick=${checkAll}>↻ Check all</button>
+          <button onClick=${()=>setModal({type:'station'})}>+ Add VPN Client</button>
+        </div>
       </div>
       <div class="site-grid">
         ${shown.map(s=>{
@@ -3333,7 +3336,7 @@ function App() {
         ${shown.length===0 && html`<div class="site-empty"><div class="ico">🖧</div><b>No sites connected yet</b><br/>Add your first MikroTik below. Each site gets VPN IP, Winbox, and API ports automatically.</div>`}
       </div>
       <div class="site-add-wrap">
-        <button type="button" class="site-add-toggle" onClick=${()=>setModal({type:'station'})}>+ Connect a new MikroTik site</button>
+        <button type="button" class="site-add-toggle" onClick=${()=>setModal({type:'station'})}>+ Add VPN Client (new MikroTik site)</button>
       </div>
     </div>`;
   }
