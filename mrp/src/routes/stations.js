@@ -21,7 +21,8 @@ function toView(s, online, { includeSecrets = false } = {}) {
     sstpPort: SSTP_PORT(),
     vpnAddress: `${HUB()}:${s.winbox_port}`,
     apiAddress: `${HUB()}:${s.api_port}`,
-    apiUser: s.api_user || 'admin',
+    apiUser: s.api_user || 'jmcloud',
+    apiPasswordConfigured: !!(s.api_password && String(s.api_password).length),
     vpnIp: s.vpn_ip,
     winboxPort: s.winbox_port,
     apiPort: s.api_port,
@@ -220,12 +221,19 @@ r.patch('/:id', async (req, res) => {
     }
   }
   if (req.body?.apiUser !== undefined || req.body?.api_user !== undefined) {
-    vals.push(String(req.body.apiUser ?? req.body.api_user ?? 'admin').trim() || 'admin');
+    const apiUser = String(req.body.apiUser ?? req.body.api_user ?? 'jmcloud').trim() || 'jmcloud';
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,30}$/.test(apiUser))
+      return res.status(400).json({ error: 'apiUser: letters/numbers/._- only (max 31)' });
+    vals.push(apiUser);
     sets.push(`api_user = $${vals.length}`);
   }
-  const apiPass = req.body?.apiPassword ?? req.body?.api_password;
+  const regenerateApi = !!(req.body?.regenerateApiPassword || req.body?.regenerate_api_password);
+  let apiPass = req.body?.apiPassword ?? req.body?.api_password;
+  if (regenerateApi) apiPass = generatePassword(18);
   if (apiPass !== undefined && String(apiPass).trim()) {
-    vals.push(String(apiPass).trim());
+    const p = String(apiPass).trim();
+    if (p.length < 8) return res.status(400).json({ error: 'apiPassword: minimum 8 characters' });
+    vals.push(p);
     sets.push(`api_password = $${vals.length}`);
   }
   try {
@@ -243,7 +251,12 @@ r.patch('/:id', async (req, res) => {
     `UPDATE stations SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals);
   if (!rows[0]) return res.status(404).json({ error: 'not found' });
   await sync('admin', `update station ${rows[0].username}`);
-  res.json(toView(rows[0]));
+  const { rows: cams } = await pool.query('SELECT * FROM cameras WHERE station_id=$1 ORDER BY id', [rows[0].id]);
+  res.json({
+    ...toView(rows[0], undefined, { includeSecrets: true }),
+    password: rows[0].password,
+    routerosScript: routerosScript(rows[0], cams),
+  });
 });
 
 /** Probe RouterOS REST over VPN (jmwifi-style site Test). */

@@ -1985,6 +1985,93 @@ function StationModal({ hub, onClose, onDone }) {
       </div></div></div>`;
 }
 
+/** Quick edit API user/password from MikroTik Sites cards */
+function EditStationModal({ station, onClose, onDone }) {
+  const [f,setF]=useState({
+    name: station?.name || '',
+    apiUser: station?.apiUser || 'jmcloud',
+    apiPassword: '',
+  });
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [saved,setSaved]=useState(null);
+  const set = k => e => setF({...f,[k]:e.target.value});
+
+  if (saved) return html`<div class="modal-bg"><div class="modal">
+    <h2>API credentials saved ✓</h2>
+    <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+      Naka-update sa VPS. Kung bago ang password, i-paste ulit ang script (o i-set manually ang user sa MikroTik) para mag-match.
+    </p>
+    <table><tbody>
+      <tr><td class="dim">Site</td><td>${saved.name}</td></tr>
+      <tr><td class="dim">API user</td><td class="mono">${saved.apiUser}</td></tr>
+      <tr><td class="dim">API password</td><td class="mono">${saved.apiPassword||'(hindi pinalitan)'}</td></tr>
+      <tr><td class="dim">Winbox</td><td class="mono">${saved.vpnAddress}</td></tr>
+    </tbody></table>
+    ${saved.routerosScript && html`
+      <h3 style=${{marginTop:'16px'}}>Updated paste script
+        <button type="button" class="ghost copy" onClick=${e=>{e.stopPropagation(); copyScript(saved.routerosScript);}}>copy all</button>
+      </h3>
+      <pre>${saved.routerosScript}</pre>
+    `}
+    <div class="row" style=${{justifyContent:'flex-end',marginTop:'12px'}}>
+      <button type="button" class="ghost" onClick=${e=>{e.stopPropagation(); saved.routerosScript && copyScript(saved.routerosScript);}}>Copy script</button>
+      <button onClick=${onDone}>Done</button>
+    </div>
+  </div></div>`;
+
+  return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
+    <div class="modal"><h2>Edit site · API credentials</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Para sa <b>${station?.name||'site'}</b> — ilagay/baguhin ang RouterOS API user &amp; password. Kailangan ito para gumana ang <b>Test</b> at hotspot push.
+      </p>
+      <label>Site name</label>
+      <input value=${f.name} onInput=${set('name')} class="mono" />
+      <div class="row">
+        <div style=${{flex:1}}>
+          <label>API username</label>
+          <input value=${f.apiUser} onInput=${set('apiUser')} placeholder="jmcloud" class="mono" />
+        </div>
+        <div style=${{flex:1}}>
+          <label>API password <span class="dim">(${station?.apiPasswordConfigured ? 'naka-set na — blanko = huwag palitan' : 'wala pa — required'})</span></label>
+          <input value=${f.apiPassword} onInput=${set('apiPassword')} placeholder=${station?.apiPasswordConfigured?'••••••••':'ilagay o auto-generate'} class="mono" />
+        </div>
+      </div>
+      <div class="row" style=${{marginTop:'8px'}}>
+        <button type="button" class="ghost" disabled=${busy} onClick=${()=>setF({...f, apiPassword: ''})} style=${{display:'none'}}></button>
+        <button type="button" class="ghost" disabled=${busy} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            const r = await api('/stations/'+station.id,{method:'PATCH',body:{
+              name: f.name.trim() || undefined,
+              apiUser: f.apiUser.trim() || 'jmcloud',
+              regenerateApiPassword: true,
+            }});
+            setSaved(r);
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>Auto-generate new API password</button>
+      </div>
+      ${err && html`<div class="err">${err}</div>`}
+      <div class="row" style=${{marginTop:'16px',justifyContent:'flex-end'}}>
+        <button class="ghost" onClick=${onClose} disabled=${busy}>Cancel</button>
+        <button disabled=${busy || !f.name.trim() || (!station?.apiPasswordConfigured && !f.apiPassword.trim())} onClick=${async()=>{
+          setBusy(true); setErr('');
+          try {
+            const body = {
+              name: f.name.trim(),
+              apiUser: f.apiUser.trim() || 'jmcloud',
+            };
+            if (f.apiPassword.trim()) body.apiPassword = f.apiPassword.trim();
+            const r = await api('/stations/'+station.id,{method:'PATCH',body});
+            setSaved(r);
+          } catch(e){ setErr(e.message); }
+          finally { setBusy(false); }
+        }}>${busy?'Saving…':'Save API credentials'}</button>
+      </div>
+    </div></div>`;
+}
+
 function ZeroTierModal({ hub, onClose, onDone }) {
   const [f,setF]=useState({name:'',nodeId:'',ztIp:'',notes:''});
   const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
@@ -2734,13 +2821,13 @@ function CameraEditModal({ cam, onClose, onDone }) {
 // ---------- Station detail ----------
 function StationDetail({ id, onBack, onChanged }) {
   const [s,setS]=useState(null); const [days,setDays]=useState(30);
-  const [apiUser,setApiUser]=useState('admin'); const [apiPassword,setApiPassword]=useState('');
+  const [apiUser,setApiUser]=useState('jmcloud'); const [apiPassword,setApiPassword]=useState('');
   const [apiBusy,setApiBusy]=useState(false); const [apiErr,setApiErr]=useState('');
   const [lat,setLat]=useState(''); const [lng,setLng]=useState('');
   const [locBusy,setLocBusy]=useState(false); const [locErr,setLocErr]=useState('');
   const load = useCallback(()=>api('/stations/'+id).then(d=>{
     setS(d);
-    setApiUser(d.apiUser||'admin');
+    setApiUser(d.apiUser||'jmcloud');
     setApiPassword('');
     setLat(d.lat != null ? String(d.lat) : '');
     setLng(d.lng != null ? String(d.lng) : '');
@@ -2748,16 +2835,19 @@ function StationDetail({ id, onBack, onChanged }) {
   useEffect(()=>{ load(); },[load]);
   if (!s) return html`<div class="dim">Loading…</div>`;
   const act = async (p,b) => { await api(`/stations/${id}${p}`,{method:'POST',body:b}); await load(); onChanged(); };
-  const saveApi = async () => {
+  const saveApi = async (opts={}) => {
     setApiErr('');
     setApiBusy(true);
     try {
-      const body = { apiUser: apiUser.trim() || 'admin' };
-      if (apiPassword.trim()) body.apiPassword = apiPassword.trim();
-      await api('/stations/'+id,{method:'PATCH',body});
+      const body = { apiUser: apiUser.trim() || 'jmcloud' };
+      if (opts.regenerate) body.regenerateApiPassword = true;
+      else if (apiPassword.trim()) body.apiPassword = apiPassword.trim();
+      const r = await api('/stations/'+id,{method:'PATCH',body});
+      if (r.routerosScript) setS({...r, cameras: s.cameras});
+      else await load();
       setApiPassword('');
-      await load();
       onChanged();
+      if (r.apiPassword) alert('API password saved: '+r.apiPassword+'\n\nCopy/update ang paste script kung kailangan sa MikroTik.');
     } catch(e) { setApiErr(e.message); }
     finally { setApiBusy(false); }
   };
@@ -2803,15 +2893,21 @@ function StationDetail({ id, onBack, onChanged }) {
       </div>
     </div>
     <div class="card" style=${{marginBottom:'16px'}}>
-      <h3>Billing API credentials</h3>
-      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>Ilagay ang MikroTik RouterOS API user/password para sa JM billing — konekta sa <span class="mono">${s.apiAddress}</span></p>
+      <h3>MikroTik API credentials ${s.apiPasswordConfigured
+        ? html`<span class="badge b-ok" style=${{marginLeft:'8px'}}>set</span>`
+        : html`<span class="badge b-warn" style=${{marginLeft:'8px'}}>missing</span>`}</h3>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Ilagay ang RouterOS API user/password — naka-save sa VPS para sa <b>Test</b> / hotspot push.
+        Address: <span class="mono">${s.apiAddress}</span> · REST via VPN: <span class="mono">http://${s.vpnIp}/rest/</span>
+      </p>
       <div class="row">
-        <div style=${{flex:1}}><label>API username</label><input value=${apiUser} onInput=${e=>setApiUser(e.target.value)} class="mono" /></div>
-        <div style=${{flex:1}}><label>API password <span class="dim">(blanko = hindi palitan)</span></label><input value=${apiPassword} onInput=${e=>setApiPassword(e.target.value)} placeholder=${s.apiPassword ? '••••••••' : 'hindi pa naka-set'} class="mono" /></div>
+        <div style=${{flex:1}}><label>API username</label><input value=${apiUser} onInput=${e=>setApiUser(e.target.value)} class="mono" placeholder="jmcloud" /></div>
+        <div style=${{flex:1}}><label>API password <span class="dim">(blanko = hindi palitan)</span></label><input value=${apiPassword} onInput=${e=>setApiPassword(e.target.value)} placeholder=${s.apiPasswordConfigured ? '••••••••' : 'hindi pa naka-set'} class="mono" /></div>
       </div>
       ${apiErr && html`<div class="err">${apiErr}</div>`}
-      <div class="row" style=${{marginTop:'12px',justifyContent:'flex-end'}}>
-        <button onClick=${saveApi} disabled=${apiBusy}>${apiBusy?'Saving…':'Save API credentials'}</button>
+      <div class="row" style=${{marginTop:'12px',justifyContent:'flex-end',gap:'8px'}}>
+        <button class="ghost" onClick=${()=>saveApi({regenerate:true})} disabled=${apiBusy}>Auto-generate password</button>
+        <button onClick=${()=>saveApi()} disabled=${apiBusy}>${apiBusy?'Saving…':'Save API credentials'}</button>
       </div>
     </div>
     <div class="card" style=${{marginBottom:'16px'}}>
@@ -3338,11 +3434,13 @@ function App() {
             <div class="site-card-stats">
               <div class="site-stat"><div class="k">Cams</div><div class="v ${s.cameraCount?'ok':''}">${s.cameraCount||0}</div></div>
               <div class="site-stat"><div class="k">Winbox</div><div class="v" style=${{fontSize:'11px'}}>${s.winboxPort||'—'}</div></div>
-              <div class="site-stat"><div class="k">API</div><div class="v" style=${{fontSize:'11px'}}>${s.apiPort||'—'}</div></div>
+              <div class="site-stat"><div class="k">API</div><div class="v ${s.apiPasswordConfigured?'ok':'bad'}" style=${{fontSize:'11px'}}>${s.apiPasswordConfigured?'set':'no pw'}</div></div>
               <div class="site-stat"><div class="k">Status</div><div class="v ${up?'ok':down?'bad':''}">${paused?'off':(up?'up':'—')}</div></div>
             </div>
             <div class="site-card-foot">
               <button class="mini go" onClick=${()=>openStation(s.id)}>⚙ Manage</button>
+              <button class="mini" style=${{borderColor:s.apiPasswordConfigured?'':'var(--warn)',color:s.apiPasswordConfigured?'':'var(--warn)'}}
+                onClick=${()=>setModal({type:'editStation', station:s})}>✎ Edit API</button>
               <button class="mini" disabled=${!!h?.testing} onClick=${()=>testSite(s.id)}>${h?.testing?'…':'Test'}</button>
               <button class="mini" onClick=${()=>copyTxt(s.vpnAddress).then(ok=>ok&&alert('Winbox copied'))}>Winbox</button>
               <button class="mini danger" onClick=${async()=>{if(confirm('Delete MikroTik site '+s.name+'? Kasama ang cameras nito!')){await api('/stations/'+s.id,{method:'DELETE'}); loadAll();}}}>✕</button>
@@ -4067,6 +4165,9 @@ function App() {
     ${modal?.type==='geo' && isManager && html`<${NameModal} title=${modal.title} onClose=${()=>setModal(null)}
       onSave=${async name=>{await api('/geo/'+modal.level,{method:'POST',body:{name,parentId:modal.parentId}}); setModal(null); loadAll();}} />`}
     ${modal?.type==='station' && isManager && html`<${StationModal} hub=${hub} onClose=${()=>setModal(null)}
+      onDone=${()=>{setModal(null); loadAll();}} />`}
+    ${modal?.type==='editStation' && isManager && modal.station && html`<${EditStationModal}
+      station=${modal.station} onClose=${()=>setModal(null)}
       onDone=${()=>{setModal(null); loadAll();}} />`}
     ${modal?.type==='zerotier' && isManager && html`<${ZeroTierModal} hub=${hub} onClose=${()=>setModal(null)}
       onDone=${()=>{setModal(null); loadAll();}} />`}
