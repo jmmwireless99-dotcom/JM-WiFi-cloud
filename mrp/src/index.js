@@ -127,6 +127,33 @@ app.get(`${BASE}/soscial`, (_req, res) => {
   res.sendFile(path.join(publicDir, 'soscial', 'index.html'));
 });
 
+// Forced APK/ZIP download (mobile browsers often need Content-Disposition)
+function sendDownload(res, fileName, downloadName, contentType) {
+  const filePath = path.join(publicDir, 'soscial', fileName);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'file not found' });
+  });
+}
+const apkHandler = (_req, res) => {
+  sendDownload(res, 'soscial-park-cctv.apk', 'soscial-park-cctv.apk', 'application/vnd.android.package-archive');
+};
+const zipHandler = (_req, res) => {
+  sendDownload(res, 'soscial-park-cctv.zip', 'soscial-park-cctv.zip', 'application/zip');
+};
+app.get(`${BASE}/soscial.apk`, apkHandler);
+app.get(`${BASE}/soscial/download.apk`, apkHandler);
+app.get(`${BASE}/soscial/soscial-park-cctv.apk`, apkHandler);
+app.get(`${BASE}/soscial.zip`, zipHandler);
+app.get(`${BASE}/soscial/download.zip`, zipHandler);
+app.get(`${BASE}/soscial/soscial-park-cctv.zip`, zipHandler);
+app.get(`${BASE}/soscial/download`, (_req, res) => {
+  res.sendFile(path.join(publicDir, 'soscial', 'download.html'));
+});
+
 // ---- panel (static) ----
 app.use(BASE || '/', express.static(publicDir, {
   maxAge: '1h',
@@ -135,6 +162,10 @@ app.use(BASE || '/', express.static(publicDir, {
     if (String(filePath).endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
+    }
+    if (String(filePath).endsWith('.apk')) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="soscial-park-cctv.apk"');
     }
   },
 }));
