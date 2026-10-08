@@ -8,8 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOSCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="icon" href="./icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>SOSCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -229,13 +230,18 @@
     }
 
     .install-bar {
-      margin: 0 16px 12px; padding: 12px 14px; border-radius: 16px;
+      margin: 0 16px 12px; padding: 14px;
+      border-radius: 16px;
       background: linear-gradient(135deg, rgba(232,168,56,.18), rgba(232,168,56,.05));
       border: 1px solid rgba(232,168,56,.3);
-      display: flex; align-items: center; gap: 12px;
       animation: rise .45s ease both;
     }
-    .install-bar p { margin: 0; flex: 1; font-size: 13px; line-height: 1.35; }
+    .install-bar h3 {
+      margin: 0 0 8px; font-family: Sora, sans-serif; font-size: 14px; font-weight: 700;
+      color: var(--acc2);
+    }
+    .install-bar ol { margin: 0; padding-left: 18px; color: var(--txt); font-size: 13px; line-height: 1.55; }
+    .install-bar .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
     .install-bar button { padding: 10px 14px; font-size: 13px; }
 
     .wall-grid {
@@ -291,10 +297,29 @@
       </div>
       <span class="pill" id="vpnPill">VPN</span>
     </div>
-    <div id="installBar" class="install-bar hidden">
-      <p><b>I-install ang app</b> sa Home Screen para one-tap open.</p>
-      <button type="button" id="installBtn">Install</button>
-      <button type="button" class="ghost" id="installDismiss" style="padding:10px 12px">✕</button>
+    <div id="installBar" class="install-bar">
+      <h3>📱 Paano i-install sa cellphone</h3>
+      <div id="installIos">
+        <ol>
+          <li>Buksan ang link sa <b>Safari</b> (iPhone)</li>
+          <li>Pindutin ang <b>Share</b> button (□↑) sa baba</li>
+          <li>Piliin <b>Add to Home Screen</b></li>
+          <li>Pindutin <b>Add</b> — lalabas ang SOSCIAL CCTV icon</li>
+        </ol>
+      </div>
+      <div id="installAndroid" class="hidden">
+        <ol>
+          <li>Buksan sa <b>Chrome</b></li>
+          <li>Pindutin ang <b>⋮</b> (3 dots) sa taas-kanan</li>
+          <li>Piliin <b>Install app</b> o <b>Add to Home screen</b></li>
+          <li>Confirm — one-tap open na tulad ng app</li>
+        </ol>
+      </div>
+      <div class="actions">
+        <button type="button" id="installBtn" class="hidden">Install app</button>
+        <button type="button" class="ghost" id="installToggle">Android / iPhone</button>
+        <button type="button" class="ghost" id="installDismiss">Hide</button>
+      </div>
     </div>
     <div class="content" id="viewCams"></div>
     <div class="content hidden" id="viewWall"></div>
@@ -462,15 +487,23 @@
 
   function renderAccount() {
     const root = $('viewAccount');
+    const url = location.origin + location.pathname.replace(/index\.html$/, '');
     root.innerHTML = `
       <div class="section-label">Account</div>
       <div class="cam-tile" style="cursor:default;padding:16px">
         <div class="nm" style="font-size:16px;font-weight:700">${(user && (user.displayName || user.role)) || 'Staff'}</div>
         <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'}</div>
         <p style="color:var(--dim);font-size:13px;line-height:1.45;margin:14px 0 0">
-          App URL: <span class="mono" style="color:var(--acc2)">${location.origin}${location.pathname.replace(/index\.html$/, '')}</span><br/>
-          I-install via browser Share → Add to Home Screen (iOS) o Install (Android).
+          App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
         </p>
+        <div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2)">
+          <b style="color:var(--acc2)">Walang “Install app” button?</b>
+          <p style="margin:8px 0 0;font-size:13px;color:var(--dim);line-height:1.5">
+            <b>iPhone:</b> Safari → Share (□↑) → <b>Add to Home Screen</b><br/>
+            <b>Android:</b> Chrome → ⋮ → <b>Install app</b> / Add to Home screen<br/>
+            Kung wala pa rin: i-bookmark muna ang page, o subukan ulit sa Chrome/Safari (hindi FB/Messenger browser).
+          </p>
+        </div>
         <button type="button" class="ghost" id="logoutBtn" style="width:100%;margin-top:16px">Log out</button>
       </div>`;
     $('logoutBtn').onclick = logout;
@@ -610,17 +643,38 @@
   };
   $('playerRefresh').onclick = () => playCurrent($('playerVideo').muted);
 
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let showIosHelp = isIos;
+  function syncInstallHelp() {
+    show($('installIos'), showIosHelp);
+    show($('installAndroid'), !showIosHelp);
+    $('installToggle').textContent = showIosHelp ? 'Android steps' : 'iPhone steps';
+  }
+  syncInstallHelp();
+  $('installToggle').onclick = () => { showIosHelp = !showIosHelp; syncInstallHelp(); };
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    show($('installBtn'), true);
     show($('installBar'), true);
   });
+  // Standalone = already installed
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (isStandalone) show($('installBar'), false);
+
   $('installBtn').onclick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      alert(isIos
+        ? 'Sa iPhone: Safari → Share (□↑) → Add to Home Screen'
+        : 'Sa Android: Chrome → ⋮ (3 dots) → Install app / Add to Home screen');
+      return;
+    }
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     deferredPrompt = null;
-    show($('installBar'), false);
+    show($('installBtn'), false);
   };
   $('installDismiss').onclick = () => show($('installBar'), false);
 
