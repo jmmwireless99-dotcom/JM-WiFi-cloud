@@ -141,12 +141,19 @@ function sendDownload(res, fileName, downloadName, contentType) {
 const apkHandler = (_req, res) => {
   sendDownload(res, 'soscial-park-cctv.apk', 'soscial-park-cctv.apk', 'application/vnd.android.package-archive');
 };
+const tvApkHandler = (_req, res) => {
+  // Same universal APK (phone + Leanback TV); alternate filename for TV sideload links
+  sendDownload(res, 'soscial-park-cctv.apk', 'soscial-park-cctv-tv.apk', 'application/vnd.android.package-archive');
+};
 const zipHandler = (_req, res) => {
   sendDownload(res, 'soscial-park-cctv.zip', 'soscial-park-cctv.zip', 'application/zip');
 };
 app.get(`${BASE}/soscial.apk`, apkHandler);
+app.get(`${BASE}/soscial-tv.apk`, tvApkHandler);
 app.get(`${BASE}/soscial/download.apk`, apkHandler);
+app.get(`${BASE}/soscial/tv.apk`, tvApkHandler);
 app.get(`${BASE}/soscial/soscial-park-cctv.apk`, apkHandler);
+app.get(`${BASE}/soscial/soscial-park-cctv-tv.apk`, tvApkHandler);
 app.get(`${BASE}/soscial.zip`, zipHandler);
 app.get(`${BASE}/soscial/download.zip`, zipHandler);
 app.get(`${BASE}/soscial/soscial-park-cctv.zip`, zipHandler);

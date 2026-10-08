@@ -261,6 +261,69 @@
       from { opacity: 0; transform: translateY(14px); }
       to { opacity: 1; transform: none; }
     }
+
+    /* ---- Android TV / leanback ---- */
+    .tv-mode {
+      --nav-h: 84px;
+      font-size: 18px;
+    }
+    .tv-mode #login {
+      justify-content: center;
+      flex-direction: row;
+      align-items: center;
+      gap: 48px;
+      padding: 40px 56px;
+    }
+    .tv-mode .brand-block {
+      padding-top: 0;
+      margin: 0;
+      flex: 1;
+      max-width: 420px;
+    }
+    .tv-mode .brand-block h1 { font-size: clamp(3rem, 6vw, 4.5rem); }
+    .tv-mode .brand-block p { max-width: none; font-size: 1.2rem; }
+    .tv-mode .login-card {
+      flex: 0 0 380px;
+      max-width: 420px;
+      padding: 28px;
+    }
+    .tv-mode .login-card input,
+    .tv-mode .login-card button,
+    .tv-mode a[href*="apk"] {
+      font-size: 18px;
+      min-height: 52px;
+    }
+    .tv-mode .cam-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .tv-mode .cam-tile {
+      border-width: 2px;
+      outline: none;
+    }
+    .tv-mode .cam-tile:focus,
+    .tv-mode .cam-tile:focus-visible,
+    .tv-mode button:focus,
+    .tv-mode button:focus-visible,
+    .tv-mode a:focus,
+    .tv-mode a:focus-visible,
+    .tv-mode input:focus {
+      outline: 3px solid var(--acc);
+      outline-offset: 3px;
+      border-color: var(--acc);
+      transform: scale(1.02);
+    }
+    .tv-mode .bottom-nav button {
+      font-size: 14px;
+      padding: 12px 8px;
+    }
+    .tv-mode .bottom-nav .ico { font-size: 22px; }
+    .tv-mode .wall-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .tv-mode #player .ph .title b { font-size: 22px; }
+    .tv-mode #player .pf button { min-height: 52px; font-size: 16px; padding: 14px 20px; }
+    .tv-mode .install-bar { display: none !important; }
+    .tv-mode .tv-only { display: block !important; }
+    .tv-only { display: none; }
   </style>
 </head>
 <body>
@@ -270,30 +333,32 @@
         <svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="28" r="14" stroke="#e8a838" stroke-width="4"/><circle cx="32" cy="28" r="5" fill="#e8a838"/><path d="M18 46h28l-3 8H21l-3-8z" fill="#d7e3db"/></svg>
       </div>
       <h1>SOSCIAL<span>PARK</span></h1>
-      <p>Live CCTV sa telepono — i-install para parang native app.</p>
+      <p id="brandTagline">Live CCTV sa telepono at Android TV — i-install para parang native app.</p>
     </div>
     <form class="login-card" id="loginForm">
       <div class="row">
         <div>
           <label for="user">Username</label>
-          <input id="user" name="username" autocomplete="username" required placeholder="staff / admin" />
+          <input id="user" name="username" autocomplete="username" required placeholder="staff / admin" tabindex="1" />
         </div>
         <div>
           <label for="pass">Password</label>
-          <input id="pass" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+          <input id="pass" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" tabindex="2" />
         </div>
       </div>
       <div class="err hidden" id="loginErr"></div>
-      <button type="submit" id="loginBtn">Open cameras</button>
+      <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
       <a href="/soscial.apk"
-        style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px">
-        ⬇ Download Android APK
+        style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
+        tabindex="4">
+        ⬇ Download Android / TV APK
       </a>
       <a href="/soscial/download"
-        style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline">
+        style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
+        tabindex="5">
         Failed download? Buksan ang download page
       </a>
-      <div class="login-foot">JM TECH SOLUTION · SOSCIAL Park monitoring</div>
+      <div class="login-foot">JM TECH SOLUTION · SOSCIAL Park · Phone &amp; Android TV</div>
     </form>
   </div>
 
@@ -306,24 +371,25 @@
       <span class="pill" id="vpnPill">VPN</span>
     </div>
     <div id="installBar" class="install-bar">
-      <h3>📱 Android APK — i-download at i-install</h3>
+      <h3>📱 Android phone &amp; Android TV APK</h3>
       <ol>
-        <li>Pindutin ang <b>Download APK</b></li>
-        <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps / Chrome kung tanungin)</li>
-        <li>Open ang <b>SOSCIAL Park CCTV</b> app → login</li>
+        <li>Pindutin ang <b>Download APK</b> (isang APK para sa phone at TV box)</li>
+        <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps)</li>
+        <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
       </ol>
       <div class="actions">
         <a id="apkBtn" href="/soscial.apk"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download APK
         </a>
+        <a href="/soscial-tv.apk" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
       <p style="margin:12px 0 0;font-size:12px;color:var(--dim);line-height:1.45">
         Kung failed: buksan sa <b>Chrome</b> (hindi Messenger) →
         <a href="/soscial/download" style="color:var(--acc2)">/soscial/download</a><br/>
-        iPhone: Safari → Share → Add to Home Screen.
+        Android TV: sideload via USB / Downloader app · iPhone: Safari → Add to Home Screen.
       </p>
     </div>
     <div class="content" id="viewCams"></div>
@@ -446,7 +512,15 @@
         </div>`;
       tile.querySelector('.nm').textContent = c.name;
       tile.querySelector('.loc').textContent = [c.nvrName || 'SOSCIAL', c.live ? 'ready' : 'offline'].filter(Boolean).join(' · ');
+      tile.tabIndex = 0;
+      tile.setAttribute('role', 'button');
       tile.addEventListener('click', () => openPlayer(c));
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'MediaPlayPause') {
+          e.preventDefault();
+          openPlayer(c);
+        }
+      });
       grid.appendChild(tile);
     });
   }
@@ -502,13 +576,17 @@
           App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
         </p>
         <div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2)">
-          <b style="color:var(--acc2)">Android APK</b>
+          <b style="color:var(--acc2)">Android phone &amp; TV APK</b>
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
-            I-download ang APK tapos i-install (payagan ang Unknown sources).
+            Isang APK para sa cellphone at Android TV box. I-install (Unknown sources).
           </p>
           <a href="/soscial.apk"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
             Download APK
+          </a>
+          <a href="/soscial-tv.apk"
+            style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
+            TV APK
           </a>
           <a href="/soscial/download" style="display:inline-block;margin-top:10px;color:var(--acc2);font-size:13px">Failed? Open download page</a>
         </div>
@@ -651,9 +729,27 @@
   };
   $('playerRefresh').onclick = () => playCurrent($('playerVideo').muted);
 
+  // Android TV / large leanback UI
+  const isTvApp = /SoscialParkCctvTV/i.test(navigator.userAgent)
+    || /Android TV|GoogleTV|BRAVIA|AFT[M-Z]|MIBOX|MiTV|SmartTV/i.test(navigator.userAgent)
+    || (window.matchMedia('(min-width: 960px) and (pointer: coarse)').matches);
+  function applyTvMode() {
+    document.documentElement.classList.add('tv-mode');
+    document.body.classList.add('tv-mode');
+    const tag = $('brandTagline');
+    if (tag) tag.textContent = 'Live CCTV sa Android TV — gamitin ang remote (D-pad) para pumili.';
+    show($('installBar'), false);
+    // Make camera tiles keyboard/D-pad focusable
+    document.querySelectorAll('.cam-tile, .bottom-nav button, #loginBtn').forEach((el) => {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    });
+  }
+  if (isTvApp) applyTvMode();
+  window.__soscialApplyTvMode = applyTvMode;
+
   // Standalone / installed WebView app — hide banner
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
-    || /SoscialParkCctvApp/i.test(navigator.userAgent);
+    || /SoscialParkCctvApp|SoscialParkCctvTV/i.test(navigator.userAgent);
   if (isStandalone) show($('installBar'), false);
 
   $('installDismiss').onclick = () => show($('installBar'), false);

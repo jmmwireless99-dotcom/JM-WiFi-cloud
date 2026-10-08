@@ -12,9 +12,10 @@
       margin: 0; min-height: 100dvh; font-family: system-ui, sans-serif;
       background: radial-gradient(100% 70% at 50% 0%, rgba(232,168,56,.2), transparent 50%), var(--bg);
       color: var(--txt); padding: 28px 18px;
-      display: flex; flex-direction: column; justify-content: center; max-width: 420px; margin-inline: auto;
+      display: flex; flex-direction: column; justify-content: center; max-width: 480px; margin-inline: auto;
     }
     h1 { font-size: 1.6rem; margin: 0 0 8px; }
+    h2 { font-size: 1.05rem; margin: 22px 0 8px; color: var(--acc); }
     p { color: var(--dim); line-height: 1.5; }
     a.btn {
       display: block; text-align: center; text-decoration: none; font-weight: 800;
@@ -30,18 +31,28 @@
 </head>
 <body>
   <h1>SOSCIAL Park CCTV</h1>
-  <p>I-download ang Android APK. Kung failed ang isa, subukan ang kabila.</p>
+  <p>Isang APK para sa <b>Android phone</b> at <b>Android TV / TV box</b>.</p>
 
-  <a class="btn" href="/soscial.apk">⬇ Download APK (direct)</a>
-  <a class="ghost" href="/soscial/download.apk">⬇ Download APK (alt link)</a>
-  <a class="ghost" href="/soscial.zip">⬇ Download ZIP (kunin APK sa loob)</a>
+  <a class="btn" href="/soscial.apk">⬇ Download APK (phone + TV)</a>
+  <a class="ghost" href="/soscial-tv.apk">⬇ Download TV APK (same build)</a>
+  <a class="ghost" href="/soscial.zip">⬇ Download ZIP</a>
 
+  <h2>Android phone</h2>
   <ol>
     <li>Buksan ang link sa <b>Chrome</b> (huwag Messenger/FB)</li>
     <li>Tap Download → buksan ang file → <b>Install</b></li>
     <li>Payagan ang <b>Unknown apps</b> kung tanungin</li>
     <li>Open app → login: <b>admin</b></li>
   </ol>
+
+  <h2>Android TV / TV box</h2>
+  <ol>
+    <li>I-download ang APK sa phone, USB stick, o Downloader app (code/URL)</li>
+    <li>I-install sa TV (Unknown sources / Install unknown apps)</li>
+    <li>Hanapin ang <b>SOSCIAL Park CCTV</b> sa Apps row</li>
+    <li>Remote (D-pad) → login → piliin ang camera</li>
+  </ol>
+
   <p class="note">Kung nasa Messenger ka ngayon: i-tap ang ⋮ → <b>Open in Chrome / Browser</b>, tapos download ulit.</p>
   <a class="ghost" href="/soscial/">← Balik sa app</a>
 </body>
