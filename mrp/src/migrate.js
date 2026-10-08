@@ -446,4 +446,17 @@ export async function runMigrations() {
     ALTER TABLE cameras ADD COLUMN IF NOT EXISTS nvr_area_id INTEGER REFERENCES nvr_areas(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_cameras_nvr ON cameras (nvr_area_id);
   `).catch((e) => console.warn('nvr_areas:', e.message));
+
+  // Dahua / Hikvision NVR device credentials + ports (for MikroTik NAT + RTSP)
+  await pool.query(`
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS brand TEXT NOT NULL DEFAULT 'dahua';
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS model TEXT NOT NULL DEFAULT '';
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS lan_ip TEXT;
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS rtsp_port INTEGER NOT NULL DEFAULT 554;
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS tcp_port INTEGER NOT NULL DEFAULT 37777;
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS rtsp_user TEXT NOT NULL DEFAULT 'admin';
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS rtsp_pass TEXT NOT NULL DEFAULT '';
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS channels INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS firmware TEXT NOT NULL DEFAULT '';
+  `).catch((e) => console.warn('nvr_areas device cols:', e.message));
 }

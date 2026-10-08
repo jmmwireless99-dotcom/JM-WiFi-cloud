@@ -2698,6 +2698,15 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
     name: nvr?.name || '',
     area: nvr?.notes || '',
     stationId: station?.id || nvr?.stationId || (stations[0]?.id ?? ''),
+    brand: nvr?.brand || 'dahua',
+    model: nvr?.model || '',
+    lanIp: nvr?.lanIp || '',
+    rtspPort: nvr?.rtspPort != null ? String(nvr.rtspPort) : '554',
+    tcpPort: nvr?.tcpPort != null ? String(nvr.tcpPort) : '37777',
+    rtspUser: nvr?.rtspUser || 'admin',
+    rtspPass: '',
+    channels: nvr?.channels != null ? String(nvr.channels) : '32',
+    firmware: nvr?.firmware || '',
     lat: nvr?.lat != null ? String(nvr.lat) : '',
     lng: nvr?.lng != null ? String(nvr.lng) : '',
   });
@@ -2708,12 +2717,12 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
   return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
     <div class="modal"><h2>${isEdit?'Edit NVR Area':'Add NVR Area'}</h2>
       <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
-        Gumawa ng <b>NVR Name</b> at <b>Area</b>. Pagkatapos i-save, lalabas bilang NVR Area button — sa loob mag-a-add ng cameras.
+        Gumawa ng <b>NVR Name</b> + <b>Area</b>, at ilagay ang NVR LAN IP / login para ma-integrate sa MikroTik + live view.
       </p>
       <label>NVR Name</label>
-      <input value=${f.name} onInput=${set('name')} placeholder="SOSCIAL NVR-1" autoFocus />
+      <input value=${f.name} onInput=${set('name')} placeholder="SOSCIAL CENTER" autoFocus />
       <label>Area</label>
-      <input value=${f.area} onInput=${set('area')} placeholder="Gate / Building A / Parking" />
+      <input value=${f.area} onInput=${set('area')} placeholder="SOSCAIL PARK / Gate / Building A" />
       ${!isEdit && html`
         <label>MikroTik site <span class="dim">(VPN tunnel)</span></label>
         <select value=${f.stationId||''} onChange=${set('stationId')}>
@@ -2724,6 +2733,45 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
       ${isEdit && html`<p class="dim" style=${{margin:'0 0 10px',fontSize:'13px'}}>
         Site: <b>${station?.name || nvr?.stationName || '—'}</b>
       </p>`}
+      <div class="row">
+        <div style=${{flex:1}}><label>Brand</label>
+          <select value=${f.brand} onChange=${set('brand')}>
+            <option value="dahua">Dahua</option>
+            <option value="hikvision">Hikvision</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div style=${{flex:2}}><label>Model</label>
+          <input value=${f.model} onInput=${set('model')} placeholder="DHI-NVR4232-4KS3" class="mono" />
+        </div>
+      </div>
+      <div class="row">
+        <div style=${{flex:2}}><label>NVR LAN IP</label>
+          <input value=${f.lanIp} onInput=${set('lanIp')} placeholder="192.168.20.15" class="mono" />
+        </div>
+        <div style=${{flex:1}}><label>RTSP port</label>
+          <input type="number" value=${f.rtspPort} onInput=${set('rtspPort')} />
+        </div>
+        <div style=${{flex:1}}><label>TCP port</label>
+          <input type="number" value=${f.tcpPort} onInput=${set('tcpPort')} />
+        </div>
+      </div>
+      <div class="row">
+        <div style=${{flex:1}}><label>NVR user</label>
+          <input value=${f.rtspUser} onInput=${set('rtspUser')} placeholder="admin" class="mono" />
+        </div>
+        <div style=${{flex:1}}><label>NVR password ${isEdit?html`<span class="dim">(blanko = keep)</span>`:''}</label>
+          <input type="password" value=${f.rtspPass} onInput=${set('rtspPass')} placeholder=${isEdit?'••••••••':'soscial@3000'} />
+        </div>
+      </div>
+      <div class="row">
+        <div style=${{flex:1}}><label>Channels</label>
+          <input type="number" value=${f.channels} onInput=${set('channels')} placeholder="32" />
+        </div>
+        <div style=${{flex:2}}><label>Firmware <span class="dim">(optional)</span></label>
+          <input value=${f.firmware} onInput=${set('firmware')} placeholder="V4.006…" class="mono" />
+        </div>
+      </div>
       <${LatLngFields} lat=${f.lat} lng=${f.lng} onChange=${({lat,lng})=>setF({...f,lat,lng})}
         hint="Optional — NVR map pin." />
       ${err && html`<div class="err">${err}</div>`}
@@ -2733,7 +2781,15 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
           setBusy(true); setErr('');
           try {
             const coords = parseFormLatLng(f.lat, f.lng);
-            const body = { name:f.name.trim(), notes:f.area.trim(), lat:coords.lat, lng:coords.lng };
+            const body = {
+              name:f.name.trim(), notes:f.area.trim(), lat:coords.lat, lng:coords.lng,
+              brand:f.brand, model:f.model.trim(), lanIp:f.lanIp.trim(),
+              rtspPort:Number(f.rtspPort)||554, tcpPort:Number(f.tcpPort)||37777,
+              rtspUser:f.rtspUser.trim()||'admin',
+              channels:Number(f.channels)||0, firmware:f.firmware.trim(),
+            };
+            if (f.rtspPass.trim()) body.rtspPass = f.rtspPass.trim();
+            else if (!isEdit) body.rtspPass = '';
             if (isEdit) await api('/nvrs/'+nvr.id,{method:'PATCH',body});
             else await api('/nvrs',{method:'POST',body:{...body, stationId: Number(f.stationId)}});
             onDone();
@@ -2746,9 +2802,18 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
 
 // CCTV camera — under NVR area (preferred) or legacy barangay+station
 function CameraModal({ barangay, geo, stations, station, nvr, onClose, onDone }) {
+  const nvrBrand = (nvr?.brand || 'dahua').toLowerCase();
+  const defaultPath = nvrBrand === 'hikvision'
+    ? '/Streaming/Channels/101'
+    : '/cam/realmonitor?channel=1&subtype=0';
   const [f,setF]=useState({
-    name:'', brand:'dahua', lanIp:'', rtspPort:554,
-    rtspPath:'/cam/realmonitor?channel=1&subtype=0', rtspUser:'admin', rtspPass:'',
+    name: nvr ? 'Ch1' : '',
+    brand: nvrBrand === 'other' ? 'dahua' : nvrBrand,
+    lanIp: nvr?.lanIp || '',
+    rtspPort: nvr?.rtspPort || 554,
+    rtspPath: defaultPath,
+    rtspUser: nvr?.rtspUser || 'admin',
+    rtspPass: '',
     lat:'', lng:'',
   });
   const [brgyId,setBrgyId]=useState(barangay?.id||null);
@@ -3412,6 +3477,7 @@ function App() {
     const nvrCams = nvrId ? cams.filter(c => c.nvrAreaId === nvrId && match(c.name+(c.lanIp||'')+(c.brand||''))) : [];
 
     if (nvrId && nvr) {
+      const vpnUp = !!(site?.online);
       body = html`<div>
         <div class="crumbs" style=${{marginBottom:'12px'}}>
           <a style=${{color:'var(--acc)',cursor:'pointer'}} onClick=${()=>setNav({})}>NVR Areas</a>
@@ -3421,13 +3487,37 @@ function App() {
         <div class="section-head">
           <div>
             <h3>${nvr.name}</h3>
-            <div class="sub">Area: ${nvr.notes || '—'} · site ${site?.name || nvr.stationName || '—'} · ${nvrCams.length} camera(s)</div>
+            <div class="sub">Area: ${nvr.notes || '—'} · site ${site?.name || nvr.stationName || '—'} · ${nvrCams.length} camera(s)
+              · ${vpnUp?html`<span class="badge b-ok">VPN up</span>`:html`<span class="badge b-warn">VPN down</span>`}
+            </div>
           </div>
-          <button onClick=${()=>setModal({type:'camera', station: site || {id:nvr.stationId, name:nvr.stationName}, nvr})}>+ Add Camera</button>
+          <div class="row" style=${{gap:'8px',flexWrap:'wrap'}}>
+            <button class="ghost" onClick=${()=>setModal({type:'nvr', station:site, nvr})}>Edit NVR</button>
+            <button class="ghost" onClick=${async()=>{
+              try {
+                const r = await api('/nvrs/'+nvr.id+'/push',{method:'POST',body:{seedChannels: nvrCams.length?0:(Number(nvr.channels)||1)}});
+                alert(r.ok ? ('NAT pushed · '+r.cameras+' camera(s)') : ('Push issue: '+(r.error||JSON.stringify(r.errors||[]))));
+                loadAll();
+              } catch(e){ alert('Push failed: '+e.message+'\n\nKailangan online ang MikroTik SSTP VPN.'); }
+            }}>Push NAT → MikroTik</button>
+            <button onClick=${()=>setModal({type:'camera', station: site || {id:nvr.stationId, name:nvr.stationName}, nvr})}>+ Add Camera</button>
+          </div>
+        </div>
+        <div class="sites-hub" style=${{border:'1px solid var(--line)',borderRadius:'14px',marginBottom:'14px'}}>
+          <h3 style=${{fontSize:'15px'}}>${(nvr.brand||'dahua').toUpperCase()} NVR · ${nvr.model || 'device'}</h3>
+          <p>
+            LAN <span class="mono">${nvr.lanIp || '—'}</span>
+            · RTSP :${nvr.rtspPort || 554}
+            · TCP :${nvr.tcpPort || 37777}
+            · user <span class="mono">${nvr.rtspUser || 'admin'}</span>
+            · ${nvr.channels || '—'} ch
+            ${nvr.firmware?html` · FW ${nvr.firmware}`:''}
+            ${!vpnUp?html`<br/><span style=${{color:'var(--warn)'}}>VPN DOWN — i-paste muna ang SSTP script sa MikroTik Sites → SOSCIAL-1, tapos Push NAT.</span>`:''}
+          </p>
         </div>
         <div class="grid g-cams" style=${{marginBottom:'18px'}}>
           ${nvrCams.map(c=>html`<${Player} key=${c.id} cam=${c} />`)}
-          ${nvrCams.length===0 && html`<div class="empty">Wala pang camera — i-click ang “+ Add Camera”, tapos live view dito.</div>`}
+          ${nvrCams.length===0 && html`<div class="empty">Wala pang camera — i-click ang “+ Add Camera”, o Push NAT (auto-seed Ch1 kung may NVR LAN IP).</div>`}
         </div>
         ${nvrCams.length>0 && html`<div class="table-wrap">
           <table><thead><tr><th></th><th>Camera</th><th>Type</th><th>LAN IP</th><th>Tunnel</th><th>Status</th><th></th></tr></thead>

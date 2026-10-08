@@ -266,3 +266,82 @@ export async function probeMikrotik(site) {
     uptime: data?.uptime,
   };
 }
+
+const CCTV_IFACE = 'sstp-cctv';
+const CCTV_TAG = 'JM TECH SOLUTION';
+
+/**
+ * Ensure SSTP firewall forward + dst-nat rules so hub can pull RTSP from LAN cameras/NVR.
+ * Idempotent by comment. cameras: [{ name, tunnelPort, lanIp, rtspPort }]
+ */
+export async function pushCameraNat(site, cameras = []) {
+  const steps = [];
+  const errors = [];
+  try {
+    await rest(site, 'GET', 'system/resource');
+    steps.push({ step: 'connect', ok: true });
+  } catch (e) {
+    return { ok: false, applied: false, steps, errors: [e.message] };
+  }
+
+  // Allow hub → camera via dstnat on SSTP
+  try {
+    const comment = `${CCTV_TAG}: hub to camera`;
+    const existing = await findOne(site, 'ip/firewall/filter', { comment }).catch(() => null);
+    if (existing?.['.id']) {
+      steps.push({ step: 'forward dstnat', ok: true, skipped: true });
+    } else {
+      await rest(site, 'PUT', 'ip/firewall/filter', {
+        chain: 'forward',
+        action: 'accept',
+        'connection-nat-state': 'dstnat',
+        'in-interface': CCTV_IFACE,
+        comment,
+      });
+      steps.push({ step: 'forward dstnat', ok: true, skipped: false });
+    }
+  } catch (e) {
+    steps.push({ step: 'forward dstnat', ok: false, error: e.message });
+    errors.push(e.message);
+  }
+
+  for (const cam of cameras) {
+    const name = String(cam.name || 'cam').trim();
+    const tunnelPort = Number(cam.tunnelPort ?? cam.tunnel_port);
+    const lanIp = String((cam.lanIp ?? cam.lan_ip) || '').trim();
+    const rtspPort = Number(cam.rtspPort ?? cam.rtsp_port ?? 554) || 554;
+    if (!tunnelPort || !lanIp) {
+      steps.push({ step: `nat ${name}`, ok: false, error: 'missing tunnelPort/lanIp' });
+      continue;
+    }
+    const comment = `${CCTV_TAG}: ${name}`;
+    try {
+      const rows = await rest(site, 'GET', `ip/firewall/nat?comment=${encodeURIComponent(comment)}`).catch(() => []);
+      const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+      const hit = list.find((r) => String(r.comment) === comment) || null;
+      const body = {
+        chain: 'dstnat',
+        'in-interface': CCTV_IFACE,
+        protocol: 'tcp',
+        'dst-port': String(tunnelPort),
+        action: 'dst-nat',
+        'to-addresses': lanIp,
+        'to-ports': String(rtspPort),
+        comment,
+      };
+      if (hit?.['.id']) {
+        await rest(site, 'PATCH', `ip/firewall/nat/${hit['.id']}`, body);
+        steps.push({ step: `nat ${name}`, ok: true, skipped: false, updated: true, id: hit['.id'] });
+      } else {
+        const created = await rest(site, 'PUT', 'ip/firewall/nat', body);
+        steps.push({ step: `nat ${name}`, ok: true, skipped: false, id: created?.['.id'] });
+      }
+    } catch (e) {
+      steps.push({ step: `nat ${name}`, ok: false, error: e.message });
+      errors.push(`${name}: ${e.message}`);
+    }
+  }
+
+  const applied = steps.some((s) => String(s.step).startsWith('nat ') && s.ok);
+  return { ok: errors.length === 0 && steps.some((s) => s.step === 'connect' && s.ok), applied, steps, errors };
+}

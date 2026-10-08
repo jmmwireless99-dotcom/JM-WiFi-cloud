@@ -117,18 +117,19 @@ r.get('/:id', async (req, res) => {
 r.post('/', requireAdmin, async (req, res) => {
   const {
     barangayId, stationId, nvrAreaId,
-    name, lanIp, rtspPort = 554,
-    rtspPath = '/cam/realmonitor?channel=1&subtype=0', rtspUser = '', rtspPass = '',
+    name,
     brand = 'dahua',
   } = req.body || {};
-  if (!name?.trim() || !lanIp) {
-    return res.status(400).json({ error: 'name and lanIp required' });
-  }
+  let {
+    lanIp, rtspPort = 554,
+    rtspPath = '/cam/realmonitor?channel=1&subtype=0', rtspUser = '', rtspPass = '',
+  } = req.body || {};
 
   let resolvedStationId = stationId ? Number(stationId) : null;
   let resolvedNvrId = nvrAreaId ? Number(nvrAreaId) : null;
   let resolvedBrgy = barangayId ? Number(barangayId) : null;
 
+  let nvrRow = null;
   if (resolvedNvrId) {
     const { rows: nvr } = await pool.query(`SELECT * FROM nvr_areas WHERE id = $1`, [resolvedNvrId]);
     if (!nvr[0]) return res.status(400).json({ error: 'NVR area not found' });
@@ -136,6 +137,15 @@ r.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'stationId does not match NVR MikroTik site' });
     }
     resolvedStationId = nvr[0].station_id;
+    nvrRow = nvr[0];
+    if (!lanIp) lanIp = nvrRow.lan_ip || '';
+    if (!rtspUser) rtspUser = nvrRow.rtsp_user || 'admin';
+    if (!rtspPass) rtspPass = nvrRow.rtsp_pass || '';
+    if (!req.body?.rtspPort && nvrRow.rtsp_port) rtspPort = nvrRow.rtsp_port;
+  }
+
+  if (!name?.trim() || !lanIp) {
+    return res.status(400).json({ error: 'name and lanIp required (o i-set ang NVR LAN IP)' });
   }
 
   if (!resolvedStationId) {
@@ -148,7 +158,7 @@ r.post('/', requireAdmin, async (req, res) => {
   const { rows: st } = await pool.query(`SELECT id FROM stations WHERE id = $1`, [resolvedStationId]);
   if (!st[0]) return res.status(400).json({ error: 'MikroTik site not found' });
 
-  const brandNorm = String(brand || 'dahua').toLowerCase();
+  const brandNorm = String(brand || nvrRow?.brand || 'dahua').toLowerCase();
   const allowedBrand = ['dahua', 'hikvision', 'v380', 'other'].includes(brandNorm) ? brandNorm : 'other';
   let lat = null;
   let lng = null;
