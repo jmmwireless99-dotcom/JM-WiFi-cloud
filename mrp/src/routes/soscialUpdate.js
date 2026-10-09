@@ -40,7 +40,7 @@ r.get('/update', async (_req, res) => {
     const { rows } = await pool.query(
       `SELECT id, name, enabled, lan_ip, stream_token
          FROM cameras
-        WHERE station_id = 71 AND enabled = true
+        WHERE station_id = 71
         ORDER BY id`
     );
     const ids = rows.map((c) => c.id);
