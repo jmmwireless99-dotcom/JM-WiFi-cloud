@@ -22,7 +22,7 @@ import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/";
+    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.2.0";
 
     private WebView webView;
     private ProgressBar progress;
@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowFileAccess(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        String uaTag = isTv ? " SoscialParkCctvTV/1.1" : " SoscialParkCctvApp/1.1";
+        String uaTag = isTv ? " SoscialParkCctvTV/1.2" : " SoscialParkCctvApp/1.2";
         settings.setUserAgentString(settings.getUserAgentString() + uaTag);
 
         // Help D-pad focus reach the WebView on Android TV
