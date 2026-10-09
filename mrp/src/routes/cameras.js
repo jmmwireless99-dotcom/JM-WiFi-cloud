@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool, audit } from '../db.js';
 import { allocateTunnelPort, generateToken } from '../services/allocator.js';
-import { sync, getStreamStates, streamPathName } from '../services/provisioner.js';
+import { sync, getStreamStates, streamPathName, startPlaybackPath } from '../services/provisioner.js';
 import { clientBarangayIds, hasBarangayAccess, requireAdmin } from '../auth.js';
 import { hlsBase } from '../config.js';
 import { coordsFromRow, parseLatLngPair } from '../geoCoords.js';
@@ -49,7 +49,7 @@ function mapCamera(c, streams, { includeSecrets = false } = {}) {
 function selectSql(whereSql = '', params = []) {
   return {
     text: `SELECT c.*, s.name AS station_name, s.status AS station_status,
-            s.lat AS station_lat, s.lng AS station_lng,
+            s.vpn_ip AS vpn_ip, s.lat AS station_lat, s.lng AS station_lng,
             n.name AS nvr_name, n.lat AS nvr_lat, n.lng AS nvr_lng,
             b.name AS barangay_name, b.municipality_id,
             m.name AS municipality_name, m.city_id,
@@ -237,6 +237,44 @@ r.delete('/:id', requireAdmin, async (req, res) => {
   await sync('admin', `camera delete ${rows[0].name}`);
   await audit('admin', 'camera.delete', { id: req.params.id, name: rows[0].name });
   res.json({ ok: true });
+});
+
+/**
+ * POST /api/cameras/:id/playback { start, end }
+ * start/end: ISO datetime strings (local or Z). Opens temporary HLS for Dahua playback RTSP.
+ */
+r.post('/:id/playback', async (req, res) => {
+  try {
+    const q = selectSql('WHERE c.id = $1', [req.params.id]);
+    const { rows } = await pool.query(q.text, q.params);
+    const c = rows[0];
+    if (!c) return res.status(404).json({ error: 'not found' });
+    if (c.barangay_id && !hasBarangayAccess(req, c.barangay_id)) {
+      return res.status(403).json({ error: 'access denied' });
+    }
+    const start = req.body?.start ? new Date(req.body.start) : null;
+    const end = req.body?.end ? new Date(req.body.end) : null;
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'start and end datetime required' });
+    }
+    if (end <= start) return res.status(400).json({ error: 'end must be after start' });
+    if ((end - start) > 6 * 3600 * 1000) {
+      return res.status(400).json({ error: 'max playback window is 6 hours' });
+    }
+    if (!c.vpn_ip) return res.status(400).json({ error: 'camera station has no VPN IP' });
+    const { pathName, start: s, end: e } = await startPlaybackPath(c, c.vpn_ip, start, end);
+    res.json({
+      ok: true,
+      mode: 'playback',
+      start: s,
+      end: e,
+      hlsUrl: `${HLS()}/${pathName}/index.m3u8`,
+      note: 'Kailangan may recording sa camera SD o NVR. Kung walang file, mag-fail ang stream.',
+    });
+  } catch (err) {
+    console.error('playback:', err.message);
+    res.status(500).json({ error: err.message || 'playback failed' });
+  }
 });
 
 export default r;

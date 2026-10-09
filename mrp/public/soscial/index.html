@@ -409,6 +409,7 @@
         <b id="playerName">Camera</b>
         <span id="playerMeta"></span>
       </div>
+      <span class="pill" id="playerModePill">LIVE</span>
     </div>
     <div class="stage">
       <video id="playerVideo" playsinline controls muted></video>
@@ -417,7 +418,24 @@
     <div class="pf">
       <button type="button" id="playerPlay">▶ Play</button>
       <button type="button" class="ghost" id="playerMute">Unmute</button>
-      <button type="button" class="ghost" id="playerRefresh">↻</button>
+      <button type="button" class="ghost" id="playerRefresh">↻ Live</button>
+      <button type="button" class="ghost" id="playerPlaybackToggle">Playback</button>
+    </div>
+    <div id="playbackBar" class="hidden" style="padding:0 14px 14px;display:none;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <div style="flex:1;min-width:140px">
+        <label for="pbStart" style="margin:0">Start</label>
+        <input id="pbStart" type="datetime-local" />
+      </div>
+      <div style="flex:1;min-width:140px">
+        <label for="pbEnd" style="margin:0">End</label>
+        <input id="pbEnd" type="datetime-local" />
+      </div>
+      <button type="button" id="pbGo">▶ Play recording</button>
+      <div class="err hidden" id="pbErr" style="width:100%;margin:0"></div>
+      <p style="width:100%;margin:0;font-size:12px;color:var(--dim);line-height:1.4">
+        Playback = recording mula sa camera SD card o NVR. Kung walang naka-enable na record sa device, walang playback.
+        Live audio: i-tap ang Unmute — gumagana lang kung may Audio Enable / mic ang camera (hal. D5).
+      </p>
     </div>
   </div>
 
@@ -442,9 +460,21 @@
   let wallPlayers = [];
   let deferredPrompt = null;
   let activeTab = 'cams';
+  let playMode = 'live'; // live | playback
+  let playbackHlsUrl = '';
 
   const $ = (id) => document.getElementById(id);
   const show = (el, on) => el.classList.toggle('hidden', !on);
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function toLocalInputValue(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+  function defaultPlaybackRange() {
+    const end = new Date();
+    const start = new Date(end.getTime() - 15 * 60 * 1000);
+    return { start, end };
+  }
 
   async function api(path, opts = {}) {
     const res = await fetch(API_BASE + path, {
@@ -617,43 +647,73 @@
     v.load();
   }
 
+  function setPlayerMode(mode) {
+    playMode = mode;
+    const pill = $('playerModePill');
+    pill.textContent = mode === 'playback' ? 'PLAYBACK' : 'LIVE';
+    pill.className = 'pill ' + (mode === 'playback' ? 'off' : 'on');
+    const bar = $('playbackBar');
+    bar.classList.toggle('hidden', mode !== 'playback');
+    bar.style.display = mode === 'playback' ? 'flex' : 'none';
+  }
+
   function openPlayer(cam) {
     currentCam = cam;
+    playbackHlsUrl = '';
+    setPlayerMode('live');
     show($('player'), true);
     $('playerName').textContent = cam.name;
     $('playerMeta').textContent = [cam.nvrName || 'SOSCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
     $('playerOverlay').textContent = cam.live ? 'Connecting…' : 'Camera / station offline';
     show($('playerOverlay'), true);
+    const range = defaultPlaybackRange();
+    $('pbStart').value = toLocalInputValue(range.start);
+    $('pbEnd').value = toLocalInputValue(range.end);
+    show($('pbErr'), false);
     stopPlayer();
-    if (cam.live) playCurrent(true);
+    if (cam.live) playUrl(cam.hlsUrl, true, true);
   }
 
-  function playCurrent(muted) {
-    const cam = currentCam;
-    if (!cam?.hlsUrl) return;
+  function playUrl(url, muted, isLive) {
+    if (!url) return;
     const video = $('playerVideo');
     video.muted = !!muted;
     $('playerMute').textContent = video.muted ? 'Unmute' : 'Mute';
     show($('playerOverlay'), true);
     $('playerOverlay').textContent = 'Connecting…';
     stopPlayer();
+    const hlsOpts = isLive
+      ? { liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 4 }
+      : { enableWorker: true, manifestLoadingMaxRetry: 4 };
     if (window.Hls && Hls.isSupported()) {
-      hls = new Hls({ liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 4 });
-      hls.loadSource(cam.hlsUrl);
+      hls = new Hls(hlsOpts);
+      hls.loadSource(url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().then(() => show($('playerOverlay'), false)).catch(() => {
-          $('playerOverlay').textContent = 'Tap Play';
+        video.play().then(() => {
+          show($('playerOverlay'), false);
+          // Detect audio tracks after play
+          try {
+            const hasAudio = (video.audioTracks && video.audioTracks.length > 0)
+              || (hls.audioTracks && hls.audioTracks.length > 0);
+            if (!hasAudio && !muted) {
+              $('playerMeta').textContent = (currentCam?.name || '') + ' · no audio track on this cam';
+            }
+          } catch {}
+        }).catch(() => {
+          $('playerOverlay').textContent = 'Tap Play (audio needs a tap on mobile)';
         });
       });
       hls.on(Hls.Events.ERROR, (_e, d) => {
         if (d.fatal) {
-          $('playerOverlay').textContent = 'Stream error — check NVR password / VPN';
+          $('playerOverlay').textContent = playMode === 'playback'
+            ? 'Walang playback / recording sa oras na ito'
+            : 'Stream error — check password / VPN';
           show($('playerOverlay'), true);
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = cam.hlsUrl;
+      video.src = url;
       video.play().then(() => show($('playerOverlay'), false)).catch(() => {
         $('playerOverlay').textContent = 'Tap Play';
       });
@@ -662,9 +722,51 @@
     }
   }
 
+  function playCurrent(muted) {
+    const cam = currentCam;
+    if (playMode === 'playback' && playbackHlsUrl) return playUrl(playbackHlsUrl, muted, false);
+    if (!cam?.hlsUrl) return;
+    playUrl(cam.hlsUrl, muted, true);
+  }
+
+  async function startPlayback() {
+    const cam = currentCam;
+    if (!cam) return;
+    const err = $('pbErr');
+    show(err, false);
+    const startVal = $('pbStart').value;
+    const endVal = $('pbEnd').value;
+    if (!startVal || !endVal) {
+      err.textContent = 'Piliin ang start at end time';
+      show(err, true);
+      return;
+    }
+    const btn = $('pbGo');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    try {
+      const r = await api('/cameras/' + cam.id + '/playback', {
+        method: 'POST',
+        body: { start: new Date(startVal).toISOString(), end: new Date(endVal).toISOString() },
+      });
+      playbackHlsUrl = r.hlsUrl;
+      setPlayerMode('playback');
+      playUrl(playbackHlsUrl, $('playerVideo').muted, false);
+      $('playerMeta').textContent = `Playback ${r.start} → ${r.end}`;
+    } catch (ex) {
+      err.textContent = ex.message || 'Playback failed';
+      show(err, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '▶ Play recording';
+    }
+  }
+
   function closePlayer() {
     stopPlayer();
     currentCam = null;
+    playbackHlsUrl = '';
+    setPlayerMode('live');
     show($('player'), false);
   }
 
@@ -726,8 +828,25 @@
     const v = $('playerVideo');
     v.muted = !v.muted;
     $('playerMute').textContent = v.muted ? 'Unmute' : 'Mute';
+    if (!v.muted) {
+      // Mobile browsers require unmute + play from a user gesture
+      v.play().catch(() => {});
+    }
   };
-  $('playerRefresh').onclick = () => playCurrent($('playerVideo').muted);
+  $('playerRefresh').onclick = () => {
+    setPlayerMode('live');
+    playbackHlsUrl = '';
+    playCurrent($('playerVideo').muted);
+  };
+  $('playerPlaybackToggle').onclick = () => {
+    const next = playMode === 'playback' ? 'live' : 'playback';
+    setPlayerMode(next);
+    if (next === 'live') {
+      playbackHlsUrl = '';
+      playCurrent(true);
+    }
+  };
+  $('pbGo').onclick = () => startPlayback();
 
   // Android TV / large leanback UI
   const isTvApp = /SoscialParkCctvTV/i.test(navigator.userAgent)

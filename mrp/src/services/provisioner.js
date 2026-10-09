@@ -10,6 +10,8 @@ const exec = promisify(execFile);
 const DRY = process.env.DRY_RUN === '1';
 const EXEC_MS = Number(process.env.EXEC_TIMEOUT_MS || 2000);
 const CACHE_MS = Number(process.env.STATUS_CACHE_MS || 15000);
+/** Local RTSP for ffmpeg remux (AAC). Avoid 8554/8555 (go2rtc). */
+const MTX_RTSP = Number(process.env.MEDIAMTX_RTSP_PORT || 8556);
 
 let sessionsCache = { at: 0, data: new Map() };
 let streamsCache = { at: 0, data: {} };
@@ -90,12 +92,31 @@ export function streamPathName(cam) {
   return `cam${cam.id}-${cam.stream_token}`;
 }
 
-function rtspSource(cam, vpnIp) {
+export function rtspSource(cam, vpnIp) {
   const auth = cam.rtsp_user
     ? `${encodeURIComponent(cam.rtsp_user)}:${encodeURIComponent(cam.rtsp_pass || '')}@`
     : '';
   const path = cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path;
   return `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${path}`;
+}
+
+/** ffmpeg remux: copy video, AAC audio (browsers can't play G.711 in HLS).
+ *  Use runOnInit (not runOnDemand): HLS clients do not count as demand on an
+ *  empty publisher path in MediaMTX 1.9 — they get instant 404. runOnInit keeps
+ *  ffmpeg publishing so /hls stays ready. Do NOT set sourceOnDemand with publisher. */
+function pathBlock(name, originRtsp) {
+  // YAML: escape quotes in shell command via single-quoted runOnInit string
+  const cmd =
+    `ffmpeg -hide_banner -loglevel error -fflags nobuffer -flags low_delay ` +
+    `-rtsp_transport tcp -i '${originRtsp}' ` +
+    `-map 0:v:0 -map 0:a:0? -c:v copy -c:a aac -ac 1 -ar 16000 -b:a 64k ` +
+    `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`;
+  return (
+    `  ${name}:\n` +
+    `    source: publisher\n` +
+    `    runOnInit: ${JSON.stringify(cmd)}\n` +
+    `    runOnInitRestart: yes`
+  );
 }
 
 async function syncMediamtx() {
@@ -105,20 +126,28 @@ async function syncMediamtx() {
       WHERE c.enabled AND s.status = 'active'
       ORDER BY c.id`
   );
-  const paths = rows.map(c =>
-    `  ${streamPathName(c)}:\n` +
-    `    source: ${rtspSource(c, c.vpn_ip)}\n` +
-    `    sourceOnDemand: yes\n` +
-    `    sourceOnDemandStartTimeout: 10s\n` +
-    `    sourceOnDemandCloseAfter: 30s`
-  ).join('\n');
+  const useRemux = process.env.MEDIAMTX_AAC_REMUX !== '0';
+  const paths = rows.map(c => {
+    const origin = rtspSource(c, c.vpn_ip);
+    const name = streamPathName(c);
+    if (useRemux) return pathBlock(name, origin);
+    return (
+      `  ${name}:\n` +
+      `    source: ${origin}\n` +
+      `    sourceOnDemand: yes\n` +
+      `    sourceOnDemandStartTimeout: 20s\n` +
+      `    sourceOnDemandCloseAfter: 45s\n` +
+      `    rtspTransport: tcp`
+    );
+  }).join('\n');
 
   const cfg = `# MANAGED BY mrp-backend - DO NOT EDIT BY HAND
 logLevel: info
 api: yes
 apiAddress: 127.0.0.1:9997
 
-rtsp: no
+rtsp: yes
+rtspAddress: 127.0.0.1:${MTX_RTSP}
 rtmp: no
 srt: no
 webrtc: no
@@ -197,6 +226,73 @@ export async function getStreamStates() {
     streamsCache = { at: now, data: {} };
     return streamsCache.data;
   }
+}
+
+/** Format local time for Dahua playback query: YYYY_MM_DD_HH_MM_SS */
+export function dahuaTime(d) {
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) throw new Error('invalid datetime');
+  const p = n => String(n).padStart(2, '0');
+  return `${x.getFullYear()}_${p(x.getMonth() + 1)}_${p(x.getDate())}_${p(x.getHours())}_${p(x.getMinutes())}_${p(x.getSeconds())}`;
+}
+
+/**
+ * Register an on-demand MediaMTX path for Dahua playback RTSP.
+ * Returns HLS path name (without /index.m3u8).
+ */
+export async function startPlaybackPath(cam, vpnIp, start, end) {
+  const startStr = dahuaTime(start);
+  const endStr = dahuaTime(end);
+  const auth = cam.rtsp_user
+    ? `${encodeURIComponent(cam.rtsp_user)}:${encodeURIComponent(cam.rtsp_pass || '')}@`
+    : '';
+  // Prefer dedicated playback URL; cams without SD/NVR record will fail clearly
+  const pbPath =
+    `/cam/playback?channel=1&subtype=0&starttime=${startStr}&endtime=${endStr}`;
+  const origin = `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${pbPath}`;
+  const name = `pb${cam.id}-${Date.now().toString(36)}`;
+  const api = (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
+
+  const useRemux = process.env.MEDIAMTX_AAC_REMUX !== '0';
+  let body;
+  if (useRemux) {
+    // runOnInit so ffmpeg starts as soon as the path is added (HLS cannot
+    // trigger runOnDemand on an empty publisher path).
+    const cmd =
+      `ffmpeg -hide_banner -loglevel error -rtsp_transport tcp -i '${origin}' ` +
+      `-map 0:v:0 -map 0:a:0? -c:v copy -c:a aac -ac 1 -ar 16000 -b:a 64k ` +
+      `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`;
+    body = {
+      name,
+      source: 'publisher',
+      runOnInit: cmd,
+      runOnInitRestart: true,
+    };
+  } else {
+    body = {
+      name,
+      source: origin,
+      sourceOnDemand: true,
+      sourceOnDemandStartTimeout: '25s',
+      sourceOnDemandCloseAfter: '120s',
+      rtspTransport: 'tcp',
+    };
+  }
+
+  const res = await fetch(`${api}/v3/config/paths/add/${encodeURIComponent(name)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || `mediamtx add path failed (${res.status})`);
+  }
+  // Auto-delete later (best-effort)
+  setTimeout(() => {
+    fetch(`${api}/v3/config/paths/delete/${encodeURIComponent(name)}`, { method: 'DELETE' }).catch(() => {});
+  }, 15 * 60 * 1000);
+  return { pathName: name, origin, start: startStr, end: endStr };
 }
 
 export async function sync(actor = 'system', reason = 'sync') {
