@@ -12,6 +12,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -23,7 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
     /** Always load latest web shell from VPS — cameras come from live API. */
-    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.4.0";
+    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.4.1";
 
     private WebView webView;
     private ProgressBar progress;
@@ -65,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.requestFocus();
+        webView.addJavascriptInterface(new SoscialBridge(), "SoscialNative");
 
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
@@ -131,6 +133,28 @@ public class MainActivity extends AppCompatActivity {
                         + "document.body&&document.body.classList.add('tv-mode');}"
                         + "}catch(e){}})();",
                 null);
+    }
+
+    /** Called from Account tab: window.SoscialNative.checkUpdate() */
+    private class SoscialBridge {
+        @JavascriptInterface
+        public void checkUpdate() {
+            runOnUiThread(() -> {
+                if (updateChecker != null) updateChecker.checkNow();
+            });
+        }
+
+        @JavascriptInterface
+        public int versionCode() {
+            try {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    return (int) getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
+                }
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception e) {
+                return 0;
+            }
+        }
     }
 
     private void enterImmersive() {

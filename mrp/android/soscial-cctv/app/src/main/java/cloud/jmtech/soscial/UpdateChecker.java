@@ -48,6 +48,12 @@ public final class UpdateChecker {
         this.activity = activity;
     }
 
+    /** Force another check (e.g. Account → Check update now). */
+    public void checkNow() {
+        prompted = false;
+        checkAsync();
+    }
+
     public void checkAsync() {
         io.execute(() -> {
             try {
@@ -60,9 +66,15 @@ public final class UpdateChecker {
                 Log.i(TAG, "local=" + localCode + " remote=" + remoteCode + " " + remoteName);
                 if (remoteCode > localCode && !prompted) {
                     prompted = true;
-                    String msg = "May bagong SOCIAL Park CCTV (v" + remoteName + ").\n"
-                            + (notes.isEmpty() ? "I-update para makita ang bagong cameras mula sa VPS." : notes);
-                    main.post(() -> showUpdateDialog(msg, apkUrl, remoteName));
+                    // Kusa mag-download — walang manual dialog (install confirm lang ng Android)
+                    final String url = apkUrl;
+                    final String name = remoteName;
+                    main.post(() -> {
+                        Toast.makeText(activity,
+                                "Auto-update v" + name + " — downloading…",
+                                Toast.LENGTH_LONG).show();
+                        startDownload(url, name);
+                    });
                 }
             } catch (Exception e) {
                 Log.w(TAG, "update check failed: " + e.getMessage());
