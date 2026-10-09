@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SoscialCctv" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#E8A838</item>
+        <item name="colorPrimaryVariant">#0C1410</item>
+        <item name="colorOnPrimary">#1A1204</item>
+        <item name="android:statusBarColor">#0C1410</item>
+        <item name="android:navigationBarColor">#0C1410</item>
+        <item name="android:windowBackground">#0C1410</item>
+    </style>
+</resources>
