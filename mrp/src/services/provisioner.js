@@ -125,9 +125,10 @@ webrtc: no
 
 hls: yes
 hlsAddress: :${process.env.HLS_PORT || 8888}
-hlsAlwaysRemux: no
+hlsAlwaysRemux: yes
+hlsVariant: fmp4
 hlsSegmentCount: 7
-hlsSegmentDuration: 1s
+hlsSegmentDuration: 2s
 hlsAllowOrigin: '*'
 
 paths:
