@@ -62,6 +62,9 @@ app.post(`${BASE}/api/login`, async (req, res) => {
       sellerId: user.sellerId || null,
       buyerId: user.buyerId || null,
       forexClientId: user.forexClientId || null,
+      // CCTV: only Super Admin may open playback; staff/viewers = live only
+      canPlayback: user.role === 'admin',
+      canManageAccounts: user.role === 'admin',
     });
   } catch (e) {
     console.error('login failed:', e.message);

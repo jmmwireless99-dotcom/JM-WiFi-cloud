@@ -1344,7 +1344,7 @@ function LoginDrawer({ onOk, onClose }) {
       const r = await api('/login', { method: 'POST', body: { username: u, password: p } });
       TOKEN = r.token;
       sessionStorage.setItem('cctv_token', r.token);
-      sessionStorage.setItem('cctv_user', JSON.stringify({ role: r.role, displayName: r.displayName }));
+      sessionStorage.setItem('cctv_user', JSON.stringify({ role: r.role, displayName: r.displayName, canPlayback: !!r.canPlayback || r.role === 'admin', canManageAccounts: !!r.canManageAccounts || r.role === 'admin' }));
       onOk(r);
     } catch (ex) {
       setErr(ex.message);
@@ -1470,7 +1470,7 @@ function Login({ onOk }) {
       const r = await api('/login',{method:'POST',body:{username:u,password:p}});
       TOKEN = r.token;
       sessionStorage.setItem('cctv_token', r.token);
-      sessionStorage.setItem('cctv_user', JSON.stringify({ role:r.role, displayName:r.displayName }));
+      sessionStorage.setItem('cctv_user', JSON.stringify({ role:r.role, displayName:r.displayName, canPlayback: !!r.canPlayback || r.role === 'admin', canManageAccounts: !!r.canManageAccounts || r.role === 'admin' }));
       onOk(r);
     } catch(e){ setErr(e.message); }
   };
@@ -1545,7 +1545,8 @@ function StaffAccountModal({ staff, hub, onClose, onDone }) {
     password: '',
     displayName: staff?.displayName||'',
     isActive: staff?.isActive!==false,
-    vpnEnabled: staff?.vpnEnabled!==false,
+    // New staff = CCTV viewer by default (live only). VPN optional.
+    vpnEnabled: staff ? staff.vpnEnabled!==false : false,
   });
   const [err,setErr]=useState('');
   const [busy,setBusy]=useState(false);
@@ -1585,8 +1586,11 @@ function StaffAccountModal({ staff, hub, onClose, onDone }) {
       </div>
     </div></div>`;
   return html`<div class="modal-bg" onClick=${e=>e.target.classList.contains('modal-bg')&&onClose()}>
-    <div class="modal"><h2>${staff?'Edit Staff Account':'Add Staff Account'}</h2>
-      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>Portal + optional SSTP VPN para sa remote staff.</p>
+    <div class="modal"><h2>${staff?'Edit Staff / Viewer':'Add Staff / Viewer'}</h2>
+      <p class="dim" style=${{margin:'0 0 12px',fontSize:'13px'}}>
+        Staff / viewer = <b>live CCTV only</b> (walang playback). Playback = Super Admin lang.
+        Optional SSTP VPN kung kailangan ng remote network access.
+      </p>
       ${!staff && html`<div>
         <label>Portal username</label><input value=${f.username} onInput=${set('username')} class="mono" placeholder="staff-juan" />
         <label>Portal password</label><input type="password" value=${f.password} onInput=${set('password')} placeholder="min 8 chars" />
@@ -1640,9 +1644,13 @@ function StaffAccountsPanel({ onChanged }) {
   };
   return html`<div>
     <div class="topbar" style=${{marginBottom:'10px'}}>
-      <h3>Admin Staff (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— portal + SSTP VPN</span></h3>
+      <h3>Staff / Viewers (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— live CCTV · Super Admin creates accounts</span></h3>
       <button onClick=${()=>setEdit({})}>+ Add Staff Account</button>
     </div>
+    <p class="dim" style=${{fontSize:'13px',margin:'0 0 12px',lineHeight:'1.45'}}>
+      Staff accounts can open the portal / SOSCIAL app for <b>live view</b> only.
+      <b>Playback</b> and creating accounts are Super Admin only.
+    </p>
     <div class="card" style=${{padding:0,overflowX:'auto'}}>
       <table><thead><tr><th>Portal</th><th>Name</th><th>VPN User</th><th>VPN IP</th><th>Status</th><th></th></tr></thead>
       <tbody>${list.map(s=>html`<tr key=${s.id}>
@@ -1663,16 +1671,17 @@ function StaffAccountsPanel({ onChanged }) {
   </div>`;
 }
 
-function ClientAccountsPanel({ geo, onChanged }) {
+function ClientAccountsPanel({ geo, onChanged, canManage }) {
   const [list,setList]=useState([]);
   const [edit,setEdit]=useState(null);
   const load = useCallback(()=>api('/clients').then(setList).catch(()=>setList([])),[]);
   useEffect(()=>{ load(); },[load]);
   return html`<div>
     <div class="topbar" style=${{marginBottom:'10px'}}>
-      <h3>Client Accounts (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— barangay CCTV viewers lang</span></h3>
-      <button onClick=${()=>setEdit({})}>+ Add Client Account</button>
+      <h3>Client Accounts (${list.length}) <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}>— barangay CCTV viewers · live only</span></h3>
+      ${canManage && html`<button onClick=${()=>setEdit({})}>+ Add Client Account</button>`}
     </div>
+    ${!canManage && html`<p class="dim" style=${{fontSize:'13px',margin:'0 0 12px'}}>View only — Super Admin ang pwedeng mag-add / edit ng client accounts.</p>`}
     <div class="card" style=${{padding:0,overflowX:'auto'}}>
       <table><thead><tr><th>Username</th><th>Name</th><th>Barangays</th><th>Status</th><th></th></tr></thead>
       <tbody>${list.map(c=>html`<tr key=${c.id}>
@@ -1681,13 +1690,15 @@ function ClientAccountsPanel({ geo, onChanged }) {
         <td class="dim" style=${{whiteSpace:'normal',maxWidth:'320px'}}>${brgyLabels(geo,c.barangayIds)}</td>
         <td><span class="badge ${c.isActive?'b-ok':'b-disabled'}">${c.isActive?'active':'disabled'}</span></td>
         <td class="row">
-          <button class="ghost" onClick=${()=>setEdit(c)}>Edit</button>
-          <button class="danger" onClick=${async()=>{if(confirm('Delete client '+c.username+'?')){await api('/clients/'+c.id,{method:'DELETE'}); load(); onChanged();}}}>✕</button>
+          ${canManage ? html`
+            <button class="ghost" onClick=${()=>setEdit(c)}>Edit</button>
+            <button class="danger" onClick=${async()=>{if(confirm('Delete client '+c.username+'?')){await api('/clients/'+c.id,{method:'DELETE'}); load(); onChanged();}}}>✕</button>
+          ` : html`<span class="dim">—</span>`}
         </td></tr>`)}
         ${list.length===0 && html`<tr><td colSpan="5" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang client account.</td></tr>`}
       </tbody></table>
     </div>
-    ${edit && html`<${ClientAccountModal} geo=${geo} client=${edit.id?edit:null}
+    ${edit && canManage && html`<${ClientAccountModal} geo=${geo} client=${edit.id?edit:null}
       onClose=${()=>setEdit(null)} onDone=${()=>{setEdit(null); load(); onChanged();}} />`}
   </div>`;
 }
@@ -3285,7 +3296,7 @@ function App() {
       const d = await api('/dashboard');
       if (d.user) {
         setUser(d.user);
-        sessionStorage.setItem('cctv_user', JSON.stringify({ role:d.user.role, displayName:d.user.displayName }));
+        sessionStorage.setItem('cctv_user', JSON.stringify({ role:d.user.role, displayName:d.user.displayName, canPlayback: !!d.user.canPlayback || d.user.role === 'admin', canManageAccounts: !!d.user.canManageAccounts || d.user.role === 'admin' }));
       }
       setGeo(d.geo);
       setHub(d.config);
@@ -4247,8 +4258,15 @@ function App() {
   else if (tab==='accounts' && isManager) {
     body = html`<div>
       ${isSuperAdmin && html`<${StaffAccountsPanel} onChanged=${loadAll} />`}
+      ${!isSuperAdmin && html`<div class="card" style=${{marginBottom:'20px',padding:'16px'}}>
+        <b>Staff / Viewer accounts</b>
+        <p class="dim" style=${{margin:'8px 0 0',fontSize:'13px',lineHeight:'1.45'}}>
+          Super Admin lang ang pwedeng mag-create ng staff / viewer accounts.
+          Ikaw (staff) = live CCTV only — walang playback.
+        </p>
+      </div>`}
       <div style=${{marginTop: isSuperAdmin ? '28px' : '0'}}>
-        <${ClientAccountsPanel} geo=${geo} onChanged=${loadAll} />
+        <${ClientAccountsPanel} geo=${geo} onChanged=${loadAll} canManage=${isSuperAdmin} />
       </div>
       <div style=${{marginTop:'28px'}}>
         <${ForexAccountsPanel} onChanged=${loadAll} />

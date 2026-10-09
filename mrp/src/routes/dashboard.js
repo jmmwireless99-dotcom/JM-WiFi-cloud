@@ -139,6 +139,8 @@ r.get('/', async (req, res) => {
         role: req.user.role,
         displayName: req.user.displayName || req.user.sub,
         barangayIds: allowed || [],
+        canPlayback: req.user.role === 'admin',
+        canManageAccounts: req.user.role === 'admin',
       },
       config: {
         sstpServer: HUB(),

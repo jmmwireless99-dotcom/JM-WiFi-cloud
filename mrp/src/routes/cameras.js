@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool, audit } from '../db.js';
 import { allocateTunnelPort, generateToken } from '../services/allocator.js';
 import { sync, getStreamStates, streamPathName, startPlaybackPath } from '../services/provisioner.js';
-import { clientBarangayIds, hasBarangayAccess, requireAdmin } from '../auth.js';
+import { clientBarangayIds, hasBarangayAccess, requireAdmin, requirePlayback } from '../auth.js';
 import { hlsBase } from '../config.js';
 import { coordsFromRow, parseLatLngPair } from '../geoCoords.js';
 
@@ -242,8 +242,9 @@ r.delete('/:id', requireAdmin, async (req, res) => {
 /**
  * POST /api/cameras/:id/playback { start, end }
  * start/end: ISO datetime strings (local or Z). Opens temporary HLS for Dahua playback RTSP.
+ * Super Admin only — staff / viewers get live HLS only.
  */
-r.post('/:id/playback', async (req, res) => {
+r.post('/:id/playback', requirePlayback, async (req, res) => {
   try {
     const q = selectSql('WHERE c.id = $1', [req.params.id]);
     const { rows } = await pool.query(q.text, q.params);

@@ -421,6 +421,9 @@
       <button type="button" class="ghost" id="playerRefresh">↻ Live</button>
       <button type="button" class="ghost" id="playerPlaybackToggle">Playback</button>
     </div>
+    <p id="playbackDenied" class="hidden" style="padding:0 14px 12px;margin:0;font-size:12px;color:var(--dim);line-height:1.4">
+      Playback = Super Admin only. Staff / viewer accounts = live view.
+    </p>
     <div id="playbackBar" class="hidden" style="padding:0 14px 14px;display:none;flex-wrap:wrap;gap:8px;align-items:flex-end">
       <div style="flex:1;min-width:140px">
         <label for="pbStart" style="margin:0">Start</label>
@@ -452,6 +455,10 @@
   let token = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || '';
   let user = null;
   try { user = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { user = null; }
+  if (user && user.role) {
+    user.canPlayback = user.canPlayback === true || user.role === 'admin';
+    user.canManageAccounts = user.canManageAccounts === true || user.role === 'admin';
+  }
   let cams = [];
   let stations = [];
   let nvrs = [];
@@ -465,6 +472,21 @@
 
   const $ = (id) => document.getElementById(id);
   const show = (el, on) => el.classList.toggle('hidden', !on);
+  const canPlayback = () => !!(user && (user.canPlayback === true || user.role === 'admin'));
+  function applyPlaybackAccess() {
+    const allow = canPlayback();
+    const btn = $('playerPlaybackToggle');
+    const denied = $('playbackDenied');
+    if (btn) {
+      btn.style.display = allow ? '' : 'none';
+      btn.disabled = !allow;
+    }
+    if (denied) denied.classList.toggle('hidden', allow);
+    if (!allow && playMode === 'playback') {
+      setPlayerMode('live');
+      playbackHlsUrl = '';
+    }
+  }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
   function toLocalInputValue(d) {
@@ -601,7 +623,7 @@
       <div class="section-label">Account</div>
       <div class="cam-tile" style="cursor:default;padding:16px">
         <div class="nm" style="font-size:16px;font-weight:700">${(user && (user.displayName || user.role)) || 'Staff'}</div>
-        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'}</div>
+        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'} · ${canPlayback() ? 'Live + Playback' : 'Live view only'}</div>
         <p style="color:var(--dim);font-size:13px;line-height:1.45;margin:14px 0 0">
           App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
         </p>
@@ -662,6 +684,7 @@
     playbackHlsUrl = '';
     setPlayerMode('live');
     show($('player'), true);
+    applyPlaybackAccess();
     $('playerName').textContent = cam.name;
     $('playerMeta').textContent = [cam.nvrName || 'SOSCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
     $('playerOverlay').textContent = cam.live ? 'Connecting…' : 'Camera / station offline';
@@ -730,6 +753,12 @@
   }
 
   async function startPlayback() {
+    if (!canPlayback()) {
+      const err = $('pbErr');
+      err.textContent = 'Playback = Super Admin only';
+      show(err, true);
+      return;
+    }
     const cam = currentCam;
     if (!cam) return;
     const err = $('pbErr');
@@ -805,7 +834,12 @@
     try {
       const r = await api('/login', { method: 'POST', body: { username: u, password: p } });
       token = r.token;
-      user = { role: r.role, displayName: r.displayName };
+      user = {
+        role: r.role,
+        displayName: r.displayName,
+        canPlayback: !!r.canPlayback || r.role === 'admin',
+        canManageAccounts: !!r.canManageAccounts || r.role === 'admin',
+      };
       sessionStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -839,6 +873,10 @@
     playCurrent($('playerVideo').muted);
   };
   $('playerPlaybackToggle').onclick = () => {
+    if (!canPlayback()) {
+      applyPlaybackAccess();
+      return;
+    }
     const next = playMode === 'playback' ? 'live' : 'playback';
     setPlayerMode(next);
     if (next === 'live') {
@@ -846,6 +884,7 @@
       playCurrent(true);
     }
   };
+  applyPlaybackAccess();
   $('pbGo').onclick = () => startPlayback();
 
   // Android TV / large leanback UI
