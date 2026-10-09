@@ -459,4 +459,54 @@ export async function runMigrations() {
     ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS channels INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS firmware TEXT NOT NULL DEFAULT '';
   `).catch((e) => console.warn('nvr_areas device cols:', e.message));
+
+  // Social Park / hotspot Buy Unli — PayMongo QRPH sessions
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wifi_pay_sessions (
+      id                  SERIAL PRIMARY KEY,
+      site_id             INT REFERENCES wifi_mikrotik_sites(id) ON DELETE SET NULL,
+      site_name           TEXT NOT NULL DEFAULT '',
+      package_id          TEXT NOT NULL,
+      package_label       TEXT NOT NULL DEFAULT '',
+      amount_pesos        NUMERIC(14,2) NOT NULL,
+      amount_centavos     INT NOT NULL,
+      uptime_limit        TEXT NOT NULL DEFAULT '20h',
+      validity_days       INT NOT NULL DEFAULT 3,
+      valid_until         TIMESTAMPTZ,
+      mac                 TEXT NOT NULL DEFAULT '',
+      link_login          TEXT NOT NULL DEFAULT '',
+      link_orig           TEXT NOT NULL DEFAULT '',
+      client_ip           TEXT NOT NULL DEFAULT '',
+      status              TEXT NOT NULL DEFAULT 'pending'
+                          CHECK (status IN (
+                            'pending','awaiting_payment','paid','ready',
+                            'failed','expired'
+                          )),
+      paymongo_intent_id  TEXT,
+      paymongo_method_id  TEXT,
+      paymongo_payment_id TEXT,
+      qr_image_url        TEXT NOT NULL DEFAULT '',
+      client_key          TEXT NOT NULL DEFAULT '',
+      hotspot_username    TEXT,
+      hotspot_password    TEXT,
+      mikrotik_user_id    TEXT NOT NULL DEFAULT '',
+      error               TEXT NOT NULL DEFAULT '',
+      expires_at          TIMESTAMPTZ,
+      paid_at             TIMESTAMPTZ,
+      provisioned_at      TIMESTAMPTZ,
+      expired_cleaned     BOOLEAN NOT NULL DEFAULT false,
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_wifi_pay_sessions_site ON wifi_pay_sessions (site_id);
+    CREATE INDEX IF NOT EXISTS idx_wifi_pay_sessions_intent ON wifi_pay_sessions (paymongo_intent_id);
+    CREATE INDEX IF NOT EXISTS idx_wifi_pay_sessions_status ON wifi_pay_sessions (status);
+    CREATE INDEX IF NOT EXISTS idx_wifi_pay_sessions_valid ON wifi_pay_sessions (valid_until)
+      WHERE status = 'ready' AND expired_cleaned = false;
+  `).catch((e) => console.warn('wifi_pay_sessions:', e.message));
+
+  await pool.query(`
+    GRANT ALL ON TABLE wifi_pay_sessions TO mrp;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO mrp;
+  `).catch(() => {});
 }

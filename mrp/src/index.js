@@ -16,6 +16,7 @@ import gasolineRouter from './routes/gasoline.js';
 import vendoRouter from './routes/vendo.js';
 import hotspotRouter from './routes/hotspot.js';
 import payRouter from './routes/pay.js';
+import wifiPayRouter from './routes/wifiPay.js';
 import settingsRouter, { createPaymongoWebhookRouter } from './routes/settings.js';
 import storeRouter from './routes/store.js';
 import storeOrdersRouter from './routes/storeOrders.js';
@@ -86,6 +87,7 @@ app.use(`${BASE}/api/gasoline`, requireAuth, gasolineRouter);
 app.use(`${BASE}/api/hotspot`, requireAuth, hotspotRouter);
 app.use(`${BASE}/api/vendo`, vendoRouter); // ESP32 device API key auth
 app.use(`${BASE}/api/pay`, payRouter); // public phone client (no API key)
+app.use(`${BASE}/api/wifi-pay`, wifiPayRouter); // Social Park Buy Unli (public captive portal)
 app.use(`${BASE}/api/store`, storeOrdersRouter); // buyer checkout + orders (public register first)
 app.use(`${BASE}/api/store`, storeRouter); // marketplace (public catalog + seller auth)
 app.post(`${BASE}/api/forex/register`, registerForexClient);
