@@ -105,26 +105,9 @@ console.log("wifi_pay_sessions OK");
 await pool.end();
 EOF'
 
-# Append mikrotikRest helpers if missing (do not clobber VPS CCTV helpers)
-scp "$ROOT/src/services/mikrotikRest.js" "${VPS_USER}@${VPS}:/tmp/mikrotikRest.repo.js"
-ssh "${VPS_USER}@${VPS}" 'python3 - << "PY"
-from pathlib import Path
-dst = Path("/opt/mrp/src/services/mikrotikRest.js")
-src = Path("/tmp/mikrotikRest.repo.js")
-t = dst.read_text()
-if "upsertHotspotUser" in t:
-    print("mikrotikRest already has wifi-pay helpers")
-else:
-    # Append helpers from repo file (from ensureWalledGardenHost onward)
-    s = src.read_text()
-    marker = "export async function ensureWalledGardenHost"
-    idx = s.find(marker)
-    if idx < 0:
-        raise SystemExit("helpers not found in repo mikrotikRest")
-    # Ensure findOne/rest are in scope — they are module-local on VPS too
-    dst.write_text(t.rstrip() + "\n\n" + s[idx:])
-    print("mikrotikRest helpers appended")
-PY'
+# Sync mikrotikRest (repo copy includes wifi-pay helpers + CCTV NAT)
+scp "$ROOT/src/services/mikrotikRest.js" "${VPS_USER}@${VPS}:/opt/mrp/src/services/mikrotikRest.js"
+echo "mikrotikRest synced"
 
 # Patch cron cleanup
 scp "$ROOT/src/cron.js" "${VPS_USER}@${VPS}:/opt/mrp/src/cron.js"
