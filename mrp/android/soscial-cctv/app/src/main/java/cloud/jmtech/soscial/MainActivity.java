@@ -22,11 +22,13 @@ import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.3.1";
+    /** Always load latest web shell from VPS — cameras come from live API. */
+    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.4.0";
 
     private WebView webView;
     private ProgressBar progress;
     private boolean isTv;
+    private UpdateChecker updateChecker;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -57,10 +59,9 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowFileAccess(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        String uaTag = isTv ? " SocialParkCctvTV/1.3" : " SocialParkCctvApp/1.3";
+        String uaTag = isTv ? " SocialParkCctvTV/1.4" : " SocialParkCctvApp/1.4";
         settings.setUserAgentString(settings.getUserAgentString() + uaTag);
 
-        // Help D-pad focus reach the WebView on Android TV
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
         webView.requestFocus();
@@ -75,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
                 if (isTv) {
-                    return true; // stay inside app on TV
+                    return true;
                 }
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, uri));
@@ -103,6 +104,9 @@ public class MainActivity extends AppCompatActivity {
         } else {
             webView.restoreState(savedInstanceState);
         }
+
+        updateChecker = new UpdateChecker(this);
+        updateChecker.checkAsync();
     }
 
     private boolean isAndroidTv() {
@@ -114,7 +118,6 @@ public class MainActivity extends AppCompatActivity {
                 && pm.hasSystemFeature("android.software.leanback")) {
             return true;
         }
-        // Common TV boxes without leanback flag
         String model = (Build.MODEL + " " + Build.DEVICE + " " + Build.PRODUCT).toLowerCase();
         return model.contains("tv") || model.contains("mbox") || model.contains("atv")
                 || model.contains("bravia") || model.contains("chromecast");
@@ -149,6 +152,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Re-check when returning from Install unknown apps settings
+        if (updateChecker != null) updateChecker.checkAsync();
+    }
+
+    @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         enterImmersive();
@@ -161,8 +171,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onDestroy() {
+        if (updateChecker != null) {
+            updateChecker.destroy();
+            updateChecker = null;
+        }
+        super.onDestroy();
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Map media/play keys into the page when possible
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (webView.canGoBack()) {
                 webView.goBack();

@@ -1,0 +1,10 @@
+{
+  "versionName": "1.4.0",
+  "versionCode": 6,
+  "webBuild": "1.4.0",
+  "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
+  "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
+  "webUrl": "https://jmtechsolution.cloud/soscial/?v=1.4.0",
+  "notes": "10 SOCIAL cameras · auto-updater from VPS",
+  "releasedAt": "2026-10-09T12:00:00Z"
+}
