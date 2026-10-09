@@ -92,24 +92,44 @@ export function streamPathName(cam) {
   return `cam${cam.id}-${cam.stream_token}`;
 }
 
-export function rtspSource(cam, vpnIp) {
+/** Prefer Dahua/Hik substream (subtype=1 / Channels/102) for live HLS — lower bitrate. */
+export function liveRtspPath(rtspPath) {
+  const raw = String(rtspPath || '').trim() || '/';
+  let path = raw.startsWith('/') ? raw : `/${raw}`;
+  if (/subtype=\d+/i.test(path)) {
+    path = path.replace(/subtype=\d+/i, 'subtype=1');
+  } else if (/\/Channels\/\d+/i.test(path)) {
+    // Hikvision main .../101 → sub .../102
+    path = path.replace(/\/Channels\/(\d)01\b/i, '/Channels/$102');
+  }
+  return path;
+}
+
+export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
   const auth = cam.rtsp_user
     ? `${encodeURIComponent(cam.rtsp_user)}:${encodeURIComponent(cam.rtsp_pass || '')}@`
     : '';
-  const path = cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path;
+  const path = liveSubstream
+    ? liveRtspPath(cam.rtsp_path)
+    : (cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path);
   return `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${path}`;
 }
 
-/** ffmpeg remux: copy video, AAC audio (browsers can't play G.711 in HLS).
- *  Use runOnInit (not runOnDemand): HLS clients do not count as demand on an
- *  empty publisher path in MediaMTX 1.9 — they get instant 404. runOnInit keeps
- *  ffmpeg publishing so /hls stays ready. Do NOT set sourceOnDemand with publisher. */
+/**
+ * ffmpeg → MediaMTX publisher for browser HLS.
+ * SOCIAL / modern Dahua cams often send HEVC; browsers cannot play HEVC in MSE/HLS,
+ * and publisher+copy can leave paths ready:false. Transcode to H.264 + AAC.
+ * Use runOnInit (not runOnDemand): HLS clients do not count as demand on an
+ * empty publisher path in MediaMTX 1.9 — they get instant 404.
+ */
 function pathBlock(name, originRtsp) {
-  // YAML: escape quotes in shell command via single-quoted runOnInit string
   const cmd =
     `ffmpeg -hide_banner -loglevel error -fflags nobuffer -flags low_delay ` +
     `-rtsp_transport tcp -i '${originRtsp}' ` +
-    `-map 0:v:0 -map 0:a:0? -c:v copy -c:a aac -ac 1 -ar 16000 -b:a 64k ` +
+    `-map 0:v:0 -map 0:a:0? ` +
+    `-c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p ` +
+    `-profile:v baseline -level 3.1 -g 40 -b:v 1000k -maxrate 1200k -bufsize 2000k ` +
+    `-c:a aac -ac 1 -ar 16000 -b:a 64k ` +
     `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`;
   return (
     `  ${name}:\n` +
@@ -128,7 +148,8 @@ async function syncMediamtx() {
   );
   const useRemux = process.env.MEDIAMTX_AAC_REMUX !== '0';
   const paths = rows.map(c => {
-    const origin = rtspSource(c, c.vpn_ip);
+    // liveSubstream → subtype=1 when possible (cheaper H.264 encode)
+    const origin = rtspSource(c, c.vpn_ip, { liveSubstream: true });
     const name = streamPathName(c);
     if (useRemux) return pathBlock(name, origin);
     return (
