@@ -1648,7 +1648,7 @@ function StaffAccountsPanel({ onChanged }) {
       <button onClick=${()=>setEdit({})}>+ Add Staff Account</button>
     </div>
     <p class="dim" style=${{fontSize:'13px',margin:'0 0 12px',lineHeight:'1.45'}}>
-      Staff accounts can open the portal / SOSCIAL app for <b>live view</b> only.
+      Staff accounts can open the portal / SOCIAL app for <b>live view</b> only.
       <b>Playback</b> and creating accounts are Super Admin only.
     </p>
     <div class="card" style=${{padding:0,overflowX:'auto'}}>
@@ -2731,7 +2731,7 @@ function NvrModal({ station, stations = [], nvr, onClose, onDone }) {
         Gumawa ng <b>NVR Name</b> + <b>Area</b>, at ilagay ang NVR LAN IP / login para ma-integrate sa MikroTik + live view.
       </p>
       <label>NVR Name</label>
-      <input value=${f.name} onInput=${set('name')} placeholder="SOSCIAL CENTER" autoFocus />
+      <input value=${f.name} onInput=${set('name')} placeholder="SOCIAL CENTER" autoFocus />
       <label>Area</label>
       <input value=${f.area} onInput=${set('area')} placeholder="SOSCAIL PARK / Gate / Building A" />
       ${!isEdit && html`
@@ -3523,7 +3523,7 @@ function App() {
             · user <span class="mono">${nvr.rtspUser || 'admin'}</span>
             · ${nvr.channels || '—'} ch
             ${nvr.firmware?html` · FW ${nvr.firmware}`:''}
-            ${!vpnUp?html`<br/><span style=${{color:'var(--warn)'}}>VPN DOWN — i-paste muna ang SSTP script sa MikroTik Sites → SOSCIAL-1, tapos Push NAT.</span>`:''}
+            ${!vpnUp?html`<br/><span style=${{color:'var(--warn)'}}>VPN DOWN — i-paste muna ang SSTP script sa MikroTik Sites → SOCIAL-1, tapos Push NAT.</span>`:''}
           </p>
         </div>
         <div class="grid g-cams" style=${{marginBottom:'18px'}}>
@@ -3560,7 +3560,7 @@ function App() {
           <p style=${{marginTop:'10px'}}>
             <a href="/soscial/" target="_blank" rel="noopener"
               style=${{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 12px',borderRadius:'10px',background:'rgba(232,168,56,.12)',border:'1px solid rgba(232,168,56,.35)',color:'#f0c56a',textDecoration:'none',fontWeight:700,fontSize:'13px'}}>
-              📱 SOSCIAL Park mobile CCTV app →
+              📱 SOCIAL Park mobile CCTV app →
             </a>
           </p>
         </div>

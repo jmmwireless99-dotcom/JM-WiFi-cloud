@@ -1,5 +1,5 @@
-/* SOSCIAL Park CCTV — lightweight offline shell */
-const CACHE = 'soscial-cctv-v1.3.0';
+/* SOCIAL Park CCTV — lightweight offline shell */
+const CACHE = 'soscial-cctv-v1.3.1';
 const ASSETS = [
   './',
   './index.html',

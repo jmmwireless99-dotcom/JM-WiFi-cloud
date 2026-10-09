@@ -6,19 +6,19 @@
   <meta name="theme-color" content="#0c1410" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SOSCIAL CCTV" />
+  <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.3.0" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.3.0" />
+  <link rel="icon" href="./icon-192.png?v=1.3.1" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.3.1" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta property="og:title" content="SOSCIAL Park CCTV Viewer" />
+  <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.0" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.1" />
   <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.0" />
-  <title>SOSCIAL Park CCTV</title>
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.1" />
+  <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -347,9 +347,9 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.3.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.3.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
-      <h1>SOSCIAL<span>PARK</span></h1>
+      <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless Internet Services · Live CCTV sa telepono at Android TV.</p>
     </div>
     <form class="login-card" id="loginForm">
@@ -365,7 +365,7 @@
       </div>
       <div class="err hidden" id="loginErr"></div>
       <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
-      <a href="/soscial.apk?v=1.3.0"
+      <a href="/soscial.apk?v=1.3.1"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
         tabindex="4">
         ⬇ Download Android / TV APK v1.3
@@ -381,9 +381,9 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.3.0" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.3.1" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
-        <h2>SOSCIAL Park</h2>
+        <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV</div>
       </div>
       <span class="pill" id="vpnPill">VPN</span>
@@ -396,11 +396,11 @@
         <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
       </ol>
       <div class="actions">
-        <a id="apkBtn" href="/soscial.apk?v=1.3.0"
+        <a id="apkBtn" href="/soscial.apk?v=1.3.1"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download APK v1.2
         </a>
-        <a href="/soscial-tv.apk?v=1.3.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.3.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
@@ -533,7 +533,7 @@
 
   function isSoscialCam(c) {
     const blob = [c.station, c.nvrName, c.name, c.barangay, String(c.stationId || '')].join(' ').toLowerCase();
-    return /soscial|soscail/.test(blob) || Number(c.stationId) === 71 || Number(c.nvrAreaId) === 2;
+    return /social|soscial|soscail/.test(blob) || Number(c.stationId) === 71 || Number(c.nvrAreaId) === 2;
   }
 
   function brandLabel(b) {
@@ -544,13 +544,13 @@
     const d = await api('/dashboard');
     stations = d.stations || [];
     cams = (d.cameras || []).filter(isSoscialCam);
-    nvrs = (d.nvrs || []).filter((n) => /soscial|soscail/i.test((n.name || '') + (n.notes || '') + (n.stationName || '')) || Number(n.stationId) === 71);
-    const site = stations.find((s) => Number(s.id) === 71) || stations.find((s) => /soscial/i.test(s.name || ''));
+    nvrs = (d.nvrs || []).filter((n) => /social|soscial|soscail/i.test((n.name || '') + (n.notes || '') + (n.stationName || '')) || Number(n.stationId) === 71);
+    const site = stations.find((s) => Number(s.id) === 71) || stations.find((s) => /social|soscial/i.test(s.name || ''));
     const vpnOn = !!(site && site.online);
     const pill = $('vpnPill');
     pill.textContent = vpnOn ? 'VPN up' : 'VPN down';
     pill.className = 'pill ' + (vpnOn ? 'on' : 'off');
-    $('topSub').textContent = cams.length + ' camera(s) · ' + (nvrs[0]?.name || 'SOSCIAL CENTER');
+    $('topSub').textContent = cams.length + ' camera(s) · ' + (nvrs[0]?.name || 'SOCIAL CENTER');
     renderCams();
     renderAccount();
   }
@@ -559,7 +559,7 @@
     const root = $('viewCams');
     if (!cams.length) {
       root.innerHTML = `<div class="section-label">Cameras</div>
-        <div class="empty">Walang SOSCIAL Park camera pa.<br/>I-add sa portal CCTV → SOSCIAL CENTER.</div>`;
+        <div class="empty">Walang SOCIAL Park camera pa.<br/>I-add sa portal CCTV → SOCIAL CENTER.</div>`;
       return;
     }
     root.innerHTML = `<div class="section-label">Cameras</div><div class="cam-grid"></div>`;
@@ -581,7 +581,7 @@
           <span class="dot ${c.live ? 'on' : ''}"></span>
         </div>`;
       tile.querySelector('.nm').textContent = c.name;
-      tile.querySelector('.loc').textContent = [c.nvrName || 'SOSCIAL', c.live ? 'ready' : 'offline'].filter(Boolean).join(' · ');
+      tile.querySelector('.loc').textContent = [c.nvrName || 'SOCIAL', c.live ? 'ready' : 'offline'].filter(Boolean).join(' · ');
       tile.tabIndex = 0;
       tile.setAttribute('role', 'button');
       tile.addEventListener('click', () => openPlayer(c));
@@ -650,11 +650,11 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV box. I-install (Unknown sources).
           </p>
-          <a href="/soscial.apk?v=1.3.0"
+          <a href="/soscial.apk?v=1.3.1"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
             Download APK v1.3
           </a>
-          <a href="/soscial-tv.apk?v=1.3.0"
+          <a href="/soscial-tv.apk?v=1.3.1"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
@@ -704,7 +704,7 @@
     show($('player'), true);
     applyPlaybackAccess();
     $('playerName').textContent = cam.name;
-    $('playerMeta').textContent = [cam.nvrName || 'SOSCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
+    $('playerMeta').textContent = [cam.nvrName || 'SOCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
     $('playerOverlay').textContent = cam.live ? 'Connecting…' : 'Camera / station offline';
     show($('playerOverlay'), true);
     const range = defaultPlaybackRange();
@@ -906,7 +906,7 @@
   $('pbGo').onclick = () => startPlayback();
 
   // Android TV / large leanback UI
-  const isTvApp = /SoscialParkCctvTV/i.test(navigator.userAgent)
+  const isTvApp = /SocialParkCctvTV|SoscialParkCctvTV/i.test(navigator.userAgent)
     || /Android TV|GoogleTV|BRAVIA|AFT[M-Z]|MIBOX|MiTV|SmartTV/i.test(navigator.userAgent)
     || (window.matchMedia('(min-width: 960px) and (pointer: coarse)').matches);
   function applyTvMode() {
@@ -925,7 +925,7 @@
 
   // Standalone / installed WebView app — hide banner
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
-    || /SoscialParkCctvApp|SoscialParkCctvTV/i.test(navigator.userAgent);
+    || /SocialParkCctvApp|SocialParkCctvTV|SoscialParkCctvApp|SoscialParkCctvTV/i.test(navigator.userAgent);
   if (isStandalone) show($('installBar'), false);
 
   $('installDismiss').onclick = () => show($('installBar'), false);
