@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="-1">
+  <title>Social Park Free WiFi</title>
+  <!--
+    Social Park Free WiFi — burgundy Masbate seal portal.
+    Free 3h trial + Buy Unli Internet (PayMongo QR → auto MikroTik login).
+    masbate.jpg = seal · jmm.jpg = watermark
+  -->
+  <style>
+    :root {
+      --bg0: #1a0508;
+      --bg1: #3b0a12;
+      --card: rgba(42, 10, 16, .88);
+      --line: #7a1f2e;
+      --text: #fff5f5;
+      --muted: #d4a0a8;
+      --accent: #e11d2e;
+      --accent-2: #ff4d5a;
+      --good: #3dd68c;
+      --bad: #ffb4b4;
+      --gold: #f0c14b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      position: relative;
+      isolation: isolate;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(700px 360px at 12% -12%, rgba(225, 29, 46, .35), transparent 55%),
+        radial-gradient(560px 300px at 100% 0%, rgba(120, 20, 40, .4), transparent 48%),
+        linear-gradient(165deg, var(--bg0), var(--bg1) 55%, #120408);
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: url("jmm.jpg") center 92% / min(62vw, 360px) no-repeat;
+      opacity: .22;
+      filter: grayscale(.1) contrast(1.08);
+      mix-blend-mode: soft-light;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at center, transparent 20%, rgba(26, 5, 8, .55) 75%),
+        linear-gradient(180deg, rgba(26, 5, 8, .2), rgba(18, 4, 8, .45));
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 26px 22px 22px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.45);
+      backdrop-filter: blur(6px);
+    }
+    .logos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .logos img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: #fff;
+      padding: 4px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -.02em;
+      text-align: center;
+    }
+    .sub {
+      color: var(--muted);
+      margin: 8px 0 0;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .perk {
+      margin: 20px 0 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(225, 29, 46, .12);
+      border: 1px solid rgba(225, 29, 46, .4);
+      font-size: 15px;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .perk b { color: var(--accent-2); }
+    .btn {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 16px;
+      font: inherit;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      background: linear-gradient(135deg, #e11d2e, #9f1239);
+      color: #fff;
+      box-shadow: 0 10px 28px rgba(225, 29, 46, .35);
+    }
+    .btn:active { opacity: .9; }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .btn-buy {
+      margin-top: 12px;
+      background: linear-gradient(135deg, #c9a227, #8a6d1a);
+      box-shadow: 0 10px 28px rgba(201, 162, 39, .35);
+      color: #1a1200;
+    }
+    .btn-ghost {
+      margin-top: 10px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      box-shadow: none;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 12px;
+    }
+    .fine {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+      text-align: center;
+    }
+    .err { color: var(--bad); font-size: 13px; margin-top: 12px; text-align: center; }
+    .ok { color: var(--good); font-size: 13px; margin-top: 12px; text-align: center; }
+
+    /* Pay modal */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(10, 2, 4, .72);
+      place-items: center;
+      padding: 20px 14px;
+    }
+    .modal-bg.open { display: grid; }
+    .modal {
+      width: min(420px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px 18px 18px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.55);
+      max-height: min(92vh, 720px);
+      overflow: auto;
+    }
+    .modal h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      text-align: center;
+    }
+    .modal .hint {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin: 0 0 16px;
+      line-height: 1.4;
+    }
+    .pkgs { display: grid; gap: 10px; margin-bottom: 8px; }
+    .pkg {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: rgba(225, 29, 46, .08);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+    .pkg:hover, .pkg:focus { border-color: var(--accent-2); }
+    .pkg:disabled { opacity: .55; cursor: wait; }
+    .pkg .dur { font-weight: 800; font-size: 16px; }
+    .pkg .price {
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+    .qr-wrap {
+      display: none;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .qr-wrap.show { display: block; }
+    .qr-wrap img {
+      width: min(240px, 70vw);
+      height: auto;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      margin: 8px auto;
+    }
+    .qr-amt {
+      font-size: 15px;
+      margin: 4px 0 8px;
+    }
+    .qr-amt b { color: var(--gold); }
+    .status-line {
+      min-height: 1.3em;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 8px;
+    }
+    .status-line.good { color: var(--good); }
+    .status-line.bad { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logos">
+      <img src="masbate.jpg" alt="Province of Masbate">
+    </div>
+    <h1>Social Park Free WiFi</h1>
+    <p class="sub">Free WiFi · Social Park · Masbate</p>
+    <div class="perk">
+      Click below for <b>FREE 3 hours</b> of internet.<br>
+      Once a day per device.
+    </div>
+
+    $(if trial == 'yes')
+    <a class="btn" id="btn-trial" href="$(link-login-only)?dst=$(link-orig-esc)&amp;username=T-$(mac-esc)">
+      Click &amp; Claim Free 3 Hours
+    </a>
+    $(else)
+    <p class="err">Free access is currently unavailable.</p>
+    $(endif)
+
+    <button type="button" class="btn btn-buy" id="btn-buy">Buy Unli Internet</button>
+    <p class="fine">Powered by JMM Wireless · Province of Masbate</p>
+  </div>
+
+  <div class="modal-bg" id="pay-modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+    <div class="modal">
+      <h2 id="pay-title">Buy Unli Internet</h2>
+      <p class="hint">Pumili ng package → i-scan ang PayMongo QR via GCash / Maya. Auto-connect after payment.</p>
+
+      <div class="pkgs" id="pkg-list">
+        <button type="button" class="pkg" data-pkg="unli20">
+          <span class="dur">20 hours</span>
+          <span class="price">₱20</span>
+        </button>
+        <button type="button" class="pkg" data-pkg="unli30">
+          <span class="dur">1 day</span>
+          <span class="price">₱30</span>
+        </button>
+      </div>
+
+      <div class="qr-wrap" id="qr-wrap">
+        <div class="qr-amt" id="qr-amt"></div>
+        <img id="qr-img" alt="PayMongo QR" width="240" height="240">
+        <p class="hint" style="margin-top:4px">Waiting for payment… huwag isara ang page.</p>
+      </div>
+
+      <div class="status-line" id="pay-status"></div>
+      <button type="button" class="btn btn-ghost" id="btn-close-pay">Close</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var API = 'https://jmtechsolution.cloud/api/wifi-pay';
+    var SITE = 'social';
+    var MAC = '$(mac)';
+    var LINK_LOGIN = '$(link-login-only)';
+    var LINK_ORIG = '$(link-orig)';
+
+    if (MAC.indexOf('$(') !== -1) MAC = '';
+    if (LINK_LOGIN.indexOf('$(') !== -1) LINK_LOGIN = '';
+    if (LINK_ORIG.indexOf('$(') !== -1) LINK_ORIG = '';
+
+    var modal = document.getElementById('pay-modal');
+    var statusEl = document.getElementById('pay-status');
+    var qrWrap = document.getElementById('qr-wrap');
+    var qrImg = document.getElementById('qr-img');
+    var qrAmt = document.getElementById('qr-amt');
+    var pollTimer = null;
+    var busy = false;
+
+    function setStatus(msg, kind) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'status-line' + (kind ? ' ' + kind : '');
+    }
+
+    function openModal() {
+      modal.classList.add('open');
+      qrWrap.classList.remove('show');
+      setStatus('');
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      busy = false;
+      document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
+    }
+
+    document.getElementById('btn-buy').addEventListener('click', openModal);
+    document.getElementById('btn-close-pay').addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeModal();
+    });
+
+    function autoLogin(data) {
+      setStatus('Bayad OK — connecting…', 'good');
+      var url = data.loginUrl;
+      if (!url && LINK_LOGIN && data.username) {
+        url = LINK_LOGIN +
+          (LINK_LOGIN.indexOf('?') >= 0 ? '&' : '?') +
+          'username=' + encodeURIComponent(data.username) +
+          '&password=' + encodeURIComponent(data.password || data.username);
+        if (LINK_ORIG) url += '&dst=' + encodeURIComponent(LINK_ORIG);
+      }
+      if (url) {
+        setTimeout(function () { window.location.href = url; }, 600);
+      } else {
+        setStatus('Bayad OK. I-reconnect ang WiFi kung hindi pa online.', 'good');
+      }
+    }
+
+    function startPoll(sessionId) {
+      if (pollTimer) clearInterval(pollTimer);
+      var n = 0;
+      pollTimer = setInterval(function () {
+        n += 1;
+        if (n > 120) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          setStatus('Timeout — i-close at subukan ulit.', 'bad');
+          busy = false;
+          document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
+          return;
+        }
+        fetch(API + '/sessions/' + sessionId)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.error && !data.status) {
+              setStatus(data.error, 'bad');
+              return;
+            }
+            if (data.status === 'ready') {
+              clearInterval(pollTimer);
+              pollTimer = null;
+              autoLogin(data);
+              return;
+            }
+            if (data.status === 'failed' || data.status === 'expired') {
+              clearInterval(pollTimer);
+              pollTimer = null;
+              setStatus(data.error || ('Payment ' + data.status), 'bad');
+              busy = false;
+              document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
+            }
+          })
+          .catch(function () {
+            setStatus('Waiting… check signal / try again', 'bad');
+          });
+      }, 2500);
+    }
+
+    function buyPackage(packageId, label, price) {
+      if (busy) return;
+      busy = true;
+      document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = true; });
+      setStatus('Creating PayMongo QR…');
+      qrWrap.classList.remove('show');
+
+      fetch(API + '/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteKey: SITE,
+          packageId: packageId,
+          mac: MAC,
+          linkLogin: LINK_LOGIN,
+          linkOrig: LINK_ORIG
+        })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok) {
+            setStatus(res.d.error || 'Hindi makagawa ng QR', 'bad');
+            busy = false;
+            document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
+            return;
+          }
+          qrAmt.innerHTML = 'Pay <b>₱' + (res.d.amountPesos || price) + '</b> · ' + (res.d.packageLabel || label);
+          qrImg.src = res.d.qrImageUrl || (API + '/sessions/' + res.d.id + '/qr.png');
+          qrWrap.classList.add('show');
+          setStatus('I-scan ang QR sa GCash / Maya');
+          startPoll(res.d.id);
+        })
+        .catch(function () {
+          setStatus('Cannot reach cloud. Kailangan ng walled garden para sa jmtechsolution.cloud', 'bad');
+          busy = false;
+          document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
+        });
+    }
+
+    document.querySelectorAll('.pkg').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-pkg');
+        var dur = btn.querySelector('.dur').textContent;
+        var price = id === 'unli30' ? 30 : 20;
+        buyPackage(id, dur, price);
+      });
+    });
+  })();
+  </script>
+</body>
+</html>
