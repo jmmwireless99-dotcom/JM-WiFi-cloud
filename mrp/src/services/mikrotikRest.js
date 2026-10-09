@@ -423,17 +423,23 @@ async function ensureWalledGardenIpHost(site, dstHost, comment = 'JM WiFi Pay HT
   return { ok: true, skipped: false, id: created?.['.id'], host };
 }
 
-/** Remove botched empty dst-host rows (IPs accidentally PUT into HTTP WG). */
+/**
+ * Remove static empty dst-host rows only.
+ * RouterOS also creates dynamic HTTP-WG mirrors (dynamic=true, dst-address set)
+ * from IP WG dst-host/dst-address — never delete those.
+ */
 async function cleanupBrokenWalledGardenHosts(site) {
   const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden').catch(() => []);
   const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
   const removed = [];
   for (const r of list) {
+    if (String(r.dynamic) === 'true') continue;
     const dst = String(r['dst-host'] || '').trim();
     const comment = String(r.comment || '');
+    // Static empty host with our DNS comment = botched PUT into HTTP WG
     if (!dst && /JM WiFi Pay DNS/i.test(comment) && r['.id']) {
       try {
-        await rest(site, 'DELETE', `ip/hotspot/walled-garden/${encodeURIComponent(r['.id'])}`);
+        await rest(site, 'DELETE', `ip/hotspot/walled-garden/${r['.id']}`);
         removed.push(r['.id']);
       } catch {
         /* ignore */
