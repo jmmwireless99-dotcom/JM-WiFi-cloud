@@ -271,7 +271,7 @@
   <div class="modal-bg" id="pay-modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
     <div class="modal">
       <h2 id="pay-title">Buy Unli Internet</h2>
-      <p class="hint">Pumili ng package → i-scan ang PayMongo QR via GCash / Maya. Auto-connect after payment.</p>
+      <p class="hint">Pumili ng package → i-scan ang PayMongo QR via GCash / Maya. WiFi lang OK — GCash/Maya QR gumagana kahit walang cellular data (walled garden). Auto-connect after payment.</p>
 
       <div class="pkgs" id="pkg-list">
         <button type="button" class="pkg" data-pkg="unli20">
@@ -425,11 +425,11 @@
           qrAmt.innerHTML = 'Pay <b>₱' + (res.d.amountPesos || price) + '</b> · ' + (res.d.packageLabel || label);
           qrImg.src = res.d.qrImageUrl || (API + '/sessions/' + res.d.id + '/qr.png');
           qrWrap.classList.add('show');
-          setStatus('I-scan ang QR sa GCash / Maya');
+          setStatus('I-scan ang QR sa GCash / Maya (WiFi-only OK)');
           startPoll(res.d.id);
         })
         .catch(function () {
-          setStatus('Cannot reach cloud. Kailangan ng walled garden para sa jmtechsolution.cloud', 'bad');
+          setStatus('Cannot reach cloud. Tingnan kung open ang walled garden (GCash/Maya/PayMongo + jmtechsolution.cloud).', 'bad');
           busy = false;
           document.querySelectorAll('.pkg').forEach(function (b) { b.disabled = false; });
         });

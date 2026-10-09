@@ -49,7 +49,7 @@ r.get('/packages', async (req, res) => {
       siteName: site.name,
       packages: publicPackages(),
       currency: 'PHP',
-      note: 'Scan GCash / Maya QR after choosing a package.',
+      note: 'Scan GCash / Maya QR after choosing a package. WiFi-only OK via walled garden (no cellular data needed).',
     });
   } catch (e) {
     console.error('wifi-pay packages:', e.message);

@@ -272,13 +272,133 @@ export async function ensureWalledGardenHost(site, dstHost, comment = 'JM WiFi C
   const host = String(dstHost || '').trim().toLowerCase();
   if (!host) throw new Error('dstHost required');
   const existing = await findOne(site, 'ip/hotspot/walled-garden', { 'dst-host': host }).catch(() => null);
-  if (existing?.['.id']) return { ok: true, skipped: true, id: existing['.id'], host };
+  if (existing?.['.id']) {
+    // Re-enable if previously disabled
+    if (String(existing.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/${existing['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: existing['.id'], host };
+  }
   const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden', {
     'dst-host': host,
     action: 'allow',
     comment,
   });
   return { ok: true, skipped: false, id: created?.['.id'], host };
+}
+
+/**
+ * Domains needed so Buy Unli / QR e-wallet works from captive portal
+ * kahit walang cellular data (WiFi + walled garden lang).
+ * QR image is proxied via our VPS; GCash/Maya apps still need their APIs.
+ */
+export const WIFI_PAY_WALLED_HOSTS = Object.freeze([
+  // Our cloud (portal API + proxied QR PNG)
+  'jmtechsolution.cloud',
+  '*.jmtechsolution.cloud',
+  // PayMongo (QRPH checkout / CDN / API)
+  'paymongo.com',
+  'www.paymongo.com',
+  'api.paymongo.com',
+  'checkout.paymongo.com',
+  'links.paymongo.com',
+  'cdn.paymongo.com',
+  '*.paymongo.com',
+  // GCash / Mynt (app + APIs over WiFi, no cellular)
+  'gcash.com',
+  'www.gcash.com',
+  'm.gcash.com',
+  'api.gcash.com',
+  'app.gcash.com',
+  'cdn.gcash.com',
+  '*.gcash.com',
+  'mynt.xyz',
+  '*.mynt.xyz',
+  'mynt.ph',
+  '*.mynt.ph',
+  // GCash Firebase dynamic links (deep link / app open)
+  'gcashapp.page.link',
+  // Maya / PayMaya
+  'maya.ph',
+  'www.maya.ph',
+  'api.maya.ph',
+  'cdn.maya.ph',
+  'app.maya.ph',
+  '*.maya.ph',
+  'paymaya.com',
+  'www.paymaya.com',
+  'api.paymaya.com',
+  '*.paymaya.com',
+  // QRPH / Alipay+ rails used by some e-wallet scans
+  'alipayplus.com',
+  '*.alipayplus.com',
+]);
+
+/** Public DNS + cloud IP so name resolution / direct IP still works pre-login. */
+export const WIFI_PAY_WALLED_IPS = Object.freeze([
+  '8.8.8.8',
+  '8.8.4.4',
+  '1.1.1.1',
+  '1.0.0.1',
+  '72.62.73.235', // jmtechsolution.cloud
+]);
+
+async function ensureWalledGardenIp(site, dstAddress, comment = 'JM WiFi Pay DNS') {
+  const addr = String(dstAddress || '').trim();
+  if (!addr) throw new Error('dstAddress required');
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden/ip').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const hit = list.find((r) => String(r['dst-address'] || '') === addr || String(r['dst-address'] || '').startsWith(addr + '/'));
+  if (hit?.['.id']) {
+    if (String(hit.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/ip/${hit['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: hit['.id'], address: addr };
+  }
+  const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden/ip', {
+    'dst-address': addr.includes('/') ? addr : `${addr}/32`,
+    action: 'accept',
+    comment,
+  });
+  return { ok: true, skipped: false, id: created?.['.id'], address: addr };
+}
+
+/**
+ * Open full PayMongo + GCash + Maya walled garden on a hotspot site.
+ * Idempotent — safe to call on every Buy Unli session create.
+ */
+export async function ensureWifiPayWalledGarden(site, extraHosts = []) {
+  const hub = String(site?.hub_domain || process.env.HUB_DOMAIN || 'jmtechsolution.cloud').trim();
+  const hosts = [...new Set([
+    ...WIFI_PAY_WALLED_HOSTS,
+    hub,
+    hub ? `*.${hub.replace(/^\*\./, '')}` : '',
+    ...extraHosts.map((h) => String(h || '').trim().toLowerCase()).filter(Boolean),
+  ].filter(Boolean))];
+
+  const results = { hosts: [], ips: [], errors: [] };
+  for (const host of hosts) {
+    try {
+      results.hosts.push(await ensureWalledGardenHost(site, host, 'JM WiFi Pay / e-wallet'));
+    } catch (e) {
+      results.errors.push(`${host}: ${e.message}`);
+    }
+  }
+  for (const ip of WIFI_PAY_WALLED_IPS) {
+    try {
+      results.ips.push(await ensureWalledGardenIp(site, ip, 'JM WiFi Pay DNS/IP'));
+    } catch (e) {
+      results.errors.push(`ip ${ip}: ${e.message}`);
+    }
+  }
+  return {
+    ok: results.errors.length === 0,
+    added: results.hosts.filter((h) => !h.skipped).length + results.ips.filter((i) => !i.skipped).length,
+    skipped: results.hosts.filter((h) => h.skipped).length + results.ips.filter((i) => i.skipped).length,
+    hosts: results.hosts,
+    ips: results.ips,
+    errors: results.errors,
+  };
 }
 
 /**

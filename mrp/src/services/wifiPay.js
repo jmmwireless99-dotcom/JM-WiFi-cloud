@@ -5,7 +5,7 @@
 import crypto from 'crypto';
 import { pool, audit } from '../db.js';
 import { createQrphCheckout, retrievePaymentIntent } from './paymongo.js';
-import { upsertHotspotUser, ensureWalledGardenHost, disableHotspotUser } from './mikrotikRest.js';
+import { upsertHotspotUser, ensureWifiPayWalledGarden, disableHotspotUser } from './mikrotikRest.js';
 import { BASE_PATH, HUB } from '../config.js';
 
 /** Public package catalog — never include validityDays in API responses. */
@@ -193,8 +193,8 @@ export async function createWifiPaySession({
   let session = rows[0];
 
   try {
-    // Best-effort: open walled garden so QR + poll work from captive portal
-    await ensureWalledGardenHost(site, HUB() || 'jmtechsolution.cloud', 'JM WiFi PayMongo').catch((e) => {
+    // Full walled garden: cloud + PayMongo + GCash/Maya so QR pay works without cellular data
+    await ensureWifiPayWalledGarden(site, [HUB() || 'jmtechsolution.cloud']).catch((e) => {
       console.warn('walled-garden:', e.message);
     });
 

@@ -121,14 +121,14 @@ systemctl_restart
 ssh "${VPS_USER}@${VPS}" 'cd /opt/mrp && node --input-type=module << "EOF"
 import "dotenv/config";
 import { pool } from "./src/db.js";
-import { ensureWalledGardenHost } from "./src/services/mikrotikRest.js";
+import { ensureWifiPayWalledGarden } from "./src/services/mikrotikRest.js";
 
 const { rows } = await pool.query(`SELECT * FROM wifi_mikrotik_sites WHERE id = 2`);
 const site = rows[0];
 if (!site) throw new Error("SOCIAL-HS site missing");
 
-await ensureWalledGardenHost(site, "jmtechsolution.cloud", "JM WiFi PayMongo");
-console.log("walled garden OK");
+const garden = await ensureWifiPayWalledGarden(site);
+console.log("walled garden OK", { added: garden.added, skipped: garden.skipped, errors: garden.errors });
 
 const auth = "Basic " + Buffer.from(`${site.api_user}:${site.api_password}`).toString("base64");
 const host = site.mikrotik_host;
