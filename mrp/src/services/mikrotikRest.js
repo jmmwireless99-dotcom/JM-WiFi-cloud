@@ -267,7 +267,7 @@ export async function probeMikrotik(site) {
   };
 }
 
-/** Ensure walled-garden host so captive clients can reach cloud / PayMongo before login. */
+/** Ensure HTTP walled-garden host (L7 Host match + HotSpot DNS-cache allow). */
 export async function ensureWalledGardenHost(site, dstHost, comment = 'JM WiFi Cloud') {
   const host = String(dstHost || '').trim().toLowerCase();
   if (!host) throw new Error('dstHost required');
@@ -291,6 +291,9 @@ export async function ensureWalledGardenHost(site, dstHost, comment = 'JM WiFi C
  * Domains needed so Buy Unli / QR e-wallet works from captive portal
  * kahit walang cellular data (WiFi + walled garden lang).
  * QR image is proxied via our VPS; GCash/Maya apps still need their APIs.
+ *
+ * Exact names are dual-written to /ip/hotspot/walled-garden/ip (dst-host)
+ * because HTTPS cannot be matched by the HTTP Host walled-garden alone.
  */
 export const WIFI_PAY_WALLED_HOSTS = Object.freeze([
   // Our cloud (portal API + proxied QR PNG)
@@ -303,35 +306,66 @@ export const WIFI_PAY_WALLED_HOSTS = Object.freeze([
   'checkout.paymongo.com',
   'links.paymongo.com',
   'cdn.paymongo.com',
+  'assets.paymongo.com',
   '*.paymongo.com',
-  // GCash / Mynt (app + APIs over WiFi, no cellular)
+  // GCash app + APIs (no cellular)
   'gcash.com',
   'www.gcash.com',
   'm.gcash.com',
   'api.gcash.com',
   'app.gcash.com',
   'cdn.gcash.com',
+  'payments.gcash.com',
+  'glife.gcash.com',
   '*.gcash.com',
+  // Mynt (GCash backend / PaaS)
   'mynt.xyz',
+  'api.mynt.xyz',
+  'login.mynt.xyz',
+  'mss.paas.mynt.xyz',
+  'mdap.paas.mynt.xyz',
+  'mgs-gw.paas.mynt.xyz',
+  'customer-segment-api.mynt.xyz',
   '*.mynt.xyz',
   'mynt.ph',
   '*.mynt.ph',
-  // GCash Firebase dynamic links (deep link / app open)
+  // Deep links / PulseID used when opening GCash from QR
   'gcashapp.page.link',
+  'gcash-api.pulseid.com',
+  '*.pulseid.com',
+  // Alipay risk / objects CDN + Alipay+ rails (QRPH scans)
+  'irisk-sea.alipay.com',
+  'gw.alipayobjects.com',
+  'alipay.com',
+  '*.alipay.com',
+  'alipayobjects.com',
+  '*.alipayobjects.com',
+  'alipayplus.com',
+  '*.alipayplus.com',
   // Maya / PayMaya
   'maya.ph',
   'www.maya.ph',
   'api.maya.ph',
   'cdn.maya.ph',
   'app.maya.ph',
+  'payments.maya.ph',
   '*.maya.ph',
   'paymaya.com',
   'www.paymaya.com',
   'api.paymaya.com',
+  'assets.paymaya.com',
   '*.paymaya.com',
-  // QRPH / Alipay+ rails used by some e-wallet scans
-  'alipayplus.com',
-  '*.alipayplus.com',
+  // Maya Bank
+  'mayabank.ph',
+  'api.mayabank.ph',
+  'api-bnpl.mayabank.ph',
+  '*.mayabank.ph',
+  // Maya Voyager stack (app APIs)
+  'comms-client-api-production.voyagerapis.com',
+  'glimpse.voyagerapis.com',
+  '*.voyagerapis.com',
+  'updater.voyagerinnovation.com',
+  '*.voyagerinnovation.com',
 ]);
 
 /** Public DNS + cloud IP so name resolution / direct IP still works pre-login. */
@@ -364,11 +398,58 @@ async function ensureWalledGardenIp(site, dstAddress, comment = 'JM WiFi Pay DNS
 }
 
 /**
+ * HTTPS destinations must use IP walled-garden with dst-host (RouterOS resolves
+ * and accepts those IPs). Wildcards are not valid here — HTTP WG covers *.domain.
+ */
+async function ensureWalledGardenIpHost(site, dstHost, comment = 'JM WiFi Pay HTTPS') {
+  const host = String(dstHost || '').trim().toLowerCase();
+  if (!host || host.includes('*')) {
+    return { ok: true, skipped: true, host, note: 'wildcard-or-empty' };
+  }
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden/ip').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const hit = list.find((r) => String(r['dst-host'] || '').toLowerCase() === host);
+  if (hit?.['.id']) {
+    if (String(hit.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/ip/${hit['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: hit['.id'], host };
+  }
+  const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden/ip', {
+    'dst-host': host,
+    action: 'accept',
+    comment,
+  });
+  return { ok: true, skipped: false, id: created?.['.id'], host };
+}
+
+/** Remove botched empty dst-host rows (IPs accidentally PUT into HTTP WG). */
+async function cleanupBrokenWalledGardenHosts(site) {
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const removed = [];
+  for (const r of list) {
+    const dst = String(r['dst-host'] || '').trim();
+    const comment = String(r.comment || '');
+    if (!dst && /JM WiFi Pay DNS/i.test(comment) && r['.id']) {
+      try {
+        await rest(site, 'DELETE', `ip/hotspot/walled-garden/${encodeURIComponent(r['.id'])}`);
+        removed.push(r['.id']);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return removed;
+}
+
+/**
  * Open full PayMongo + GCash + Maya walled garden on a hotspot site.
  * Idempotent — safe to call on every Buy Unli session create.
+ * Dual-writes exact hosts to HTTP WG + IP WG (dst-host) for HTTPS.
  */
 export async function ensureWifiPayWalledGarden(site, extraHosts = []) {
-  const hub = String(site?.hub_domain || process.env.HUB_DOMAIN || 'jmtechsolution.cloud').trim();
+  const hub = String(site?.hub_domain || process.env.HUB_DOMAIN || 'jmtechsolution.cloud').trim().toLowerCase();
   const hosts = [...new Set([
     ...WIFI_PAY_WALLED_HOSTS,
     hub,
@@ -376,12 +457,26 @@ export async function ensureWifiPayWalledGarden(site, extraHosts = []) {
     ...extraHosts.map((h) => String(h || '').trim().toLowerCase()).filter(Boolean),
   ].filter(Boolean))];
 
-  const results = { hosts: [], ips: [], errors: [] };
+  const results = { hosts: [], ipHosts: [], ips: [], cleaned: [], errors: [] };
+  try {
+    results.cleaned = await cleanupBrokenWalledGardenHosts(site);
+  } catch (e) {
+    results.errors.push(`cleanup: ${e.message}`);
+  }
+
   for (const host of hosts) {
     try {
       results.hosts.push(await ensureWalledGardenHost(site, host, 'JM WiFi Pay / e-wallet'));
     } catch (e) {
       results.errors.push(`${host}: ${e.message}`);
+    }
+    // Exact names → IP WG dst-host so HTTPS/app traffic works pre-login
+    if (!host.includes('*')) {
+      try {
+        results.ipHosts.push(await ensureWalledGardenIpHost(site, host, 'JM WiFi Pay HTTPS'));
+      } catch (e) {
+        results.errors.push(`ip-host ${host}: ${e.message}`);
+      }
     }
   }
   for (const ip of WIFI_PAY_WALLED_IPS) {
@@ -391,11 +486,21 @@ export async function ensureWifiPayWalledGarden(site, extraHosts = []) {
       results.errors.push(`ip ${ip}: ${e.message}`);
     }
   }
+  const added =
+    results.hosts.filter((h) => !h.skipped).length
+    + results.ipHosts.filter((h) => !h.skipped).length
+    + results.ips.filter((i) => !i.skipped).length;
+  const skipped =
+    results.hosts.filter((h) => h.skipped).length
+    + results.ipHosts.filter((h) => h.skipped).length
+    + results.ips.filter((i) => i.skipped).length;
   return {
     ok: results.errors.length === 0,
-    added: results.hosts.filter((h) => !h.skipped).length + results.ips.filter((i) => !i.skipped).length,
-    skipped: results.hosts.filter((h) => h.skipped).length + results.ips.filter((i) => i.skipped).length,
+    added,
+    skipped,
+    cleaned: results.cleaned.length,
     hosts: results.hosts,
+    ipHosts: results.ipHosts,
     ips: results.ips,
     errors: results.errors,
   };

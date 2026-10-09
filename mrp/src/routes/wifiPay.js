@@ -119,8 +119,19 @@ r.get('/sessions/:id/qr.png', async (req, res) => {
     const raw = rows[0]?.qr_image_url || '';
     if (!raw) return res.status(404).json({ error: 'no qr' });
 
+    // Proxy remote QR URLs (never redirect) so captive clients only need our cloud.
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      return res.redirect(302, raw);
+      const upstream = await fetch(raw, { redirect: 'follow' });
+      if (!upstream.ok) {
+        return res.status(502).json({ error: `qr upstream ${upstream.status}` });
+      }
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      const ct = upstream.headers.get('content-type') || 'image/png';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', 'private, max-age=120');
+      res.setHeader('Content-Length', buf.length);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.end(buf);
     }
     const m = String(raw).match(/^data:image\/(\w+);base64,(.+)$/s);
     if (!m) return res.status(415).json({ error: 'unsupported qr' });
