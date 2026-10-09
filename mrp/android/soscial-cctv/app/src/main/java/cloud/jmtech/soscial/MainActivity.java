@@ -22,7 +22,7 @@ import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.2.0";
+    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.3.0";
 
     private WebView webView;
     private ProgressBar progress;

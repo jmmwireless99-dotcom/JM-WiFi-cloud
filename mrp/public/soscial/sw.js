@@ -1,10 +1,10 @@
 /* SOSCIAL Park CCTV — lightweight offline shell */
-const CACHE = 'soscial-cctv-v1';
+const CACHE = 'soscial-cctv-v1.3.0';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg',
+  './logo.png',
   './icon-192.png',
   './icon-512.png',
 ];
