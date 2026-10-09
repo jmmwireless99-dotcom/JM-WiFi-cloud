@@ -135,13 +135,16 @@ ${paths || '  {}'}
 `;
   const target = process.env.MEDIAMTX_CONFIG || '/etc/mediamtx/mediamtx.yml';
   await atomicWrite(target, cfg, 0o644);
+  // MediaMTX hot-reloads on file change. Do NOT systemctl restart here —
+  // restart storms hit start-limit and take /hls down (404/503).
   try {
     const { stdout } = await run('systemctl', ['is-active', 'mediamtx']);
-    if ((stdout || '').trim() === 'active') {
-      await run('systemctl', ['reload-or-restart', 'mediamtx']);
+    if ((stdout || '').trim() !== 'active') {
+      await run('systemctl', ['reset-failed', 'mediamtx']);
+      await run('systemctl', ['start', 'mediamtx']);
     }
   } catch {
-    // mediamtx not installed — skip reload
+    // mediamtx not installed — skip
   }
 }
 
