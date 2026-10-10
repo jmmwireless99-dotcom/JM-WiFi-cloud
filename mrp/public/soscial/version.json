@@ -5,6 +5,6 @@
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
   "webUrl": "https://jmtechsolution.cloud/social/?v=1.8.0",
-  "notes": "NVR ChannelTitle names + All Cam 30 Live Wall (pool 30, lite remux)",
+  "notes": "NVR ChannelTitle names + All Cam 30 wall (6-up auto-cycle, lite remux; 1-vCPU cannot sustain 30 concurrent)",
   "releasedAt": "2026-10-10T07:00:00Z"
 }
