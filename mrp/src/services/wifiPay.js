@@ -5,7 +5,13 @@
 import crypto from 'crypto';
 import { pool, audit } from '../db.js';
 import { createQrphCheckout, retrievePaymentIntent } from './paymongo.js';
-import { upsertHotspotUser, ensureWifiPayWalledGarden, disableHotspotUser } from './mikrotikRest.js';
+// Isolated from mikrotikRest.js — CCTV agents often overwrite that file and
+// previously crashed boot with missing disableHotspotUser / upsertHotspotUser.
+import {
+  upsertHotspotUser,
+  ensureWifiPayWalledGarden,
+  disableHotspotUser,
+} from './wifiPayMikrotik.js';
 import { BASE_PATH, HUB } from '../config.js';
 
 /** Public package catalog — never include validityDays in API responses. */

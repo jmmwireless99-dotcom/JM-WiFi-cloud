@@ -8,6 +8,7 @@ VPS_USER="${VPS_USER:-root}"
 echo "==> Sync wifi-pay modules to ${VPS_USER}@${VPS}:/opt/mrp"
 ssh "${VPS_USER}@${VPS}" 'mkdir -p /opt/mrp/src/routes /opt/mrp/src/services /opt/mrp/public/hotspot/social-park /opt/mrp/scripts'
 
+scp "$ROOT/src/services/wifiPayMikrotik.js" "${VPS_USER}@${VPS}:/opt/mrp/src/services/wifiPayMikrotik.js"
 scp "$ROOT/src/services/wifiPay.js" "${VPS_USER}@${VPS}:/opt/mrp/src/services/wifiPay.js"
 scp "$ROOT/src/routes/wifiPay.js" "${VPS_USER}@${VPS}:/opt/mrp/src/routes/wifiPay.js"
 scp "$ROOT/public/hotspot/social-park/login.html" "${VPS_USER}@${VPS}:/opt/mrp/public/hotspot/social-park/login.html"
@@ -121,7 +122,7 @@ systemctl_restart
 ssh "${VPS_USER}@${VPS}" 'cd /opt/mrp && node --input-type=module << "EOF"
 import "dotenv/config";
 import { pool } from "./src/db.js";
-import { ensureWifiPayWalledGarden } from "./src/services/mikrotikRest.js";
+import { ensureWifiPayWalledGarden } from "./src/services/wifiPayMikrotik.js";
 
 const { rows } = await pool.query(`SELECT * FROM wifi_mikrotik_sites WHERE id = 2`);
 const site = rows[0];
