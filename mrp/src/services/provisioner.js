@@ -256,8 +256,10 @@ export async function ensureLiveRemux(cam, vpnIp) {
   remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
   scheduleRemuxSweep();
 
-  for (let i = 0; i < 15; i++) {
-    await new Promise((r) => setTimeout(r, 700));
+  // Short poll only — long waits stall the single Node process under multi-cam warmups.
+  // HLS.js retries cover the remaining ffmpeg startup time.
+  for (let i = 0; i < 4; i++) {
+    await new Promise((r) => setTimeout(r, 400));
     try {
       const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
       if (st.ok && st.data?.ready) {
