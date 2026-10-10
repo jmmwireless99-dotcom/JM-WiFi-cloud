@@ -263,10 +263,10 @@ export async function ensureLiveRemux(cam, vpnIp) {
   remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
   scheduleRemuxSweep();
 
-  // Poll until ready, but keep each request short so parallel Live Wall warmups
-  // do not monopolize the single Node event loop. Clients also re-call ensure-live.
-  for (let i = 0; i < 8; i++) {
-    await new Promise((r) => setTimeout(r, 350));
+  // Short poll only — clients re-call ensure-live until ready (avoids event-loop
+  // stalls when the NVR Live Wall warms many cams). HLS retries cover the rest.
+  for (let i = 0; i < 5; i++) {
+    await new Promise((r) => setTimeout(r, 300));
     try {
       const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
       if (st.ok && st.data?.ready) {
