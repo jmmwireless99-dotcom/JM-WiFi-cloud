@@ -130,7 +130,7 @@ export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
  * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
  */
 const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 10));
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 4));
 const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 90_000));
 const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
