@@ -267,17 +267,249 @@ export async function probeMikrotik(site) {
   };
 }
 
+/** Ensure HTTP walled-garden host (L7 Host match + HotSpot DNS-cache allow). */
 export async function ensureWalledGardenHost(site, dstHost, comment = 'JM WiFi Cloud') {
   const host = String(dstHost || '').trim().toLowerCase();
   if (!host) throw new Error('dstHost required');
   const existing = await findOne(site, 'ip/hotspot/walled-garden', { 'dst-host': host }).catch(() => null);
-  if (existing?.['.id']) return { ok: true, skipped: true, id: existing['.id'], host };
+  if (existing?.['.id']) {
+    // Re-enable if previously disabled
+    if (String(existing.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/${existing['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: existing['.id'], host };
+  }
   const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden', {
     'dst-host': host,
     action: 'allow',
     comment,
   });
   return { ok: true, skipped: false, id: created?.['.id'], host };
+}
+
+/**
+ * Domains needed so Buy Unli / QR e-wallet works from captive portal
+ * kahit walang cellular data (WiFi + walled garden lang).
+ * QR image is proxied via our VPS; GCash/Maya apps still need their APIs.
+ *
+ * Exact names are dual-written to /ip/hotspot/walled-garden/ip (dst-host)
+ * because HTTPS cannot be matched by the HTTP Host walled-garden alone.
+ */
+export const WIFI_PAY_WALLED_HOSTS = Object.freeze([
+  // Our cloud (portal API + proxied QR PNG)
+  'jmtechsolution.cloud',
+  '*.jmtechsolution.cloud',
+  // PayMongo (QRPH checkout / CDN / API)
+  'paymongo.com',
+  'www.paymongo.com',
+  'api.paymongo.com',
+  'checkout.paymongo.com',
+  'links.paymongo.com',
+  'cdn.paymongo.com',
+  'assets.paymongo.com',
+  '*.paymongo.com',
+  // GCash app + APIs (no cellular)
+  'gcash.com',
+  'www.gcash.com',
+  'm.gcash.com',
+  'api.gcash.com',
+  'app.gcash.com',
+  'cdn.gcash.com',
+  'payments.gcash.com',
+  'glife.gcash.com',
+  '*.gcash.com',
+  // Mynt (GCash backend / PaaS)
+  'mynt.xyz',
+  'api.mynt.xyz',
+  'login.mynt.xyz',
+  'mss.paas.mynt.xyz',
+  'mdap.paas.mynt.xyz',
+  'mgs-gw.paas.mynt.xyz',
+  'customer-segment-api.mynt.xyz',
+  '*.mynt.xyz',
+  'mynt.ph',
+  '*.mynt.ph',
+  // Deep links / PulseID used when opening GCash from QR
+  'gcashapp.page.link',
+  'gcash-api.pulseid.com',
+  '*.pulseid.com',
+  // Alipay risk / objects CDN + Alipay+ rails (QRPH scans)
+  'irisk-sea.alipay.com',
+  'gw.alipayobjects.com',
+  'alipay.com',
+  '*.alipay.com',
+  'alipayobjects.com',
+  '*.alipayobjects.com',
+  'alipayplus.com',
+  '*.alipayplus.com',
+  // Maya / PayMaya
+  'maya.ph',
+  'www.maya.ph',
+  'api.maya.ph',
+  'cdn.maya.ph',
+  'app.maya.ph',
+  'payments.maya.ph',
+  '*.maya.ph',
+  'paymaya.com',
+  'www.paymaya.com',
+  'api.paymaya.com',
+  'assets.paymaya.com',
+  '*.paymaya.com',
+  // Maya Bank
+  'mayabank.ph',
+  'api.mayabank.ph',
+  'api-bnpl.mayabank.ph',
+  '*.mayabank.ph',
+  // Maya Voyager stack (app APIs)
+  'comms-client-api-production.voyagerapis.com',
+  'glimpse.voyagerapis.com',
+  '*.voyagerapis.com',
+  'updater.voyagerinnovation.com',
+  '*.voyagerinnovation.com',
+]);
+
+/** Public DNS + cloud IP so name resolution / direct IP still works pre-login. */
+export const WIFI_PAY_WALLED_IPS = Object.freeze([
+  '8.8.8.8',
+  '8.8.4.4',
+  '1.1.1.1',
+  '1.0.0.1',
+  '72.62.73.235', // jmtechsolution.cloud
+]);
+
+async function ensureWalledGardenIp(site, dstAddress, comment = 'JM WiFi Pay DNS') {
+  const addr = String(dstAddress || '').trim();
+  if (!addr) throw new Error('dstAddress required');
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden/ip').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const hit = list.find((r) => String(r['dst-address'] || '') === addr || String(r['dst-address'] || '').startsWith(addr + '/'));
+  if (hit?.['.id']) {
+    if (String(hit.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/ip/${hit['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: hit['.id'], address: addr };
+  }
+  const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden/ip', {
+    'dst-address': addr.includes('/') ? addr : `${addr}/32`,
+    action: 'accept',
+    comment,
+  });
+  return { ok: true, skipped: false, id: created?.['.id'], address: addr };
+}
+
+/**
+ * HTTPS destinations must use IP walled-garden with dst-host (RouterOS resolves
+ * and accepts those IPs). Wildcards are not valid here — HTTP WG covers *.domain.
+ */
+async function ensureWalledGardenIpHost(site, dstHost, comment = 'JM WiFi Pay HTTPS') {
+  const host = String(dstHost || '').trim().toLowerCase();
+  if (!host || host.includes('*')) {
+    return { ok: true, skipped: true, host, note: 'wildcard-or-empty' };
+  }
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden/ip').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const hit = list.find((r) => String(r['dst-host'] || '').toLowerCase() === host);
+  if (hit?.['.id']) {
+    if (String(hit.disabled) === 'true') {
+      await rest(site, 'PATCH', `ip/hotspot/walled-garden/ip/${hit['.id']}`, { disabled: 'false' });
+    }
+    return { ok: true, skipped: true, id: hit['.id'], host };
+  }
+  const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden/ip', {
+    'dst-host': host,
+    action: 'accept',
+    comment,
+  });
+  return { ok: true, skipped: false, id: created?.['.id'], host };
+}
+
+/**
+ * Remove static empty dst-host rows only.
+ * RouterOS also creates dynamic HTTP-WG mirrors (dynamic=true, dst-address set)
+ * from IP WG dst-host/dst-address — never delete those.
+ */
+async function cleanupBrokenWalledGardenHosts(site) {
+  const rows = await rest(site, 'GET', 'ip/hotspot/walled-garden').catch(() => []);
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  const removed = [];
+  for (const r of list) {
+    if (String(r.dynamic) === 'true') continue;
+    const dst = String(r['dst-host'] || '').trim();
+    const comment = String(r.comment || '');
+    // Static empty host with our DNS comment = botched PUT into HTTP WG
+    if (!dst && /JM WiFi Pay DNS/i.test(comment) && r['.id']) {
+      try {
+        await rest(site, 'DELETE', `ip/hotspot/walled-garden/${r['.id']}`);
+        removed.push(r['.id']);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return removed;
+}
+
+/**
+ * Open full PayMongo + GCash + Maya walled garden on a hotspot site.
+ * Idempotent — safe to call on every Buy Unli session create.
+ * Dual-writes exact hosts to HTTP WG + IP WG (dst-host) for HTTPS.
+ */
+export async function ensureWifiPayWalledGarden(site, extraHosts = []) {
+  const hub = String(site?.hub_domain || process.env.HUB_DOMAIN || 'jmtechsolution.cloud').trim().toLowerCase();
+  const hosts = [...new Set([
+    ...WIFI_PAY_WALLED_HOSTS,
+    hub,
+    hub ? `*.${hub.replace(/^\*\./, '')}` : '',
+    ...extraHosts.map((h) => String(h || '').trim().toLowerCase()).filter(Boolean),
+  ].filter(Boolean))];
+
+  const results = { hosts: [], ipHosts: [], ips: [], cleaned: [], errors: [] };
+  try {
+    results.cleaned = await cleanupBrokenWalledGardenHosts(site);
+  } catch (e) {
+    results.errors.push(`cleanup: ${e.message}`);
+  }
+
+  for (const host of hosts) {
+    try {
+      results.hosts.push(await ensureWalledGardenHost(site, host, 'JM WiFi Pay / e-wallet'));
+    } catch (e) {
+      results.errors.push(`${host}: ${e.message}`);
+    }
+    // Exact names → IP WG dst-host so HTTPS/app traffic works pre-login
+    if (!host.includes('*')) {
+      try {
+        results.ipHosts.push(await ensureWalledGardenIpHost(site, host, 'JM WiFi Pay HTTPS'));
+      } catch (e) {
+        results.errors.push(`ip-host ${host}: ${e.message}`);
+      }
+    }
+  }
+  for (const ip of WIFI_PAY_WALLED_IPS) {
+    try {
+      results.ips.push(await ensureWalledGardenIp(site, ip, 'JM WiFi Pay DNS/IP'));
+    } catch (e) {
+      results.errors.push(`ip ${ip}: ${e.message}`);
+    }
+  }
+  const added =
+    results.hosts.filter((h) => !h.skipped).length
+    + results.ipHosts.filter((h) => !h.skipped).length
+    + results.ips.filter((i) => !i.skipped).length;
+  const skipped =
+    results.hosts.filter((h) => h.skipped).length
+    + results.ipHosts.filter((h) => h.skipped).length
+    + results.ips.filter((i) => i.skipped).length;
+  return {
+    ok: results.errors.length === 0,
+    added,
+    skipped,
+    cleaned: results.cleaned.length,
+    hosts: results.hosts,
+    ipHosts: results.ipHosts,
+    ips: results.ips,
+    errors: results.errors,
+  };
 }
 
 /**
@@ -336,9 +568,7 @@ const CCTV_TAG = 'JM TECH SOLUTION';
 
 /**
  * Ensure SSTP firewall forward + dst-nat rules so hub can pull RTSP from LAN cameras/NVR.
- * Dedupes by tunnelPort (NVR multi-channel shares one port → one NAT rule).
- * Cleans leftover duplicate dst-port rules from older per-camera pushes.
- * cameras: [{ name, tunnelPort, lanIp, rtspPort }]
+ * Idempotent by comment. cameras: [{ name, tunnelPort, lanIp, rtspPort }]
  */
 export async function pushCameraNat(site, cameras = []) {
   const steps = [];
@@ -371,85 +601,40 @@ export async function pushCameraNat(site, cameras = []) {
     errors.push(e.message);
   }
 
-  // One NAT rule per tunnel port (shared NVR channel model)
-  const byPort = new Map();
   for (const cam of cameras) {
+    const name = String(cam.name || 'cam').trim();
     const tunnelPort = Number(cam.tunnelPort ?? cam.tunnel_port);
     const lanIp = String((cam.lanIp ?? cam.lan_ip) || '').trim();
     const rtspPort = Number(cam.rtspPort ?? cam.rtsp_port ?? 554) || 554;
-    const name = String(cam.name || 'cam').trim();
     if (!tunnelPort || !lanIp) {
       steps.push({ step: `nat ${name}`, ok: false, error: 'missing tunnelPort/lanIp' });
       continue;
     }
-    if (!byPort.has(tunnelPort)) {
-      byPort.set(tunnelPort, { name, tunnelPort, lanIp, rtspPort, aliases: [name] });
-    } else {
-      byPort.get(tunnelPort).aliases.push(name);
-    }
-  }
-
-  let allNat = [];
-  try {
-    const rows = await rest(site, 'GET', 'ip/firewall/nat');
-    allNat = Array.isArray(rows) ? rows : [];
-  } catch (e) {
-    errors.push(`list nat: ${e.message}`);
-  }
-
-  for (const entry of byPort.values()) {
-    const shared = entry.aliases.length > 1;
-    const comment = shared
-      ? `${CCTV_TAG}: NVR-RTSP :${entry.tunnelPort}`
-      : `${CCTV_TAG}: ${entry.name}`;
-    const body = {
-      chain: 'dstnat',
-      'in-interface': CCTV_IFACE,
-      protocol: 'tcp',
-      'dst-port': String(entry.tunnelPort),
-      action: 'dst-nat',
-      'to-addresses': entry.lanIp,
-      'to-ports': String(entry.rtspPort),
-      comment,
-      disabled: 'false',
-    };
+    const comment = `${CCTV_TAG}: ${name}`;
     try {
-      const samePort = allNat.filter((r) => String(r['dst-port']) === String(entry.tunnelPort));
-      let keep = samePort.find((r) => String(r.comment) === comment)
-        || samePort.find((r) => String(r.comment || '').includes('NVR-RTSP'))
-        || samePort[0]
-        || null;
-      // Drop extras with same dst-port (old per-camera duplicates)
-      for (const r of samePort) {
-        if (keep && r['.id'] === keep['.id']) continue;
-        try {
-          await rest(site, 'DELETE', `ip/firewall/nat/${r['.id']}`);
-          steps.push({ step: `nat cleanup ${r['.id']}`, ok: true, removed: true });
-        } catch (e) {
-          steps.push({ step: `nat cleanup ${r['.id']}`, ok: false, error: e.message });
-        }
-      }
-      if (keep?.['.id']) {
-        await rest(site, 'PATCH', `ip/firewall/nat/${keep['.id']}`, body);
-        steps.push({
-          step: `nat :${entry.tunnelPort}`,
-          ok: true,
-          updated: true,
-          id: keep['.id'],
-          cameras: entry.aliases.length,
-        });
+      const rows = await rest(site, 'GET', `ip/firewall/nat?comment=${encodeURIComponent(comment)}`).catch(() => []);
+      const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+      const hit = list.find((r) => String(r.comment) === comment) || null;
+      const body = {
+        chain: 'dstnat',
+        'in-interface': CCTV_IFACE,
+        protocol: 'tcp',
+        'dst-port': String(tunnelPort),
+        action: 'dst-nat',
+        'to-addresses': lanIp,
+        'to-ports': String(rtspPort),
+        comment,
+      };
+      if (hit?.['.id']) {
+        await rest(site, 'PATCH', `ip/firewall/nat/${hit['.id']}`, body);
+        steps.push({ step: `nat ${name}`, ok: true, skipped: false, updated: true, id: hit['.id'] });
       } else {
         const created = await rest(site, 'PUT', 'ip/firewall/nat', body);
-        steps.push({
-          step: `nat :${entry.tunnelPort}`,
-          ok: true,
-          id: created?.['.id'],
-          cameras: entry.aliases.length,
-        });
+        steps.push({ step: `nat ${name}`, ok: true, skipped: false, id: created?.['.id'] });
       }
     } catch (e) {
-      steps.push({ step: `nat :${entry.tunnelPort}`, ok: false, error: e.message });
-      errors.push(`:${entry.tunnelPort}: ${e.message}`);
+      steps.push({ step: `nat ${name}`, ok: false, error: e.message });
+      errors.push(`${name}: ${e.message}`);
     }
   }
 
