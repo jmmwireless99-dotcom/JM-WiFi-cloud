@@ -267,6 +267,70 @@ export async function probeMikrotik(site) {
   };
 }
 
+export async function ensureWalledGardenHost(site, dstHost, comment = 'JM WiFi Cloud') {
+  const host = String(dstHost || '').trim().toLowerCase();
+  if (!host) throw new Error('dstHost required');
+  const existing = await findOne(site, 'ip/hotspot/walled-garden', { 'dst-host': host }).catch(() => null);
+  if (existing?.['.id']) return { ok: true, skipped: true, id: existing['.id'], host };
+  const created = await rest(site, 'PUT', 'ip/hotspot/walled-garden', {
+    'dst-host': host,
+    action: 'allow',
+    comment,
+  });
+  return { ok: true, skipped: false, id: created?.['.id'], host };
+}
+
+/**
+ * Create (or refresh) a paid hotspot user for auto-login after PayMongo.
+ * limit-uptime = online time; comment stores absolute validity for cleanup.
+ */
+export async function upsertHotspotUser(site, {
+  username,
+  password,
+  profile = 'default',
+  limitUptime,
+  macAddress = '',
+  comment = '',
+  server = 'all',
+} = {}) {
+  const name = String(username || '').trim();
+  if (!name) throw new Error('username required');
+  const pass = String(password || name);
+  const body = {
+    name,
+    password: pass,
+    profile: profile || 'default',
+    server: server || 'all',
+    disabled: 'false',
+  };
+  if (limitUptime) body['limit-uptime'] = String(limitUptime);
+  if (comment) body.comment = String(comment).slice(0, 240);
+  const mac = String(macAddress || '').trim().toUpperCase();
+  if (mac && /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(mac)) {
+    body['mac-address'] = mac;
+  }
+
+  const existing = await findOne(site, 'ip/hotspot/user', { name }).catch(() => null);
+  if (existing?.['.id']) {
+    await rest(site, 'PATCH', `ip/hotspot/user/${existing['.id']}`, body);
+    return { ok: true, updated: true, id: existing['.id'], username: name, password: pass };
+  }
+  const created = await rest(site, 'PUT', 'ip/hotspot/user', body);
+  return { ok: true, updated: false, id: created?.['.id'], username: name, password: pass };
+}
+
+/** Disable expired paid users (called from fulfill/cleanup). */
+export async function disableHotspotUser(site, username) {
+  const name = String(username || '').trim();
+  if (!name) return { ok: false, error: 'username required' };
+  const existing = await findOne(site, 'ip/hotspot/user', { name }).catch(() => null);
+  if (!existing?.['.id']) return { ok: true, skipped: true };
+  await rest(site, 'PATCH', `ip/hotspot/user/${existing['.id']}`, { disabled: 'true' });
+  return { ok: true, id: existing['.id'] };
+}
+
+export { rest as mikrotikRest, findOne as mikrotikFindOne };
+
 const CCTV_IFACE = 'sstp-cctv';
 const CCTV_TAG = 'JM TECH SOLUTION';
 
