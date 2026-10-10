@@ -2,7 +2,7 @@
   "name": "SOCIAL Park CCTV",
   "short_name": "SOCIAL CCTV",
   "description": "JM Wireless · SOCIAL PARK live CCTV — viewer key access",
-  "start_url": "/social/?v=1.7.0",
+  "start_url": "/social/?v=1.7.4",
   "scope": "/social/",
   "display": "standalone",
   "orientation": "any",
@@ -10,19 +10,19 @@
   "theme_color": "#0c1410",
   "icons": [
     {
-      "src": "/soscial/icon-192.png?v=1.7.0",
+      "src": "/soscial/icon-192.png?v=1.7.4",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/soscial/icon-512.png?v=1.7.0",
+      "src": "/soscial/icon-512.png?v=1.7.4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/soscial/icon-512.png?v=1.7.0",
+      "src": "/soscial/icon-512.png?v=1.7.4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

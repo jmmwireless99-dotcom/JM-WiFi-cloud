@@ -136,8 +136,9 @@ export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
  * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
  */
 const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 10));
-const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 90_000));
+// Cap concurrent ffmpeg remuxes (1-vCPU hub). Raise via env for NVR multi-view.
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 12));
+const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 120_000));
 const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
 /** pathName → { origin, startedAt, lastEnsureAt } */
@@ -174,9 +175,10 @@ function pathBlockPool(name) {
   );
 }
 
-async function mtxFetch(path, { method = 'GET', body } = {}) {
+async function mtxFetch(path, { method = 'GET', body, timeoutMs } = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), EXEC_MS * 4);
+  const ms = Math.max(1000, Number(timeoutMs) || EXEC_MS * 4);
+  const t = setTimeout(() => ctrl.abort(), ms);
   try {
     const res = await fetch(`${MTX_API()}${path}`, {
       method,
@@ -197,6 +199,7 @@ async function stopRemuxPath(name) {
   await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
     method: 'POST',
     body: { name, source: 'publisher' },
+    timeoutMs: 15_000,
   });
   remuxActive.delete(name);
 }
@@ -247,27 +250,44 @@ export async function ensureLiveRemux(cam, vpnIp) {
 
   await evictOldestRemux(name);
   const cmd = remuxFfmpegCmd(origin);
-  const res = await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    body: {
-      name,
-      source: 'publisher',
-      runOnInit: cmd,
-      runOnInitRestart: true,
-    },
-  });
-  if (!res.ok) {
-    throw new Error(typeof res.data === 'string' ? res.data : `mediamtx remux start failed (${res.status})`);
+  try {
+    const res = await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      body: {
+        name,
+        source: 'publisher',
+        runOnInit: cmd,
+        runOnInitRestart: true,
+      },
+      // MediaMTX can stall under multi-cam warm; give replace room.
+      timeoutMs: 25_000,
+    });
+    if (!res.ok) {
+      throw new Error(typeof res.data === 'string' ? res.data : `mediamtx remux start failed (${res.status})`);
+    }
+  } catch (e) {
+    // Still mark warming so clients retry instead of hard Stream error.
+    remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
+    scheduleRemuxSweep();
+    return {
+      ok: true,
+      mode: 'pool',
+      pathName: name,
+      ready: false,
+      warming: true,
+      deferred: true,
+      error: e?.message || String(e),
+    };
   }
   remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
   scheduleRemuxSweep();
 
-  // Short poll only — long waits stall the single Node process under multi-cam warmups.
-  // HLS.js retries cover the remaining ffmpeg startup time.
+  // Short poll only — clients re-call ensure-live until ready (avoids event-loop
+  // stalls when the NVR Live Wall warms many cams). HLS retries cover the rest.
   for (let i = 0; i < 4; i++) {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 250));
     try {
-      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
+      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`, { timeoutMs: 4000 });
       if (st.ok && st.data?.ready) {
         return { ok: true, mode: 'pool', pathName: name, ready: true };
       }

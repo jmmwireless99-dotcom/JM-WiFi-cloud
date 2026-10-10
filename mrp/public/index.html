@@ -1008,6 +1008,22 @@ function MapsSettingsPanel({ isSuperAdmin }) {
 }
 
 // ---------- Live player ----------
+/** Pool remux: cold /hls returns 404 until ffmpeg is ready — poll ensure-live before HLS. */
+async function warmCamLive(cam, { attempts = 12, delayMs = 500 } = {}) {
+  let url = cam?.hlsUrl || '';
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const warm = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
+      if (warm?.hlsUrl) url = warm.hlsUrl;
+      if (warm?.ready || warm?.reused) return url;
+    } catch (e) {
+      console.warn('ensure-live', e);
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return url;
+}
+
 function Player({ cam }) {
   const vidRef = useRef(null);
   const hlsRef = useRef(null);
@@ -1016,18 +1032,18 @@ function Player({ cam }) {
   const play = async () => {
     if (!cam.live) return;
     setState('loading');
-    let url = cam.hlsUrl;
-    try {
-      // Warm on-demand H.264 remux (pool mode) before HLS — avoids blank HEVC tiles
-      // and stops always-on ffmpeg from melting the 1-vCPU hub.
-      const warm = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
-      if (warm?.hlsUrl) url = warm.hlsUrl;
-    } catch (e) {
-      console.warn('ensure-live', e);
-    }
+    // Warm on-demand H.264 remux (pool mode) until ready — cold HLS is 404.
+    const url = await warmCamLive(cam);
     const video = vidRef.current;
+    if (!url) { setState('error'); return; }
     if (Hls.isSupported()) {
-      const hls = new Hls({ liveDurationInfinity:true, manifestLoadingMaxRetry:6, manifestLoadingRetryDelay:800 });
+      const hls = new Hls({
+        liveDurationInfinity: true,
+        manifestLoadingMaxRetry: 12,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 8,
+        levelLoadingRetryDelay: 1000,
+      });
       hlsRef.current = hls;
       hls.loadSource(url);
       hls.attachMedia(video);

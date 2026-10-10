@@ -1,5 +1,5 @@
 /* SOCIAL Park CCTV — network-first shell + auto-update */
-const CACHE = 'soscial-cctv-v1.7.0';
+const CACHE = 'soscial-cctv-v1.7.4';
 const ASSETS = [
   './',
   './index.html',
