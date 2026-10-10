@@ -10,16 +10,32 @@ Staff nav **MikroTik Sites** shows unlimited branch routers as multi-site cards 
 - `mrp/src/routes/stations.js` — VPN stations + `POST /api/stations/:id/test`
 - `mrp/src/routes/hotspot.js` — hotspot sites + `POST /api/hotspot/sites/:id/test`
 
-## SOCIAL Park CCTV (passwordless)
+## SOCIAL Park CCTV (viewer key gate)
 
-Mobile PWA / APK viewer — **no username/password** for live SOCIAL cameras (station 71).
+Mobile PWA / APK viewer for SOCIAL cameras (station 71). **Walang password** — admin-issued **viewer key** required. Key is remembered on the device until admin revokes it.
 
 | Entry | URL |
 |-------|-----|
-| App / PWA | `https://jmtechsolution.cloud/soscial/?v=1.6.0` |
-| Auto-viewer | `https://jmtechsolution.cloud/soscial/v/<cameraId>` |
-| Query auto | `https://jmtechsolution.cloud/soscial/?cam=<id>&auto=1` |
+| App / PWA (canonical) | `https://jmtechsolution.cloud/social/` |
+| Legacy path | `https://jmtechsolution.cloud/soscial/` |
+| Auto-viewer | `https://jmtechsolution.cloud/social/v/<cameraId>` |
+| Install / APK page | `https://jmtechsolution.cloud/social/download` |
 | APK | `https://jmtechsolution.cloud/soscial.apk` |
-| TV APK | `https://jmtechsolution.cloud/soscial-tv.apk` |
 
-Public API (no JWT): `GET /api/soscial/cameras`, `POST /api/soscial/cameras/:id/ensure-live` (on-demand H.264 remux). Admin portal `/api/cameras` stays authenticated.
+### Viewer key API
+
+| Method | Path | Auth |
+|--------|------|------|
+| `POST` | `/api/social/auth` | public — `{ key }` → viewer JWT |
+| `GET` | `/api/social/auth/me` | viewer JWT — validate / detect revoke |
+| `POST` | `/api/social/keys` | Super Admin JWT — create (plaintext once) |
+| `GET` | `/api/social/keys` | Super Admin JWT — list |
+| `DELETE` | `/api/social/keys/:id` | Super Admin JWT — revoke (`?hard=1` delete) |
+
+Protected (need viewer token or admin JWT): `GET /api/soscial/cameras`, `POST /api/soscial/cameras/:id/ensure-live`.
+
+Admin UI: portal **Accounts** → **SOCIAL Viewer Keys**.
+
+### Stack / base
+
+This branch builds on `cursor/social-cctv-noauth-mobile-9f0b` (PR #16 passwordless PWA), which stacks on `cursor/social-nvr-30ch-restore-9f0b` (PR #15).

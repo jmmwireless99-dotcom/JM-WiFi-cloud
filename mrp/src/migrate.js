@@ -459,4 +459,29 @@ export async function runMigrations() {
     ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS channels INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE nvr_areas ADD COLUMN IF NOT EXISTS firmware TEXT NOT NULL DEFAULT '';
   `).catch((e) => console.warn('nvr_areas device cols:', e.message));
+
+  // SOCIAL Park viewer access keys (hashed; plaintext shown once on create)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS social_viewer_keys (
+      id           SERIAL PRIMARY KEY,
+      station_id   INTEGER NOT NULL DEFAULT 71 REFERENCES stations(id) ON DELETE CASCADE,
+      label        TEXT NOT NULL DEFAULT 'Viewer',
+      notes        TEXT NOT NULL DEFAULT '',
+      key_hash     TEXT NOT NULL,
+      key_prefix   TEXT NOT NULL DEFAULT '',
+      created_by   TEXT NOT NULL DEFAULT '',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      revoked_at   TIMESTAMPTZ,
+      last_used_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS idx_social_viewer_keys_station
+      ON social_viewer_keys (station_id);
+    CREATE INDEX IF NOT EXISTS idx_social_viewer_keys_active
+      ON social_viewer_keys (station_id) WHERE revoked_at IS NULL;
+  `).catch((e) => console.warn('social_viewer_keys:', e.message));
+
+  await pool.query(`
+    GRANT ALL ON TABLE social_viewer_keys TO mrp;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO mrp;
+  `).catch(() => {});
 }
