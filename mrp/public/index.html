@@ -3570,7 +3570,6 @@ function App() {
   else if (tab==='dash' && isManager) {
     const onlineN = stations.filter(s=>s.online).length;
     const liveN = cams.filter(c=>c.live).length;
-    const ztOn = ztStatus && (ztStatus.online===true || ztStatus.status==='ONLINE' || ztStatus.joined);
     const cpuPct = vpsStats?.cpu?.pct != null ? vpsStats.cpu.pct : null;
     const ramPct = vpsStats?.ram?.usedPct != null ? vpsStats.ram.usedPct : null;
     const rx = vpsStats?.net?.rxMbps != null ? vpsStats.net.rxMbps : null;
@@ -3631,18 +3630,6 @@ function App() {
         <div class="mv" style=${{fontSize:'22px'}}>↓ ${fmtMbps(rx)} · ↑ ${fmtMbps(tx)} <span style=${{fontSize:'14px',fontWeight:600,color:'var(--dim)'}}>Mbps</span></div>
         <div class="ms"><span class="trend up">${netPct != null ? netPct+'% of link' : (rx==null && tx==null ? 'polling…' : 'live throughput')}</span>${vpsStats?.net?.linkMbps ? ' · '+vpsStats.net.linkMbps+' Mbps cap' : ''}</div>
         <div class="spark">${netSpark.map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
-      </div>
-      <div class="metric wide">
-        <div class="ml">ZeroTier Clients</div>
-        <div class="mv">${ztClients.length}</div>
-        <div class="ms">Managed network members</div>
-        <div class="spark">${[35,50,45,65,55,75,60,80].map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
-      </div>
-      <div class="metric wide">
-        <div class="ml">Hub ZeroTier</div>
-        <div class="mv" style=${{fontSize:'22px'}}>${ztOn?'Online':(ztStatus?'Check':'—')}</div>
-        <div class="ms"><span class="trend ${ztOn?'up':'down'}">${ztOn?'connected':'status unknown'}</span></div>
-        <div class="bars">${[60,50,70,55,85,75].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
       </div>
       <div class="metric wide">
         <div class="ml">Gasoline Sales Today</div>
