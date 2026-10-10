@@ -11,6 +11,11 @@ import { HUB, BASE_PATH, hlsBase } from '../config.js';
 import { getStreamStates, streamPathName, ensureLiveRemux } from '../services/provisioner.js';
 import jwt from 'jsonwebtoken';
 import { isKeyActive, SOCIAL_STATION_ID, requireSocialViewerOrAdmin } from './socialKeys.js';
+import {
+  channelFromRtspPath,
+  isCanonicalSocialChannel,
+  SOCIAL_NVR_LAN,
+} from '../lib/socialCameraNames.js';
 
 const r = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,12 +50,24 @@ async function readVersionFile() {
     return JSON.parse(raw);
   } catch {
     return {
-      versionName: '1.7.3',
-      versionCode: 10,
-      webBuild: '1.7.3',
+      versionName: '1.7.4',
+      versionCode: 13,
+      webBuild: '1.7.4',
       notes: '',
     };
   }
+}
+
+/** Viewer catalog: enabled NVR channels D1–D30 only (no Circle-In extras / UNKNOWN). */
+function isViewerSocialCamera(c) {
+  if (!c?.enabled) return false;
+  const ch = channelFromRtspPath(c.rtsp_path || c.rtspPath);
+  if (!isCanonicalSocialChannel(ch)) return false;
+  const lan = String(c.lan_ip || c.lanIp || '').replace(/\/\d+$/, '').trim();
+  // NVR shared LAN, or empty/legacy
+  if (!lan || lan === SOCIAL_NVR_LAN) return true;
+  // Reject direct IPC leftovers (.42/.43 etc.)
+  return false;
 }
 
 const CAM_SELECT = `
@@ -89,7 +106,7 @@ async function loadSocialCameras(whereExtra = '', params = []) {
     [SOCIAL_STATION_ID, ...params]
   );
   const streams = await getStreamStates();
-  return rows.map((c) => mapPublicCamera(c, streams));
+  return rows.filter(isViewerSocialCamera).map((c) => mapPublicCamera(c, streams));
 }
 
 /** GET /api/soscial/update — version/APK info is public; camera catalog needs viewer token */
@@ -117,15 +134,16 @@ r.get('/update', async (req, res) => {
           ORDER BY id`,
         [SOCIAL_STATION_ID]
       );
-      const ids = rows.map((c) => c.id);
-      const enabledCount = rows.filter((c) => c.enabled).length;
+      const viewer = rows.filter(isViewerSocialCamera);
+      const ids = viewer.map((c) => c.id);
+      const enabledCount = viewer.length;
       camerasBlock = {
         stationId: SOCIAL_STATION_ID,
-        count: rows.length,
+        count: viewer.length,
         enabledCount,
         ids,
-        fingerprint: `${rows.length}:${enabledCount}:${ids.join(',')}`,
-        items: rows.map((c) => {
+        fingerprint: `${viewer.length}:${enabledCount}:${ids.join(',')}`,
+        items: viewer.map((c) => {
           const m = String(c.rtsp_path || '').match(/channel=(\d+)/i);
           return {
             id: c.id,
@@ -141,21 +159,20 @@ r.get('/update', async (req, res) => {
     } else {
       // Counts + opaque fingerprint only (no catalog / ids without key)
       const { rows } = await pool.query(
-        `SELECT COUNT(*)::int AS n,
-                COUNT(*) FILTER (WHERE enabled)::int AS en,
-                md5(COALESCE(string_agg(id::text || ':' || COALESCE(name,''), '|' ORDER BY id), '')) AS fp
-           FROM cameras WHERE station_id = $1`,
+        `SELECT id, name, enabled, lan_ip, rtsp_path
+           FROM cameras WHERE station_id = $1 ORDER BY id`,
         [SOCIAL_STATION_ID]
       );
-      const n = rows[0]?.n || 0;
-      const en = rows[0]?.en || 0;
-      const fp = rows[0]?.fp || '0';
+      const viewer = rows.filter(isViewerSocialCamera);
+      const n = viewer.length;
+      const en = viewer.length;
+      const fp = viewer.map((c) => `${c.id}:${c.name}`).join('|');
       camerasBlock = {
         stationId: SOCIAL_STATION_ID,
         count: n,
         enabledCount: en,
         ids: [],
-        fingerprint: `${n}:${en}:${fp}`,
+        fingerprint: `${n}:${en}:${fp.length}`,
         items: [],
         gated: true,
       };
@@ -241,6 +258,7 @@ r.post('/cameras/:id/ensure-live', requireSocialViewerOrAdmin, async (req, res) 
     );
     const c = rows[0];
     if (!c) return res.status(404).json({ error: 'not found' });
+    if (!isViewerSocialCamera(c)) return res.status(404).json({ error: 'not found' });
     if (!c.enabled) return res.status(400).json({ error: 'camera disabled' });
     if (!c.vpn_ip) return res.status(400).json({ error: 'camera station has no VPN IP' });
     if (c.station_status !== 'active') {

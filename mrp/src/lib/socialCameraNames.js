@@ -1,9 +1,9 @@
 /**
- * SOCIAL Park (station 71) — display names by NVR channel (D# = channel N).
- * Device LAN IP is kept in the name (project pattern); NVR cams keep lan_ip = NVR.
+ * SOCIAL Park (station 71) — canonical NVR channels D1–D30.
+ * Display names are label-only (no IP in UI / DB name). Device LAN kept in lanIp for ops.
  *
- * D18 = 2ND GATE · 192.168.20.28 (operator). D19 CAPITOL-SIDE-1 also lists .28 in name — OK.
- * Circle-In-2/3 (.43/.42) stay on CIRCLE-INDOOR tab as CIRCLE-IN-* names.
+ * D18 + D19 both map device .28 — keep both channels.
+ * Extra direct Circle-In cams (.42/.43) are NOT in the viewer set.
  */
 
 export const SOCIAL_STATION_ID = 71;
@@ -21,33 +21,30 @@ export const SOCIAL_CHANNEL_NAMES = {
   8: { label: 'CSU-2', lanIp: '192.168.20.19' },
   9: { label: 'TOURISM-1', lanIp: '192.168.20.20' },
   10: { label: 'TOURISM-2', lanIp: '192.168.20.2' },
-  11: { label: 'MINI-PLAZA', lanIp: '192.168.20.21' },
-  12: { label: '1ST-GATE-1', lanIp: '192.168.20.22' },
+  11: { label: 'MINI PLAZA', lanIp: '192.168.20.21' },
+  12: { label: '1ST GATE-1', lanIp: '192.168.20.22' },
   13: { label: 'TOWER-1', lanIp: '192.168.20.24' },
   14: { label: 'TOWER-2', lanIp: '192.168.20.25' },
   15: { label: 'PDRRMO-1', lanIp: '192.168.20.26' },
   16: { label: 'PDRRMO-2', lanIp: '192.168.20.27' },
   17: { label: 'RIZAL-1', lanIp: '192.168.20.29' },
-  18: { label: '2ND-GATE', lanIp: '192.168.20.28' },
-  19: { label: 'CAPITOL-SIDE-1', lanIp: '192.168.20.28' },
+  18: { label: '2ND GATE', lanIp: '192.168.20.28' },
+  19: { label: 'CAPITOL SIDE-1', lanIp: '192.168.20.28' },
   20: { label: 'RIZAL-2', lanIp: '192.168.20.30' },
   21: { label: 'TOWER-3', lanIp: '192.168.20.31' },
-  22: { label: 'CIRCLE-INDOOR-3', lanIp: '192.168.20.32' },
-  23: { label: 'CIRCLE-INDOOR-2', lanIp: '192.168.20.33' },
+  22: { label: 'CIRCLE INDOOR-3', lanIp: '192.168.20.32' },
+  23: { label: 'CIRCLE INDOOR-2', lanIp: '192.168.20.33' },
   24: { label: 'RIZAL-3', lanIp: '192.168.20.34' },
-  25: { label: '4TH-GATE-4', lanIp: '192.168.20.35' },
-  26: { label: '3RD-GATE-1', lanIp: '192.168.20.37' },
-  27: { label: '4TH-GATE-2', lanIp: '192.168.20.38' },
-  28: { label: 'CAPITOL-SIDE-2', lanIp: '192.168.20.39' },
-  29: { label: '3RD-GATE-2', lanIp: '192.168.20.40' },
+  25: { label: '4RT GATE-4', lanIp: '192.168.20.35' },
+  26: { label: '3RD GATE-1', lanIp: '192.168.20.37' },
+  27: { label: '4RTH GATE-2', lanIp: '192.168.20.38' },
+  28: { label: 'CAPITOL SIDE-2', lanIp: '192.168.20.39' },
+  29: { label: '3RD GATE-2', lanIp: '192.168.20.40' },
   30: { label: 'RIZAL-4', lanIp: '192.168.20.41' },
 };
 
-/** Direct Circle-In cams (not NVR channels 1–30) — by device LAN IP */
-export const SOCIAL_DIRECT_CIRCLE_IN = {
-  '192.168.20.43': 'CIRCLE-IN-2',
-  '192.168.20.42': 'CIRCLE-IN-3',
-};
+/** @deprecated extras removed from viewer — kept empty so old imports do not re-add */
+export const SOCIAL_DIRECT_CIRCLE_IN = {};
 
 /** Preferred tab order (All is separate in the UI) */
 export const SOCIAL_AREA_TAB_ORDER = [
@@ -64,16 +61,17 @@ export const SOCIAL_AREA_TAB_ORDER = [
   'CAPITOL SIDE',
   '4TH GATE',
   '3RD GATE',
-  'UNKNOWN',
-  'OTHER',
 ];
 
-export function formatSocialCamName(label, lanIp) {
+/** Display name only — never append IP for SOCIAL viewer/catalog. */
+export function formatSocialCamName(label, _lanIp) {
   const L = String(label || '').trim();
-  const ip = String(lanIp || '').trim();
-  if (!L) return ip || 'UNKNOWN';
-  if (!ip) return L;
-  return `${L} · ${ip}`;
+  return L || 'UNKNOWN';
+}
+
+export function isCanonicalSocialChannel(ch) {
+  const n = Number(ch);
+  return Number.isFinite(n) && n >= 1 && n <= 30 && !!SOCIAL_CHANNEL_NAMES[n];
 }
 
 /**
@@ -93,7 +91,6 @@ export function areaGroupFromName(name) {
 
   const compact = raw.replace(/[-_\s]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
 
-  // Circle indoor variants (incl. Circle-In-2/3 direct cams)
   if (/^CIRCLE\s*IN(?:DOOR)?(?:\s|$)/.test(compact) || /^CIRCLE\s*IN(?:DOOR)?-/.test(compact.replace(/ /g, '-'))) {
     return 'CIRCLE INDOOR';
   }
@@ -111,12 +108,9 @@ export function areaGroupFromName(name) {
   if (/^PDRRMO\b/i.test(compact)) return 'PDRRMO';
   if (/^RIZAL\b/i.test(compact)) return 'RIZAL';
   if (/^CAPITOL[\s-]*SIDE/i.test(raw)) return 'CAPITOL SIDE';
-  // 4RT / 4RTH / 4TH GATE
   if (/^4R?T?H?[\s-]*GATE/i.test(raw) || /^4RT/i.test(raw)) return '4TH GATE';
   if (/^3RD[\s-]*GATE/i.test(raw)) return '3RD GATE';
-  if (/^UNKNOWN\b/i.test(compact)) return 'UNKNOWN';
 
-  // Generic: drop trailing unit number (FOO-1 / FOO 1 → FOO)
   const generic = compact.replace(/[\s-]+\d+[A-Z]?$/, '').trim();
   return generic || 'OTHER';
 }

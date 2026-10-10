@@ -1,10 +1,10 @@
 {
-  "versionName": "1.7.3",
-  "versionCode": 12,
-  "webBuild": "1.7.3",
+  "versionName": "1.7.4",
+  "versionCode": 13,
+  "webBuild": "1.7.4",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.3",
-  "notes": "Fix SOCIAL stream errors: wait for remux ready before HLS; remux pool 12",
-  "releasedAt": "2026-10-10T05:25:00Z"
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.4",
+  "notes": "SOCIAL viewer: exactly 30 cams, names only (no IP), prune Circle-In extras",
+  "releasedAt": "2026-10-10T05:45:00Z"
 }
