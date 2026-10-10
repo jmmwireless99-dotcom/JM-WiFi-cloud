@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.5.0" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.5.0" />
+  <link rel="icon" href="./icon-192.png?v=1.6.0" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.6.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.5.0" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.6.0" />
   <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.5.0" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.6.0" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -347,44 +347,37 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.5.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.6.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
-      <p id="brandTagline">JM Wireless Internet Services · Live CCTV sa telepono at Android TV.</p>
+      <p id="brandTagline">JM Wireless · Live CCTV — walang username / password. Auto-open ang cameras.</p>
     </div>
-    <form class="login-card" id="loginForm">
-      <div class="row">
-        <div>
-          <label for="user">Username</label>
-          <input id="user" name="username" autocomplete="username" required placeholder="staff / admin" tabindex="1" />
-        </div>
-        <div>
-          <label for="pass">Password</label>
-          <input id="pass" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" tabindex="2" />
-        </div>
-      </div>
+    <div class="login-card" id="loginForm" role="status">
+      <p style="margin:0 0 12px;color:var(--dim);font-size:14px;line-height:1.45">
+        Public viewer · no login · i-share ang <span style="color:var(--acc2)">/soscial/v/&lt;id&gt;</span> para auto-play.
+      </p>
       <div class="err hidden" id="loginErr"></div>
-      <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
-      <a href="/soscial.apk?v=1.5.0"
+      <button type="button" id="loginBtn" tabindex="1">Open cameras</button>
+      <a href="/soscial.apk?v=1.6.0"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
-        tabindex="4">
-        ⬇ Download Android / TV APK v1.5.0
+        tabindex="2">
+        ⬇ Download Android / TV APK v1.6.0
       </a>
       <a href="/soscial/download"
         style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
-        tabindex="5">
+        tabindex="3">
         Failed download? Buksan ang download page
       </a>
-      <div class="login-foot">JM Wireless Internet Services · SOCIAL PARK · Phone &amp; Android TV</div>
-    </form>
+      <div class="login-foot">JM Wireless · SOCIAL PARK · Passwordless · Phone &amp; Android TV</div>
+    </div>
   </div>
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.5.0" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.6.0" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
-        <div class="sub" id="topSub">CCTV</div>
+        <div class="sub" id="topSub">CCTV · no password</div>
       </div>
       <span class="pill" id="vpnPill">VPN</span>
     </div>
@@ -395,7 +388,7 @@
         <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           I-refresh cameras
         </button>
-        <a id="updateApk" href="/soscial.apk?v=1.5.0" class="hidden"
+        <a id="updateApk" href="/soscial.apk?v=1.6.0" class="hidden"
           style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download new APK
         </a>
@@ -407,21 +400,21 @@
       <ol>
         <li>Pindutin ang <b>Download APK</b> (isang APK para sa phone at TV box)</li>
         <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps)</li>
-        <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
+        <li>Open app — walang login; auto-viewer links gumagana din sa Chrome</li>
       </ol>
       <div class="actions">
-        <a id="apkBtn" href="/soscial.apk?v=1.5.0"
+        <a id="apkBtn" href="/soscial.apk?v=1.6.0"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.5.0
+          Download APK v1.6.0
         </a>
-        <a href="/soscial-tv.apk?v=1.5.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.6.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
       <p style="margin:12px 0 0;font-size:12px;color:var(--dim);line-height:1.45">
         Kung failed: buksan sa <b>Chrome</b> (hindi Messenger) →
         <a href="/soscial/download" style="color:var(--acc2)">/soscial/download</a><br/>
-        Android TV: sideload via USB / Downloader app · iPhone: Safari → Add to Home Screen.
+        Auto-viewer: /soscial/v/&lt;cameraId&gt; o ?cam=&lt;id&gt;&amp;auto=1
       </p>
     </div>
     <div class="content" id="viewCams"></div>
@@ -476,33 +469,26 @@
 
 <script>
 (() => {
-  const TOKEN_KEY = 'soscial_cctv_token';
-  const USER_KEY = 'soscial_cctv_user';
   const API_BASE = (() => {
     // App lives at /soscial/ — API is site-root /api (or /cctv/api legacy)
     const m = location.pathname.match(/^(\/cctv)(?:\/|$)/);
     return (m ? m[1] : '') + '/api';
   })();
 
-  let token = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || '';
-  let user = null;
-  try { user = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { user = null; }
-  if (user && user.role) {
-    user.canPlayback = user.canPlayback === true || user.role === 'admin';
-    user.canManageAccounts = user.canManageAccounts === true || user.role === 'admin';
-  }
+  // Passwordless public viewer — no JWT / no portal login
+  let user = { role: 'public', displayName: 'Public viewer', canPlayback: false, canManageAccounts: false };
   let cams = [];
-  let stations = [];
-  let nvrs = [];
+  let stationMeta = null;
   let currentCam = null;
   let hls = null;
   let wallPlayers = [];
-  let deferredPrompt = null;
   let activeTab = 'cams';
-  let playMode = 'live'; // live | playback
+  let playMode = 'live';
   let playbackHlsUrl = '';
-  const APP_WEB_BUILD = '1.5.0';
-  const APP_VERSION_CODE = 8;
+  let pendingAutoCamId = null;
+  let autoViewHandled = false;
+  const APP_WEB_BUILD = '1.6.0';
+  const APP_VERSION_CODE = 9;
   const CAM_FP_KEY = 'soscial_cam_fp';
   let lastCamFp = localStorage.getItem(CAM_FP_KEY) || '';
   let lastUpdateInfo = null;
@@ -511,20 +497,25 @@
 
   const $ = (id) => document.getElementById(id);
   const show = (el, on) => el.classList.toggle('hidden', !on);
-  const canPlayback = () => !!(user && (user.canPlayback === true || user.role === 'admin'));
+  const canPlayback = () => false;
   function applyPlaybackAccess() {
-    const allow = canPlayback();
     const btn = $('playerPlaybackToggle');
     const denied = $('playbackDenied');
-    if (btn) {
-      btn.style.display = allow ? '' : 'none';
-      btn.disabled = !allow;
+    if (btn) { btn.style.display = 'none'; btn.disabled = true; }
+    if (denied) {
+      denied.classList.remove('hidden');
+      denied.textContent = 'Public viewer = live only (walang playback / walang password).';
     }
-    if (denied) denied.classList.toggle('hidden', allow);
-    if (!allow && playMode === 'playback') {
-      setPlayerMode('live');
-      playbackHlsUrl = '';
-    }
+    if (playMode === 'playback') { setPlayerMode('live'); playbackHlsUrl = ''; }
+  }
+
+  function parseAutoViewerTarget() {
+    const params = new URLSearchParams(location.search);
+    const pathMatch = location.pathname.match(/\/soscial\/(?:v|view)\/(\d+)/i);
+    const camParam = params.get('cam') || params.get('id') || params.get('c');
+    const id = pathMatch ? Number(pathMatch[1]) : (camParam ? Number(camParam) : 0);
+    const auto = !!pathMatch || params.get('auto') === '1' || params.get('auto') === 'true';
+    return { id: Number.isFinite(id) && id > 0 ? id : 0, auto };
   }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -542,7 +533,6 @@
       ...opts,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: 'Bearer ' + token } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body != null ? JSON.stringify(opts.body) : undefined,
@@ -555,6 +545,15 @@
   function isSoscialCam(c) {
     const blob = [c.station, c.nvrName, c.name, c.barangay, String(c.stationId || '')].join(' ').toLowerCase();
     return /social|soscial|soscail/.test(blob) || Number(c.stationId) === 71 || Number(c.nvrAreaId) === 2;
+  }
+
+  function shareUrlFor(c) {
+    return c.autoViewUrl || c.shareUrl || (location.origin + '/soscial/v/' + c.id);
+  }
+  async function copyShare(c) {
+    const url = shareUrlFor(c);
+    try { await navigator.clipboard.writeText(url); return true; }
+    catch { prompt('Copy auto-viewer link:', url); return false; }
   }
 
   function channelNum(c) {
@@ -576,18 +575,31 @@
   }
 
   async function loadData() {
-    const d = await api('/dashboard');
-    stations = d.stations || [];
+    const d = await api('/soscial/cameras');
+    stationMeta = d.station || null;
     cams = sortSocialCams((d.cameras || []).filter(isSoscialCam));
-    nvrs = (d.nvrs || []).filter((n) => /social|soscial|soscail/i.test((n.name || '') + (n.notes || '') + (n.stationName || '')) || Number(n.stationId) === 71);
-    const site = stations.find((s) => Number(s.id) === 71) || stations.find((s) => /social|soscial/i.test(s.name || ''));
-    const vpnOn = !!(site && site.online);
+    const vpnOn = !!(stationMeta && (stationMeta.online || stationMeta.status === 'active'));
     const pill = $('vpnPill');
     pill.textContent = vpnOn ? 'VPN up' : 'VPN down';
     pill.className = 'pill ' + (vpnOn ? 'on' : 'off');
-    $('topSub').textContent = cams.length + ' channels · ' + cams.filter((c)=>c.streaming).length + ' streaming · ' + (nvrs[0]?.name || 'SOCIAL CENTER');
+    $('topSub').textContent = cams.length + ' channels · ' + cams.filter((c) => c.streaming).length + ' streaming · no password';
     renderCams();
     renderAccount();
+    await maybeAutoOpen();
+  }
+
+  async function maybeAutoOpen() {
+    if (autoViewHandled) return;
+    const target = pendingAutoCamId || parseAutoViewerTarget().id;
+    if (!target) return;
+    autoViewHandled = true;
+    const cam = cams.find((c) => Number(c.id) === Number(target));
+    if (!cam) {
+      const err = $('loginErr');
+      if (err) { err.textContent = 'Camera #' + target + ' hindi makita sa SOCIAL catalog.'; show(err, true); }
+      return;
+    }
+    await openPlayer(cam);
   }
 
   function renderCams() {
@@ -628,6 +640,18 @@
           openPlayer(c);
         }
       });
+      const share = document.createElement('button');
+      share.type = 'button';
+      share.className = 'ghost';
+      share.textContent = 'Link';
+      share.style.cssText = 'margin:0 14px 12px;padding:8px 12px;font-size:12px;width:calc(100% - 28px)';
+      share.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = await copyShare(c);
+        share.textContent = ok ? 'Copied!' : 'Link shown';
+        setTimeout(() => { share.textContent = 'Link'; }, 1600);
+      });
+      tile.appendChild(share);
       grid.appendChild(tile);
     });
   }
@@ -693,10 +717,10 @@
         : ('Updated · v' + APP_WEB_BUILD + ' · ' + camCount + ' camera(s)');
     const checked = u.checkedAt ? new Date(u.checkedAt).toLocaleString() : '—';
     root.innerHTML = `
-      <div class="section-label">Account</div>
+      <div class="section-label">About</div>
       <div class="cam-tile" style="cursor:default;padding:16px">
-        <div class="nm" style="font-size:16px;font-weight:700">${(user && (user.displayName || user.role)) || 'Staff'}</div>
-        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'} · ${canPlayback() ? 'Live + Playback' : 'Live view only'}</div>
+        <div class="nm" style="font-size:16px;font-weight:700">Public viewer</div>
+        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Walang username / password · Live only</div>
 
         <div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(61,207,138,.35);background:rgba(61,207,138,.08)">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -714,7 +738,7 @@
               style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
               Check update now
             </button>
-            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.5.0'}"
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.6.0'}"
               style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
               Install APK v${remoteName}
             </a>
@@ -729,18 +753,16 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.5.0"
+          <a href="/soscial.apk?v=1.6.0"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.5.0
+            Download APK v1.6.0
           </a>
-          <a href="/soscial-tv.apk?v=1.5.0"
+          <a href="/soscial-tv.apk?v=1.6.0"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
         </div>
-        <button type="button" class="ghost" id="logoutBtn" style="width:100%;margin-top:16px">Log out</button>
       </div>`;
-    $('logoutBtn').onclick = logout;
     const checkBtn = $('acctCheckUpdate');
     if (checkBtn) {
       checkBtn.onclick = async () => {
@@ -794,7 +816,7 @@
     if (!cam?.id || !cam.live) return cam?.hlsUrl || '';
     try {
       $('playerOverlay') && ($('playerOverlay').textContent = 'Starting stream…');
-      const r = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
+      const r = await api('/soscial/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
       if (r?.hlsUrl) cam.hlsUrl = r.hlsUrl;
       return cam.hlsUrl;
     } catch (e) {
@@ -935,53 +957,21 @@
     show($('app'), true);
     setTab('cams');
     loadData().catch((e) => {
-      alert('Load failed: ' + e.message);
-      logout();
+      const err = $('loginErr');
+      show($('login'), true);
+      show($('app'), false);
+      if (err) { err.textContent = 'Load failed: ' + e.message; show(err, true); }
     });
   }
 
-  function logout() {
-    token = '';
-    user = null;
-    sessionStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    stopPlayer();
-    stopWall();
-    show($('app'), false);
-    show($('player'), false);
-    show($('login'), true);
-  }
-
-  $('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const u = $('user').value.trim();
-    const p = $('pass').value;
-    const err = $('loginErr');
+  $('loginBtn').addEventListener('click', () => {
     const btn = $('loginBtn');
+    const err = $('loginErr');
     show(err, false);
     btn.disabled = true;
-    btn.textContent = 'Signing in…';
-    try {
-      const r = await api('/login', { method: 'POST', body: { username: u, password: p } });
-      token = r.token;
-      user = {
-        role: r.role,
-        displayName: r.displayName,
-        canPlayback: !!r.canPlayback || r.role === 'admin',
-        canManageAccounts: !!r.canManageAccounts || r.role === 'admin',
-      };
-      sessionStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      enterApp();
-    } catch (ex) {
-      err.textContent = ex.message || 'Login failed';
-      show(err, true);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Open cameras';
-    }
+    btn.textContent = 'Opening…';
+    enterApp();
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Open cameras'; }, 800);
   });
 
   document.querySelectorAll('.bottom-nav button').forEach((b) => {
@@ -1052,11 +1042,9 @@
       const regs = await navigator.serviceWorker?.getRegistrations?.();
       if (regs) await Promise.all(regs.map((r) => r.update()));
     } catch (_) {}
-    if (token) {
-      await loadData().catch(() => {});
-      if (activeTab === 'wall') renderWall();
-      if (activeTab === 'account') renderAccount();
-    }
+    await loadData().catch(() => {});
+    if (activeTab === 'wall') renderWall();
+    if (activeTab === 'account') renderAccount();
   }
 
   function showUpdateBar({ title, notes, showApk, apkUrl }) {
@@ -1067,7 +1055,7 @@
     const apk = $('updateApk');
     if (apk) {
       if (showApk) {
-        apk.href = apkUrl || '/soscial.apk?v=1.5.0';
+        apk.href = apkUrl || '/soscial.apk?v=1.6.0';
         apk.style.display = 'inline-flex';
         apk.classList.remove('hidden');
       } else {
@@ -1155,7 +1143,7 @@
     checkVpsUpdate({ autoApply: true });
     updatePollTimer = setInterval(() => {
       checkVpsUpdate({ autoApply: true });
-      if (token) loadData().catch(() => {});
+      if (!$('app').classList.contains('hidden')) loadData().catch(() => {});
     }, 45_000);
   }
   startUpdatePolling();
@@ -1164,7 +1152,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.5.0').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.6.0').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {
@@ -1175,7 +1163,11 @@
     }).catch(() => {});
   }
 
-  if (token) enterApp();
+  {
+    const target = parseAutoViewerTarget();
+    if (target.id) pendingAutoCamId = target.id;
+  }
+  enterApp();
 })();
 </script>
 </body>

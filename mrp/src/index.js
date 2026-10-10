@@ -127,10 +127,14 @@ app.get(`${BASE}/forex`, (_req, res) => {
   res.sendFile(path.join(publicDir, 'forex.html'));
 });
 
-// SOSCIAL Park mobile CCTV PWA (strict:false — /soscial and /soscial/ both hit this)
-app.get(`${BASE}/soscial`, (_req, res) => {
+// SOCIAL Park mobile CCTV PWA — passwordless; /soscial, /soscial/, /soscial/v/:id
+const sendSoscialApp = (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(publicDir, 'soscial', 'index.html'));
-});
+};
+app.get(`${BASE}/soscial`, sendSoscialApp);
+app.get(`${BASE}/soscial/v/:id`, sendSoscialApp);
+app.get(`${BASE}/soscial/view/:id`, sendSoscialApp);
 
 // Forced APK/ZIP download (mobile browsers often need Content-Disposition)
 function sendDownload(res, fileName, downloadName, contentType) {
