@@ -259,7 +259,8 @@ async function ensureLiveHandler(req, res) {
     if (c.station_status !== 'active') {
       return res.status(400).json({ error: 'station offline / inactive' });
     }
-    const result = await ensureLiveRemux(c, c.vpn_ip);
+    const wall = !!(req.body?.wall || req.body?.lite || req.query?.wall === '1');
+    const result = await ensureLiveRemux(c, c.vpn_ip, { lite: wall });
     res.json({
       ok: true,
       ...result,

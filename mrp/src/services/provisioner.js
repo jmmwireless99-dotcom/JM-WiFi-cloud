@@ -4,7 +4,9 @@ import { writeFile, rename, mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import net from 'net';
 import { pool, audit } from '../db.js';
+import { pushCameraNat, probeMikrotik } from './mikrotikRest.js';
 
 const exec = promisify(execFile);
 const DRY = process.env.DRY_RUN === '1';
@@ -12,9 +14,13 @@ const EXEC_MS = Number(process.env.EXEC_TIMEOUT_MS || 2000);
 const CACHE_MS = Number(process.env.STATUS_CACHE_MS || 15000);
 /** Local RTSP for ffmpeg remux (AAC). Avoid 8554/8555 (go2rtc). */
 const MTX_RTSP = Number(process.env.MEDIAMTX_RTSP_PORT || 8556);
+/** SOCIAL station — shared NVR tunnel :10560 must be dstnat'd after SSTP reconnect. */
+const SOCIAL_STATION_ID = Number(process.env.SOCIAL_STATION_ID || 71);
 
 let sessionsCache = { at: 0, data: new Map() };
 let streamsCache = { at: 0, data: {} };
+/** host:port → last NAT repair attempt ms */
+const natRepairAt = new Map();
 
 async function run(cmd, args, input) {
   if (DRY) {
@@ -236,6 +242,80 @@ async function evictOldestRemux(keepName) {
   }
 }
 
+function tcpOpen(host, port, timeoutMs = 2500) {
+  return new Promise((resolve) => {
+    const sock = net.connect({ host, port: Number(port), family: 4 }, () => {
+      sock.destroy();
+      resolve(true);
+    });
+    const t = setTimeout(() => { sock.destroy(); resolve(false); }, timeoutMs);
+    sock.on('error', () => { clearTimeout(t); resolve(false); });
+    sock.on('close', () => clearTimeout(t));
+  });
+}
+
+/**
+ * If SOCIAL NVR RTSP tunnel is closed after SSTP flap, re-push MikroTik dstnat.
+ * Throttled so Live Wall multi-cam warm does not hammer RouterOS.
+ */
+async function ensureTunnelOrRepairNat(cam, vpnIp) {
+  const host = vpnHost(vpnIp);
+  const port = Number(cam.tunnel_port);
+  if (!host || !port) return { ok: false, skipped: true };
+  if (await tcpOpen(host, port)) return { ok: true, open: true };
+
+  const key = `${host}:${port}`;
+  const now = Date.now();
+  const last = natRepairAt.get(key) || 0;
+  if (now - last < 45_000) return { ok: false, open: false, throttled: true };
+  natRepairAt.set(key, now);
+
+  if (Number(cam.station_id) !== SOCIAL_STATION_ID && Number(cam.nvr_area_id) == null) {
+    return { ok: false, open: false };
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT n.id, n.lan_ip, n.rtsp_port, host(s.vpn_ip) AS vpn_ip, s.api_user, s.api_password
+         FROM nvr_areas n
+         JOIN stations s ON s.id = n.station_id
+        WHERE n.station_id = $1
+        ORDER BY n.id
+        LIMIT 1`,
+      [Number(cam.station_id) || SOCIAL_STATION_ID]
+    );
+    const nvr = rows[0];
+    if (!nvr?.api_password || !nvr.vpn_ip) return { ok: false, open: false, reason: 'no api' };
+    const site = {
+      mikrotik_host: String(nvr.vpn_ip).replace(/\/\d+$/, ''),
+      api_user: nvr.api_user || 'admin',
+      api_password: nvr.api_password,
+    };
+    await probeMikrotik(site);
+    const { rows: cams } = await pool.query(
+      `SELECT DISTINCT ON (tunnel_port) name, lan_ip, rtsp_port, tunnel_port
+         FROM cameras WHERE nvr_area_id = $1 AND enabled ORDER BY tunnel_port, id`,
+      [nvr.id]
+    );
+    const push = await pushCameraNat(
+      site,
+      cams.map((c) => ({
+        name: c.name,
+        tunnelPort: c.tunnel_port,
+        lanIp: c.lan_ip || nvr.lan_ip,
+        rtspPort: c.rtsp_port || nvr.rtsp_port || 554,
+      }))
+    );
+    console.warn('ensureTunnelOrRepairNat', key, push.ok ? 'pushed' : 'push-failed', push.errors || []);
+    // brief settle after dstnat replace
+    await new Promise((r) => setTimeout(r, 400));
+    const open = await tcpOpen(host, port, 3500);
+    return { ok: open, open, repaired: true, pushOk: push.ok };
+  } catch (e) {
+    console.error('ensureTunnelOrRepairNat', key, e.message);
+    return { ok: false, open: false, error: e.message };
+  }
+}
+
 /**
  * Start (or refresh) H.264 remux for one camera path.
  * Call from the player / live wall before loading HLS.
@@ -252,6 +332,13 @@ export async function ensureLiveRemux(cam, vpnIp, { lite = false, waitReady = fa
 
   if (REMUX_MODE !== 'pool') {
     return { ok: true, mode: 'always', pathName: name };
+  }
+
+  // After SSTP reconnect, MikroTik dstnat for :10560 can be missing → remux never ready.
+  try {
+    await ensureTunnelOrRepairNat(cam, vpnIp);
+  } catch (e) {
+    console.error('tunnel repair', e.message);
   }
 
   const existing = remuxActive.get(name);

@@ -14,7 +14,7 @@ Staff nav **MikroTik Sites** shows unlimited branch routers as multi-site cards 
 
 Mobile PWA / APK viewer for SOCIAL cameras (station 71). **Walang password** — admin-issued **viewer key** required. Key is remembered on the device until admin revokes it.
 
-Catalog is **exactly 30 NVR channels (D1–D30)**. Display names sync from the Dahua NVR **ChannelTitle** (`sync-social-nvr-names.mjs` / `POST /api/nvrs/:id/sync-names`) — no hardcoded CIRCLE/CSU seed overwrite. Area tabs group by those NVR name prefixes. **Live Wall / All Cam 30** shows all 30 tiles; streams auto-cycle in pages of **6** with lite 320p remux (a 1-vCPU hub cannot sustain 30 concurrent HEVC→H.264 remuxes — pool default 12).
+Catalog is **exactly 30 NVR channels (D1–D30)**. Display names sync from the Dahua NVR **ChannelTitle** (`sync-social-nvr-names.mjs` / `POST /api/nvrs/:id/sync-names`) — no hardcoded CIRCLE/CSU seed overwrite. Area tabs group by those NVR name prefixes. **Live Wall / All Cam 30** shows all 30 tiles; streams auto-cycle in pages of **6** with lite 240p remux (1-vCPU hub — pool default 8, keepalive 4).
 
 | Entry | URL |
 |-------|-----|
