@@ -139,7 +139,7 @@ const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase
 // Cap concurrent ffmpeg remuxes for a 1-vCPU hub. 30 concurrent HEVC→x264
 // saturates load≈30 and leaves tiles stuck on Connecting. Wall warms a page
 // of visible cams; All Cam cycles / LRU-evicts. Override via MEDIAMTX_REMUX_MAX.
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 12));
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 8));
 const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 45_000));
 // Keep a small set of recently-used remuxes warm (first-paint cache). 0 = off.
 const REMUX_KEEPALIVE = Math.max(0, Math.min(REMUX_MAX, Number(process.env.MEDIAMTX_REMUX_KEEPALIVE || 4)));

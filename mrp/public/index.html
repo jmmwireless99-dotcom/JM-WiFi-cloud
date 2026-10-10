@@ -1008,49 +1008,87 @@ function MapsSettingsPanel({ isSuperAdmin }) {
 }
 
 // ---------- Live player ----------
-/** Pool remux: cold /hls returns 404 until ffmpeg is ready — poll ensure-live before HLS. */
-async function warmCamLive(cam, { attempts = 12, delayMs = 500 } = {}) {
+/**
+ * Kick remux once then return HLS URL immediately — do NOT poll ensure-live for
+ * many seconds (that is what left Live Wall stuck on Connecting under pool load).
+ * HLS.js retries until the first segment exists.
+ */
+async function warmCamLive(cam, { wall = false } = {}) {
   let url = cam?.hlsUrl || '';
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const warm = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
-      if (warm?.hlsUrl) url = warm.hlsUrl;
-      if (warm?.ready || warm?.reused) return url;
-    } catch (e) {
-      console.warn('ensure-live', e);
-    }
-    await new Promise((r) => setTimeout(r, delayMs));
+  try {
+    const warm = await api('/cameras/' + cam.id + '/ensure-live', {
+      method: 'POST',
+      body: wall ? { wall: true, lite: true } : {},
+    });
+    if (warm?.hlsUrl) url = warm.hlsUrl;
+  } catch (e) {
+    console.warn('ensure-live', e);
   }
   return url;
 }
 
-function Player({ cam }) {
+function Player({ cam, wall = false }) {
   const vidRef = useRef(null);
   const hlsRef = useRef(null);
   const [state, setState] = useState('idle');
-  const stop = useCallback(() => { hlsRef.current?.destroy(); hlsRef.current=null; setState('idle'); }, []);
+  const [status, setStatus] = useState('');
+  const stop = useCallback(() => {
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+    setState('idle');
+    setStatus('');
+  }, []);
   const play = async () => {
     if (!cam.live) return;
     setState('loading');
-    // Warm on-demand H.264 remux (pool mode) until ready — cold HLS is 404.
-    const url = await warmCamLive(cam);
+    setStatus('Starting…');
+    const url = await warmCamLive(cam, { wall });
     const video = vidRef.current;
-    if (!url) { setState('error'); return; }
+    if (!url) { setState('error'); setStatus(''); return; }
+    setStatus('Waiting for first frame…');
     if (Hls.isSupported()) {
       const hls = new Hls({
         liveDurationInfinity: true,
-        manifestLoadingMaxRetry: 12,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: 8,
-        levelLoadingRetryDelay: 1000,
+        enableWorker: true,
+        lowLatencyMode: false,
+        manifestLoadingMaxRetry: 20,
+        manifestLoadingRetryDelay: 600,
+        levelLoadingMaxRetry: 12,
+        levelLoadingRetryDelay: 600,
+        maxBufferLength: 6,
       });
       hlsRef.current = hls;
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); setState('playing'); });
-      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) { stop(); setState('error'); } });
+      const giveUp = setTimeout(() => {
+        if (hlsRef.current === hls) {
+          try { hls.destroy(); } catch {}
+          hlsRef.current = null;
+          setState('error');
+          setStatus('');
+        }
+      }, 12_000);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        clearTimeout(giveUp);
+        video.play().catch(() => {});
+        setState('playing');
+        setStatus('');
+      });
+      hls.on(Hls.Events.ERROR, (_e, d) => {
+        if (!d?.fatal || hlsRef.current !== hls) return;
+        warmCamLive(cam, { wall }).then((u) => {
+          if (u && hlsRef.current === hls) {
+            try { hls.loadSource(u); } catch {}
+          } else {
+            clearTimeout(giveUp);
+            stop();
+            setState('error');
+          }
+        });
+      });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url; video.play().then(()=>setState('playing')).catch(()=>setState('error'));
+      video.src = url;
+      video.play().then(() => { setState('playing'); setStatus(''); }).catch(() => setState('error'));
     } else {
       setState('error');
     }
@@ -1063,7 +1101,7 @@ function Player({ cam }) {
       <video ref=${vidRef} muted playsInline controls=${state==='playing'}
              style=${{display: state==='playing'||state==='loading' ? 'block':'none'}}></video>
       ${state==='idle' && html`<div class="playbtn">${cam.live ? '▶' : '✕'}</div>`}
-      ${state==='loading' && html`<div class="vstat">Connecting…</div>`}
+      ${state==='loading' && html`<div class="vstat">${status || 'Connecting…'}</div>`}
       ${state==='error' && html`<div class="vstat" style=${{color:'var(--bad)'}}>Stream error — tap to retry</div>`}
       ${!cam.live && state==='idle' && html`<div class="vstat">station offline/disabled</div>`}
       ${state==='playing' && html`<button class="ghost" style=${{position:'absolute',top:'8px',right:'8px',fontSize:'11px',padding:'3px 8px'}}
@@ -3645,7 +3683,7 @@ function App() {
           <option value="other">Other RTSP</option>
         </select>
       </div>
-      <div class="grid g-cams">${shown.map(c=>html`<${Player} key=${c.id} cam=${c} />`)}
+      <div class="grid g-cams">${shown.map(c=>html`<${Player} key=${c.id} cam=${c} wall=${true} />`)}
       ${shown.length===0 && html`<div class="empty">Walang cameras${wallBrand==='v380'?' (V380)':''}. I-add sa CCTV → Camera type = V380.</div>`}</div>`;
   }
   // ---- CCTV: Add NVR Area → NVR buttons → Add Camera + live view ----
