@@ -181,11 +181,20 @@ r.get('/auth/me', async (req, res) => {
   }
 });
 
-/** Admin: create key */
+/** Admin: create key — label/name required (sino ang bibigyan) */
 r.post('/keys', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    const label = String(req.body?.label || req.body?.name || '').trim() || 'Viewer';
-    const notes = String(req.body?.notes || '').trim();
+    const label = String(req.body?.label || req.body?.name || '').trim();
+    if (!label) {
+      return res.status(400).json({
+        error: 'Label / name required — sino ang bibigyan ng key (hal. Juan phone)',
+        code: 'LABEL_REQUIRED',
+      });
+    }
+    if (label.length > 80) {
+      return res.status(400).json({ error: 'Label too long (max 80)', code: 'LABEL_TOO_LONG' });
+    }
+    const notes = String(req.body?.notes || '').trim().slice(0, 200);
     const plain = generatePlainKey();
     const hash = await bcrypt.hash(plain, 10);
     const prefix = keyPrefix(plain);
@@ -205,7 +214,7 @@ r.post('/keys', requireAuth, requireSuperAdmin, async (req, res) => {
     res.status(201).json({
       ok: true,
       key: mapKeyRow(row, { includePlain: true }),
-      message: 'Copy this key now — plaintext is shown only once.',
+      message: `Copy this key now — ibigay kay "${label}". Plaintext is shown only once.`,
     });
   } catch (e) {
     console.error('social key create:', e.message);

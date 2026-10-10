@@ -1669,6 +1669,7 @@ function SocialViewerKeysPanel({ embedded = false, focusTick = 0 } = {}) {
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState('');
   const [created,setCreated]=useState(null);
+  const [copied,setCopied]=useState(false);
   const [label,setLabel]=useState('');
   const [notes,setNotes]=useState('');
   const labelRef = useRef(null);
@@ -1690,19 +1691,33 @@ function SocialViewerKeysPanel({ embedded = false, focusTick = 0 } = {}) {
     setTimeout(()=>{ try { labelRef.current?.focus?.(); } catch {} }, 280);
   },[focusTick]);
   const createKey = async () => {
-    setBusy(true); setErr(''); setCreated(null);
+    const who = label.trim();
+    if (!who) {
+      setErr('Required: pangalan ng bibigyan ng key (hal. Juan phone / Guard TV)');
+      setTimeout(()=>{ try { labelRef.current?.focus?.(); } catch {} }, 50);
+      return;
+    }
+    setBusy(true); setErr(''); setCreated(null); setCopied(false);
     try {
-      const r = await api('/social/keys',{method:'POST',body:{label:label.trim()||'Viewer',notes:notes.trim()}});
+      const r = await api('/social/keys',{method:'POST',body:{label:who,notes:notes.trim()}});
       setCreated(r.key||null);
       setLabel(''); setNotes('');
       await load();
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
   };
+  const copyCreatedKey = async () => {
+    if (!created?.key) return;
+    try {
+      await copyTxt(created.key);
+      setCopied(true);
+      setTimeout(()=>setCopied(false), 2500);
+    } catch (e) { setErr(e.message||'Copy failed'); }
+  };
   const revoke = async (k,{hard=false}={}) => {
     const msg = hard
       ? `Hard-delete key "${k.label}" (${k.keyPrefix}…)? Device access ends immediately.`
-      : `Revoke key "${k.label}" (${k.keyPrefix}…)? Hindi na makakapag-view ang device na may key na ito.`;
+      : `Revoke key "${k.label}" (${k.keyPrefix}…)? Hindi na makakapag-view ang phone/TV/app na may key na ito.`;
     if (!confirm(msg)) return;
     setBusy(true); setErr('');
     try {
@@ -1712,6 +1727,9 @@ function SocialViewerKeysPanel({ embedded = false, focusTick = 0 } = {}) {
     finally { setBusy(false); }
   };
   const activeCount = list.filter(k=>k.active).length;
+  const onLabelKey = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); createKey(); }
+  };
   return html`<div id="social-viewer-keys" class=${embedded?'sites-hub':'card'}
     style=${embedded
       ? {border:'1px solid var(--line)',borderRadius:'14px',marginBottom:'14px',padding:'16px'}
@@ -1719,36 +1737,45 @@ function SocialViewerKeysPanel({ embedded = false, focusTick = 0 } = {}) {
     <div class="topbar" style=${{marginBottom:'10px',alignItems:'flex-start',gap:'10px',flexWrap:'wrap'}}>
       <div style=${{flex:1,minWidth:'200px'}}>
         <h3 style=${{margin:0}}>Viewer Keys (${activeCount} active)
-          <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}> — /social CCTV · Super Admin</span>
+          <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}> — /social · Install App · Super Admin</span>
         </h3>
         <p class="dim" style=${{fontSize:'13px',margin:'6px 0 0',lineHeight:'1.45'}}>
-          Generate key para sa phone/TV. Plaintext lalabas <b>minsan lang</b>.
-          Revoke = mawawala ang access sa device (walang password — key lang).
-          Viewer: <a href="/social/" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>/social</a>
-          · <a href="/social/download" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>Install App</a>
+          Dito mag-<b>Generate Key</b> para sa bawat viewer: <a href="/social/" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>/social</a> link
+          o <a href="/social/download" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>Install App</a> (phone/TV).
+          Ilagay ang <b>pangalan</b> kung sino ang bibigyan. Plaintext lalabas <b>minsan lang</b> — walang password, key lang.
+          Revoke = mawawala ang access sa device na iyon.
         </p>
       </div>
     </div>
     <div style=${{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:'8px',alignItems:'end',marginBottom:'14px'}}>
       <div>
-        <label>Label / name</label>
-        <input ref=${labelRef} value=${label} onInput=${e=>setLabel(e.target.value)} placeholder="Juan phone" />
+        <label>Pangalan (sino ang bibigyan) <span style=${{color:'var(--warn)'}}>*</span></label>
+        <input ref=${labelRef} value=${label} onInput=${e=>setLabel(e.target.value)} onKeyDown=${onLabelKey}
+          placeholder="Juan phone" required maxlength="80" autocomplete="off" />
       </div>
       <div>
         <label>Notes (optional)</label>
-        <input value=${notes} onInput=${e=>setNotes(e.target.value)} placeholder="guard booth" />
+        <input value=${notes} onInput=${e=>setNotes(e.target.value)} onKeyDown=${onLabelKey} placeholder="guard booth / TV lobby" maxlength="200" />
       </div>
-      <button disabled=${busy} onClick=${createKey}>Generate Key</button>
+      <button disabled=${busy || !label.trim()} onClick=${createKey}>Generate Key</button>
     </div>
     ${err && html`<p class="err" style=${{margin:'0 0 10px'}}>${err}</p>`}
     ${created && html`<div style=${{margin:'0 0 14px',padding:'12px',borderRadius:'12px',border:'1px solid rgba(61,207,138,.4)',background:'rgba(61,207,138,.08)'}}>
-      <b style=${{color:'var(--ok)'}}>Copy this key now</b>
+      <b style=${{color:'var(--ok)'}}>Key para kay ${created.label||'viewer'} — copy ngayon</b>
       <p class="mono" style=${{margin:'8px 0',fontSize:'15px',letterSpacing:'.04em',wordBreak:'break-all'}}>${created.key}</p>
-      <p class="dim" style=${{margin:0,fontSize:'12px'}}>Hindi na ito lalabas ulit. Label: ${created.label||'—'}</p>
-      <button class="ghost" style=${{marginTop:'8px'}} onClick=${()=>copyTxt(created.key)}>Copy key</button>
+      <p class="dim" style=${{margin:'0 0 8px',fontSize:'12px',lineHeight:'1.45'}}>
+        Ibigay ang key na ito kay <b>${created.label||'—'}</b>. Hindi na lalabas ulit.
+        Buksan ang <a href="/social/" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>/social</a>
+        o i-install ang app → ilagay ang key (matatandaan hanggang i-revoke).
+      </p>
+      <div class="row" style=${{gap:'8px',flexWrap:'wrap'}}>
+        <button onClick=${copyCreatedKey}>${copied?'Copied!':'Copy key'}</button>
+        <a class="ghost" href="/social/" target="_blank" rel="noopener" style=${{display:'inline-flex',alignItems:'center',padding:'8px 12px',textDecoration:'none'}}>Open /social</a>
+        <a class="ghost" href="/social/download" target="_blank" rel="noopener" style=${{display:'inline-flex',alignItems:'center',padding:'8px 12px',textDecoration:'none'}}>Install App</a>
+      </div>
     </div>`}
     <div style=${{overflowX:'auto'}}>
-      <table><thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+      <table><thead><tr><th>Pangalan</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
       <tbody>
         ${list.map(k=>html`<tr key=${k.id}>
           <td>${k.label||'—'} ${k.notes?html`<div class="dim" style=${{fontSize:'11px'}}>${k.notes}</div>`:''}</td>
@@ -1761,7 +1788,7 @@ function SocialViewerKeysPanel({ embedded = false, focusTick = 0 } = {}) {
             <button class="ghost" disabled=${busy} onClick=${()=>revoke(k,{hard:true})}>Delete</button>
           </td>
         </tr>`)}
-        ${list.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang viewer key. Generate Key sa taas.</td></tr>`}
+        ${list.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang viewer key. Ilagay ang pangalan sa taas → Generate Key.</td></tr>`}
       </tbody></table>
     </div>
   </div>`;

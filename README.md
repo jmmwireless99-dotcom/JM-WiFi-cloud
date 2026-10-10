@@ -36,7 +36,9 @@ Catalog is **exactly 30 NVR channels (D1–D30)** with **display names only** (n
 
 Protected (need viewer token or admin JWT): `GET /api/soscial/cameras`, `POST /api/soscial/cameras/:id/ensure-live`.
 
-Admin UI: portal **Accounts** → **SOCIAL Viewer Keys**.
+Admin UI: **NVR Cameras → SOCIAL CENTER** (Viewer Keys panel) — Super Admin only.
+Enter **pangalan** (required) → **Generate Key** → copy plaintext once → give to that person for `/social` or Install App.
+Revoke ends device access. Keys are remembered on the viewer until revoked.
 
 ### Stack / base
 
