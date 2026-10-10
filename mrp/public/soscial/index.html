@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.6.0" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.6.0" />
+  <link rel="icon" href="./icon-192.png?v=1.7.0" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.6.0" />
-  <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.0" />
+  <meta property="og:url" content="https://jmtechsolution.cloud/social/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.6.0" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.0" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -347,37 +347,45 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.6.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.7.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
-      <p id="brandTagline">JM Wireless · Live CCTV — walang username / password. Auto-open ang cameras.</p>
+      <p id="brandTagline">JM Wireless · Live CCTV — enter viewer key. Walang password.</p>
     </div>
     <div class="login-card" id="loginForm" role="status">
       <p style="margin:0 0 12px;color:var(--dim);font-size:14px;line-height:1.45">
-        Public viewer · no login · i-share ang <span style="color:var(--acc2)">/soscial/v/&lt;id&gt;</span> para auto-play.
+        Maglagay ng <b style="color:var(--acc2)">viewer key</b> mula sa admin. Kapag valid, magiging open ang viewer sa device na ito hanggang i-revoke.
       </p>
+      <label for="viewerKeyInput" style="display:block;margin:0 0 6px;font-size:12px;color:var(--dim)">Viewer key</label>
+      <input id="viewerKeyInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"
+        placeholder="SPK-XXXX-XXXX-XXXX-XXXX"
+        style="width:100%;padding:14px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--txt);font:inherit;font-size:15px;letter-spacing:.04em;margin-bottom:12px" />
       <div class="err hidden" id="loginErr"></div>
       <button type="button" id="loginBtn" tabindex="1">Open cameras</button>
-      <a href="/soscial.apk?v=1.6.0"
+      <button type="button" id="installAppBtn" class="ghost" tabindex="2"
+        style="display:block;width:100%;margin-top:10px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.45);background:rgba(232,168,56,.12);color:var(--acc2);font-weight:800;font-size:14px;cursor:pointer">
+        Install App
+      </button>
+      <a href="/soscial.apk?v=1.7.0"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
-        tabindex="2">
-        ⬇ Download Android / TV APK v1.6.0
-      </a>
-      <a href="/soscial/download"
-        style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
         tabindex="3">
+        ⬇ Download Android / TV APK v1.7.0
+      </a>
+      <a href="/social/download"
+        style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
+        tabindex="4">
         Failed download? Buksan ang download page
       </a>
-      <div class="login-foot">JM Wireless · SOCIAL PARK · Passwordless · Phone &amp; Android TV</div>
+      <div class="login-foot">JM Wireless · SOCIAL PARK · Key access · Phone &amp; Android TV</div>
     </div>
   </div>
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.6.0" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.7.0" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
-        <div class="sub" id="topSub">CCTV · no password</div>
+        <div class="sub" id="topSub">CCTV · key access</div>
       </div>
       <span class="pill" id="vpnPill">VPN</span>
     </div>
@@ -388,7 +396,7 @@
         <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           I-refresh cameras
         </button>
-        <a id="updateApk" href="/soscial.apk?v=1.6.0" class="hidden"
+        <a id="updateApk" href="/soscial.apk?v=1.7.0" class="hidden"
           style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download new APK
         </a>
@@ -400,21 +408,26 @@
       <ol>
         <li>Pindutin ang <b>Download APK</b> (isang APK para sa phone at TV box)</li>
         <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps)</li>
-        <li>Open app — walang login; auto-viewer links gumagana din sa Chrome</li>
+        <li>Open app — maglagay ng viewer key (minsan lang hanggang i-revoke ng admin)</li>
+        <li>O i-tap ang <b>Install App</b> para i-add sa home screen (PWA)</li>
       </ol>
       <div class="actions">
-        <a id="apkBtn" href="/soscial.apk?v=1.6.0"
+        <button type="button" id="installAppBtnBar"
+          style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
+          Install App
+        </button>
+        <a id="apkBtn" href="/soscial.apk?v=1.7.0"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.6.0
+          Download APK v1.7.0
         </a>
-        <a href="/soscial-tv.apk?v=1.6.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.7.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
       <p style="margin:12px 0 0;font-size:12px;color:var(--dim);line-height:1.45">
         Kung failed: buksan sa <b>Chrome</b> (hindi Messenger) →
-        <a href="/soscial/download" style="color:var(--acc2)">/soscial/download</a><br/>
-        Auto-viewer: /soscial/v/&lt;cameraId&gt; o ?cam=&lt;id&gt;&amp;auto=1
+        <a href="/social/download" style="color:var(--acc2)">/social/download</a><br/>
+        Viewer: <b>/social</b> · Auto-viewer: /social/v/&lt;cameraId&gt;
       </p>
     </div>
     <div class="content" id="viewCams"></div>
@@ -475,8 +488,8 @@
     return (m ? m[1] : '') + '/api';
   })();
 
-  // Passwordless public viewer — no JWT / no portal login
-  let user = { role: 'public', displayName: 'Public viewer', canPlayback: false, canManageAccounts: false };
+  // Key-gated viewer — no password; admin-issued key remembered on device
+  let user = { role: 'social_viewer', displayName: 'Viewer', canPlayback: false, canManageAccounts: false };
   let cams = [];
   let stationMeta = null;
   let currentCam = null;
@@ -487,35 +500,122 @@
   let playbackHlsUrl = '';
   let pendingAutoCamId = null;
   let autoViewHandled = false;
-  const APP_WEB_BUILD = '1.6.0';
-  const APP_VERSION_CODE = 9;
+  const APP_WEB_BUILD = '1.7.0';
+  const APP_VERSION_CODE = 10;
   const CAM_FP_KEY = 'soscial_cam_fp';
+  const KEY_STORE = 'social_viewer_key';
+  const TOKEN_STORE = 'social_viewer_token';
+  const LABEL_STORE = 'social_viewer_label';
+  let viewerToken = localStorage.getItem(TOKEN_STORE) || '';
+  let viewerKey = localStorage.getItem(KEY_STORE) || '';
   let lastCamFp = localStorage.getItem(CAM_FP_KEY) || '';
   let lastUpdateInfo = null;
   let updatePollTimer = null;
   let autoReloadArmed = false;
+  let deferredInstallPrompt = null;
 
   const $ = (id) => document.getElementById(id);
   const show = (el, on) => el.classList.toggle('hidden', !on);
   const canPlayback = () => false;
+
+  function clearViewerSession() {
+    viewerToken = '';
+    viewerKey = '';
+    localStorage.removeItem(TOKEN_STORE);
+    localStorage.removeItem(KEY_STORE);
+    localStorage.removeItem(LABEL_STORE);
+  }
+  function saveViewerSession({ token, key, label }) {
+    if (token) {
+      viewerToken = token;
+      localStorage.setItem(TOKEN_STORE, token);
+    }
+    if (key) {
+      viewerKey = key;
+      localStorage.setItem(KEY_STORE, key);
+    }
+    if (label != null) localStorage.setItem(LABEL_STORE, label);
+  }
+
   function applyPlaybackAccess() {
     const btn = $('playerPlaybackToggle');
     const denied = $('playbackDenied');
     if (btn) { btn.style.display = 'none'; btn.disabled = true; }
     if (denied) {
       denied.classList.remove('hidden');
-      denied.textContent = 'Public viewer = live only (walang playback / walang password).';
+      denied.textContent = 'Viewer key = live only (walang playback).';
     }
     if (playMode === 'playback') { setPlayerMode('live'); playbackHlsUrl = ''; }
   }
 
   function parseAutoViewerTarget() {
     const params = new URLSearchParams(location.search);
-    const pathMatch = location.pathname.match(/\/soscial\/(?:v|view)\/(\d+)/i);
+    const pathMatch = location.pathname.match(/\/(?:social|soscial)\/(?:v|view)\/(\d+)/i);
     const camParam = params.get('cam') || params.get('id') || params.get('c');
     const id = pathMatch ? Number(pathMatch[1]) : (camParam ? Number(camParam) : 0);
     const auto = !!pathMatch || params.get('auto') === '1' || params.get('auto') === 'true';
     return { id: Number.isFinite(id) && id > 0 ? id : 0, auto };
+  }
+
+  async function exchangeKeyForToken(plainKey) {
+    const res = await fetch(API_BASE + '/social/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: plainKey }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Invalid key');
+    saveViewerSession({ token: data.token, key: plainKey, label: data.label || '' });
+    user = { role: 'social_viewer', displayName: data.label || 'Viewer', canPlayback: false, canManageAccounts: false };
+    return data;
+  }
+
+  async function ensureViewerAuth() {
+    if (viewerToken) {
+      const res = await fetch(API_BASE + '/social/auth/me', {
+        headers: { Authorization: 'Bearer ' + viewerToken },
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        user.displayName = data.label || localStorage.getItem(LABEL_STORE) || 'Viewer';
+        return true;
+      }
+      if (data.code === 'KEY_REVOKED' || data.code === 'TOKEN_INVALID') {
+        // try re-auth with stored key
+        if (viewerKey) {
+          try {
+            await exchangeKeyForToken(viewerKey);
+            return true;
+          } catch (_) {
+            clearViewerSession();
+            return false;
+          }
+        }
+        clearViewerSession();
+        return false;
+      }
+    }
+    if (viewerKey) {
+      try {
+        await exchangeKeyForToken(viewerKey);
+        return true;
+      } catch (_) {
+        clearViewerSession();
+        return false;
+      }
+    }
+    return false;
+  }
+
+  function showKeyGate(message) {
+    show($('login'), true);
+    show($('app'), false);
+    show($('player'), false);
+    const err = $('loginErr');
+    const input = $('viewerKeyInput');
+    if (input && viewerKey) input.value = viewerKey;
+    if (message && err) { err.textContent = message; show(err, true); }
   }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -529,15 +629,24 @@
   }
 
   async function api(path, opts = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    };
+    if (viewerToken) headers.Authorization = 'Bearer ' + viewerToken;
     const res = await fetch(API_BASE + path, {
       ...opts,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(opts.headers || {}),
-      },
+      headers,
       body: opts.body != null ? JSON.stringify(opts.body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 || data.code === 'KEY_REVOKED' || data.code === 'KEY_REQUIRED') {
+      clearViewerSession();
+      showKeyGate(data.code === 'KEY_REVOKED'
+        ? 'Na-revoke na ang key — humingi ng bago sa admin.'
+        : (data.error || 'Viewer key required'));
+      throw new Error(data.error || 'unauthorized');
+    }
     if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
     return data;
   }
@@ -548,7 +657,7 @@
   }
 
   function shareUrlFor(c) {
-    return c.autoViewUrl || c.shareUrl || (location.origin + '/soscial/v/' + c.id);
+    return c.autoViewUrl || c.shareUrl || (location.origin + '/social/v/' + c.id);
   }
   async function copyShare(c) {
     const url = shareUrlFor(c);
@@ -582,7 +691,7 @@
     const pill = $('vpnPill');
     pill.textContent = vpnOn ? 'VPN up' : 'VPN down';
     pill.className = 'pill ' + (vpnOn ? 'on' : 'off');
-    $('topSub').textContent = cams.length + ' channels · ' + cams.filter((c) => c.streaming).length + ' streaming · no password';
+    $('topSub').textContent = cams.length + ' channels · ' + cams.filter((c) => c.streaming).length + ' streaming · key OK';
     renderCams();
     renderAccount();
     await maybeAutoOpen();
@@ -719,8 +828,12 @@
     root.innerHTML = `
       <div class="section-label">About</div>
       <div class="cam-tile" style="cursor:default;padding:16px">
-        <div class="nm" style="font-size:16px;font-weight:700">Public viewer</div>
-        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Walang username / password · Live only</div>
+        <div class="nm" style="font-size:16px;font-weight:700">${user.displayName || 'Viewer'}</div>
+        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Viewer key · Live only · remembered sa device</div>
+        <button type="button" id="acctClearKey"
+          style="margin-top:12px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--dim);font-weight:700;cursor:pointer;width:100%">
+          Clear key / Sign out
+        </button>
 
         <div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(61,207,138,.35);background:rgba(61,207,138,.08)">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -738,7 +851,7 @@
               style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
               Check update now
             </button>
-            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.6.0'}"
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.7.0'}"
               style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
               Install APK v${remoteName}
             </a>
@@ -753,16 +866,23 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.6.0"
+          <a href="/soscial.apk?v=1.7.0"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.6.0
+            Download APK v1.7.0
           </a>
-          <a href="/soscial-tv.apk?v=1.6.0"
+          <a href="/soscial-tv.apk?v=1.7.0"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
         </div>
       </div>`;
+    const clearBtn = $('acctClearKey');
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        clearViewerSession();
+        showKeyGate('Na-clear ang key sa device na ito.');
+      };
+    }
     const checkBtn = $('acctCheckUpdate');
     if (checkBtn) {
       checkBtn.onclick = async () => {
@@ -952,27 +1072,70 @@
     show($('player'), false);
   }
 
-  function enterApp() {
+  async function enterApp() {
+    const ok = await ensureViewerAuth();
+    if (!ok) {
+      showKeyGate(viewerKey ? 'Key invalid o revoked. Humingi ng bago sa admin.' : null);
+      return;
+    }
     show($('login'), false);
     show($('app'), true);
     setTab('cams');
-    loadData().catch((e) => {
-      const err = $('loginErr');
-      show($('login'), true);
-      show($('app'), false);
-      if (err) { err.textContent = 'Load failed: ' + e.message; show(err, true); }
-    });
+    try {
+      await loadData();
+    } catch (e) {
+      showKeyGate('Load failed: ' + e.message);
+    }
   }
 
-  $('loginBtn').addEventListener('click', () => {
+  $('loginBtn').addEventListener('click', async () => {
     const btn = $('loginBtn');
     const err = $('loginErr');
+    const input = $('viewerKeyInput');
     show(err, false);
+    const plain = String(input?.value || viewerKey || '').trim();
+    if (!plain) {
+      err.textContent = 'Ilagay ang viewer key.';
+      show(err, true);
+      return;
+    }
     btn.disabled = true;
-    btn.textContent = 'Opening…';
-    enterApp();
-    setTimeout(() => { btn.disabled = false; btn.textContent = 'Open cameras'; }, 800);
+    btn.textContent = 'Checking key…';
+    try {
+      await exchangeKeyForToken(plain);
+      await enterApp();
+    } catch (e) {
+      err.textContent = e.message || 'Invalid key';
+      show(err, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Open cameras';
+    }
   });
+
+  function promptInstallApp() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(() => { deferredInstallPrompt = null; });
+      return;
+    }
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      alert('iPhone/iPad: sa Safari → Share → Add to Home Screen.');
+      return;
+    }
+    // Fallback: APK download page
+    location.href = '/social/download';
+  }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+  $('installAppBtn') && ($('installAppBtn').onclick = promptInstallApp);
+  document.addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'installAppBtnBar') promptInstallApp();
+  });
+  if ($('viewerKeyInput') && viewerKey) $('viewerKeyInput').value = viewerKey;
 
   document.querySelectorAll('.bottom-nav button').forEach((b) => {
     b.addEventListener('click', () => setTab(b.dataset.tab));
@@ -1055,7 +1218,7 @@
     const apk = $('updateApk');
     if (apk) {
       if (showApk) {
-        apk.href = apkUrl || '/soscial.apk?v=1.6.0';
+        apk.href = apkUrl || '/soscial.apk?v=1.7.0';
         apk.style.display = 'inline-flex';
         apk.classList.remove('hidden');
       } else {
@@ -1068,7 +1231,9 @@
 
   async function checkVpsUpdate({ forceBanner = false, autoApply = true } = {}) {
     try {
-      const res = await fetch(API_BASE + '/soscial/update', { cache: 'no-store' });
+      const headers = {};
+      if (viewerToken) headers.Authorization = 'Bearer ' + viewerToken;
+      const res = await fetch(API_BASE + '/soscial/update', { cache: 'no-store', headers });
       if (!res.ok) return null;
       const info = await res.json();
       lastUpdateInfo = info;
@@ -1152,7 +1317,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.6.0').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.7.0').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {
@@ -1167,7 +1332,14 @@
     const target = parseAutoViewerTarget();
     if (target.id) pendingAutoCamId = target.id;
   }
-  enterApp();
+  // Auto-enter only when a remembered key/token is still valid
+  (async () => {
+    if (await ensureViewerAuth()) {
+      await enterApp();
+    } else {
+      showKeyGate(null);
+    }
+  })();
 })();
 </script>
 </body>

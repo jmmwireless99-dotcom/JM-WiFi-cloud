@@ -1,5 +1,5 @@
 /* SOCIAL Park CCTV — network-first shell + auto-update */
-const CACHE = 'soscial-cctv-v1.6.0';
+const CACHE = 'soscial-cctv-v1.7.0';
 const ASSETS = [
   './',
   './index.html',
@@ -45,10 +45,13 @@ self.addEventListener('fetch', (event) => {
 
   // HTML / app shell: network-first so new cameras & UI land quickly
   const isShell =
+    url.pathname.endsWith('/social') ||
+    url.pathname.endsWith('/social/') ||
     url.pathname.endsWith('/soscial') ||
     url.pathname.endsWith('/soscial/') ||
     url.pathname.endsWith('/index.html') ||
-    url.pathname.includes('/soscial/index.html');
+    url.pathname.includes('/soscial/index.html') ||
+    url.pathname.includes('/social/index.html');
 
   if (isShell) {
     event.respondWith(
@@ -68,7 +71,7 @@ self.addEventListener('fetch', (event) => {
       cached ||
       fetch(event.request).then((res) => {
         const copy = res.clone();
-        if (res.ok && url.pathname.includes('/soscial/')) {
+        if (res.ok && (url.pathname.includes('/soscial/') || url.pathname.includes('/social/'))) {
           caches.open(CACHE).then((c) => c.put(event.request, copy));
         }
         return res;

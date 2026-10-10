@@ -1,10 +1,10 @@
 {
-  "versionName": "1.6.0",
-  "versionCode": 9,
-  "webBuild": "1.6.0",
+  "versionName": "1.7.0",
+  "versionCode": 10,
+  "webBuild": "1.7.0",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/soscial/?v=1.6.0",
-  "notes": "Passwordless SOCIAL viewer · auto-viewer /soscial/v/<id> · ensure-live · 32ch",
-  "releasedAt": "2026-10-10T04:10:00Z"
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.0",
+  "notes": "Viewer key gate · /social · Install App (PWA/A2HS) · admin revoke keys",
+  "releasedAt": "2026-10-10T04:30:00Z"
 }

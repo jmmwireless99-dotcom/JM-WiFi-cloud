@@ -1,6 +1,6 @@
 /**
- * Public SOCIAL Park CCTV — no login.
- * App update fingerprint + camera catalog + ensure-live (station 71 only).
+ * SOCIAL Park CCTV — public version check; cameras / ensure-live need viewer key token.
+ * Station 71 only.
  */
 import { Router } from 'express';
 import { readFile } from 'fs/promises';
@@ -9,13 +9,27 @@ import { fileURLToPath } from 'url';
 import { pool } from '../db.js';
 import { HUB, BASE_PATH, hlsBase } from '../config.js';
 import { getStreamStates, streamPathName, ensureLiveRemux } from '../services/provisioner.js';
+import jwt from 'jsonwebtoken';
+import { isKeyActive, SOCIAL_STATION_ID, requireSocialViewerOrAdmin } from './socialKeys.js';
 
 const r = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const versionPath = path.join(__dirname, '../../public/soscial/version.json');
 
-/** SOCIAL Park MikroTik site */
-export const SOCIAL_STATION_ID = 71;
+export { SOCIAL_STATION_ID };
+
+async function hasViewerOrAdminAuth(req) {
+  const raw = (req.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!raw) return false;
+  try {
+    const payload = jwt.verify(raw, process.env.JWT_SECRET);
+    if (payload.role === 'admin' || payload.role === 'staff') return true;
+    if (payload.role === 'social_viewer') return isKeyActive(payload.keyId);
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 function publicBase() {
   const host = HUB() || 'jmtechsolution.cloud';
@@ -31,9 +45,9 @@ async function readVersionFile() {
     return JSON.parse(raw);
   } catch {
     return {
-      versionName: '1.6.0',
-      versionCode: 9,
-      webBuild: '1.6.0',
+      versionName: '1.7.0',
+      versionCode: 10,
+      webBuild: '1.7.0',
       notes: '',
     };
   }
@@ -63,8 +77,8 @@ function mapPublicCamera(c, streams) {
     stationStatus: c.station_status,
     nvrAreaId: c.nvr_area_id || null,
     nvrName: c.nvr_name || null,
-    autoViewUrl: `${publicBase()}/soscial/v/${c.id}`,
-    shareUrl: `${publicBase()}/soscial/?cam=${c.id}&auto=1`,
+    autoViewUrl: `${publicBase()}/social/v/${c.id}`,
+    shareUrl: `${publicBase()}/social/?cam=${c.id}&auto=1`,
   };
 }
 
@@ -78,49 +92,88 @@ async function loadSocialCameras(whereExtra = '', params = []) {
   return rows.map((c) => mapPublicCamera(c, streams));
 }
 
-r.get('/update', async (_req, res) => {
+/** GET /api/soscial/update — version/APK info is public; camera catalog needs viewer token */
+r.get('/update', async (req, res) => {
   try {
     const ver = await readVersionFile();
     const base = publicBase();
-    const { rows } = await pool.query(
-      `SELECT id, name, enabled, lan_ip, rtsp_path, stream_token
-         FROM cameras
-        WHERE station_id = $1
-        ORDER BY id`,
-      [SOCIAL_STATION_ID]
-    );
-    const ids = rows.map((c) => c.id);
-    const enabledCount = rows.filter((c) => c.enabled).length;
-    const items = rows.map((c) => {
-      const m = String(c.rtsp_path || '').match(/channel=(\d+)/i);
-      return {
-        id: c.id,
-        name: c.name,
-        lanIp: c.lan_ip,
-        enabled: !!c.enabled,
-        channel: m ? Number(m[1]) : null,
-        autoViewUrl: `${base}/soscial/v/${c.id}`,
-      };
-    });
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({
-      versionName: ver.versionName || '1.6.0',
-      versionCode: Number(ver.versionCode) || 9,
-      webBuild: ver.webBuild || ver.versionName || '1.6.0',
-      apkUrl: ver.apkUrl || `${base}/soscial.apk`,
-      tvApkUrl: ver.tvApkUrl || `${base}/soscial-tv.apk`,
-      webUrl: ver.webUrl || `${base}/soscial/?v=${ver.webBuild || ver.versionName || '1.6.0'}`,
-      notes: ver.notes || '',
-      releasedAt: ver.releasedAt || null,
-      noAuth: true,
-      cameras: {
+    const authorized = await hasViewerOrAdminAuth(req);
+
+    let camerasBlock = {
+      stationId: SOCIAL_STATION_ID,
+      count: 0,
+      enabledCount: 0,
+      ids: [],
+      fingerprint: '',
+      items: [],
+      gated: true,
+    };
+
+    if (authorized) {
+      const { rows } = await pool.query(
+        `SELECT id, name, enabled, lan_ip, rtsp_path
+           FROM cameras
+          WHERE station_id = $1
+          ORDER BY id`,
+        [SOCIAL_STATION_ID]
+      );
+      const ids = rows.map((c) => c.id);
+      const enabledCount = rows.filter((c) => c.enabled).length;
+      camerasBlock = {
         stationId: SOCIAL_STATION_ID,
         count: rows.length,
         enabledCount,
         ids,
         fingerprint: `${rows.length}:${enabledCount}:${ids.join(',')}`,
-        items,
-      },
+        items: rows.map((c) => {
+          const m = String(c.rtsp_path || '').match(/channel=(\d+)/i);
+          return {
+            id: c.id,
+            name: c.name,
+            lanIp: c.lan_ip,
+            enabled: !!c.enabled,
+            channel: m ? Number(m[1]) : null,
+            autoViewUrl: `${base}/social/v/${c.id}`,
+          };
+        }),
+        gated: false,
+      };
+    } else {
+      // Counts + opaque fingerprint only (no catalog / ids without key)
+      const { rows } = await pool.query(
+        `SELECT COUNT(*)::int AS n,
+                COUNT(*) FILTER (WHERE enabled)::int AS en,
+                md5(COALESCE(string_agg(id::text || ':' || COALESCE(name,''), '|' ORDER BY id), '')) AS fp
+           FROM cameras WHERE station_id = $1`,
+        [SOCIAL_STATION_ID]
+      );
+      const n = rows[0]?.n || 0;
+      const en = rows[0]?.en || 0;
+      const fp = rows[0]?.fp || '0';
+      camerasBlock = {
+        stationId: SOCIAL_STATION_ID,
+        count: n,
+        enabledCount: en,
+        ids: [],
+        fingerprint: `${n}:${en}:${fp}`,
+        items: [],
+        gated: true,
+      };
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      versionName: ver.versionName || '1.7.0',
+      versionCode: Number(ver.versionCode) || 10,
+      webBuild: ver.webBuild || ver.versionName || '1.7.0',
+      apkUrl: ver.apkUrl || `${base}/soscial.apk`,
+      tvApkUrl: ver.tvApkUrl || `${base}/soscial-tv.apk`,
+      webUrl: ver.webUrl || `${base}/social/?v=${ver.webBuild || ver.versionName || '1.7.0'}`,
+      notes: ver.notes || '',
+      releasedAt: ver.releasedAt || null,
+      keyGate: true,
+      noAuth: false,
+      cameras: camerasBlock,
       checkedAt: new Date().toISOString(),
     });
   } catch (e) {
@@ -129,8 +182,8 @@ r.get('/update', async (_req, res) => {
   }
 });
 
-/** GET /api/soscial/cameras — public live catalog (no secrets, no login) */
-r.get('/cameras', async (_req, res) => {
+/** GET /api/soscial/cameras — requires viewer key token (or admin JWT) */
+r.get('/cameras', requireSocialViewerOrAdmin, async (_req, res) => {
   try {
     const cameras = await loadSocialCameras();
     const { rows: st } = await pool.query(
@@ -141,7 +194,7 @@ r.get('/cameras', async (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       ok: true,
-      noAuth: true,
+      keyGate: true,
       stationId: SOCIAL_STATION_ID,
       station: site
         ? {
@@ -163,13 +216,13 @@ r.get('/cameras', async (_req, res) => {
 });
 
 /** GET /api/soscial/cameras/:id */
-r.get('/cameras/:id', async (req, res) => {
+r.get('/cameras/:id', requireSocialViewerOrAdmin, async (req, res) => {
   try {
     const cameras = await loadSocialCameras('c.id = $2', [Number(req.params.id)]);
     const cam = cameras[0];
     if (!cam) return res.status(404).json({ error: 'not found' });
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ ok: true, noAuth: true, camera: cam });
+    res.json({ ok: true, keyGate: true, camera: cam });
   } catch (e) {
     console.error('soscial camera:', e.message);
     res.status(500).json({ error: e.message });
@@ -178,9 +231,9 @@ r.get('/cameras/:id', async (req, res) => {
 
 /**
  * POST /api/soscial/cameras/:id/ensure-live
- * Warm on-demand H.264 remux for a SOCIAL cam (public, live only).
+ * Warm on-demand H.264 remux — requires viewer key token.
  */
-r.post('/cameras/:id/ensure-live', async (req, res) => {
+r.post('/cameras/:id/ensure-live', requireSocialViewerOrAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `${CAM_SELECT} WHERE c.station_id = $1 AND c.id = $2`,
@@ -197,10 +250,10 @@ r.post('/cameras/:id/ensure-live', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       ok: true,
-      noAuth: true,
+      keyGate: true,
       ...result,
       hlsUrl: `${HLS()}/${result.pathName}/index.m3u8`,
-      autoViewUrl: `${publicBase()}/soscial/v/${c.id}`,
+      autoViewUrl: `${publicBase()}/social/v/${c.id}`,
     });
   } catch (e) {
     console.error('soscial ensure-live:', e.message);

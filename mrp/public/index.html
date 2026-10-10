@@ -1638,6 +1638,94 @@ function StaffAccountModal({ staff, hub, onClose, onDone }) {
     </div></div>`;
 }
 
+function SocialViewerKeysPanel() {
+  const [list,setList]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState('');
+  const [created,setCreated]=useState(null);
+  const [label,setLabel]=useState('');
+  const [notes,setNotes]=useState('');
+  const load = useCallback(async()=>{
+    try {
+      const r = await api('/social/keys');
+      setList(r.keys||[]);
+    } catch (e) {
+      setList([]);
+      setErr(e.message||'Failed to load keys');
+    }
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+  const createKey = async () => {
+    setBusy(true); setErr(''); setCreated(null);
+    try {
+      const r = await api('/social/keys',{method:'POST',body:{label:label.trim()||'Viewer',notes:notes.trim()}});
+      setCreated(r.key||null);
+      setLabel(''); setNotes('');
+      await load();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  const revoke = async (k,{hard=false}={}) => {
+    const msg = hard
+      ? `Hard-delete key "${k.label}" (${k.keyPrefix}…)? Device access ends immediately.`
+      : `Revoke key "${k.label}" (${k.keyPrefix}…)? Hindi na makakapag-view ang device na may key na ito.`;
+    if (!confirm(msg)) return;
+    setBusy(true); setErr('');
+    try {
+      await api('/social/keys/'+k.id+(hard?'?hard=1':''),{method:'DELETE'});
+      await load();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+  return html`<div class="card" style=${{marginBottom:'28px',padding:'16px'}}>
+    <div class="topbar" style=${{marginBottom:'10px'}}>
+      <h3 style=${{margin:0}}>SOCIAL Viewer Keys (${list.filter(k=>k.active).length} active)
+        <span class="dim" style=${{fontSize:'13px',fontWeight:'normal'}}> — /social CCTV · Super Admin only</span>
+      </h3>
+    </div>
+    <p class="dim" style=${{fontSize:'13px',margin:'0 0 12px',lineHeight:'1.45'}}>
+      Gumawa ng key para sa phone/TV. I-share ang plaintext <b>minsan lang</b>.
+      Kapag i-revoke, mawawala ang access sa device na may key na iyon (walang password — key lang).
+      Viewer: <a href="/social/" target="_blank" rel="noopener" style=${{color:'var(--acc)'}}>/social</a>
+    </p>
+    <div style=${{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:'8px',alignItems:'end',marginBottom:'14px'}}>
+      <div>
+        <label>Label / name</label>
+        <input value=${label} onInput=${e=>setLabel(e.target.value)} placeholder="Juan phone" />
+      </div>
+      <div>
+        <label>Notes (optional)</label>
+        <input value=${notes} onInput=${e=>setNotes(e.target.value)} placeholder="guard booth" />
+      </div>
+      <button disabled=${busy} onClick=${createKey}>+ Create key</button>
+    </div>
+    ${err && html`<p class="err" style=${{margin:'0 0 10px'}}>${err}</p>`}
+    ${created && html`<div style=${{margin:'0 0 14px',padding:'12px',borderRadius:'12px',border:'1px solid rgba(61,207,138,.4)',background:'rgba(61,207,138,.08)'}}>
+      <b style=${{color:'var(--ok)'}}>Copy this key now</b>
+      <p class="mono" style=${{margin:'8px 0',fontSize:'15px',letterSpacing:'.04em',wordBreak:'break-all'}}>${created.key}</p>
+      <p class="dim" style=${{margin:0,fontSize:'12px'}}>Hindi na ito lalabas ulit. Label: ${created.label||'—'}</p>
+      <button class="ghost" style=${{marginTop:'8px'}} onClick=${()=>copyTxt(created.key)}>Copy key</button>
+    </div>`}
+    <div style=${{overflowX:'auto'}}>
+      <table><thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        ${list.map(k=>html`<tr key=${k.id}>
+          <td>${k.label||'—'} ${k.notes?html`<div class="dim" style=${{fontSize:'11px'}}>${k.notes}</div>`:''}</td>
+          <td class="mono dim">${k.keyPrefix}…</td>
+          <td class="dim" style=${{fontSize:'12px'}}>${fmt(k.createdAt)}</td>
+          <td class="dim" style=${{fontSize:'12px'}}>${k.lastUsedAt?fmt(k.lastUsedAt):'—'}</td>
+          <td><span class="badge ${k.active?'b-ok':'b-disabled'}">${k.active?'active':'revoked'}</span></td>
+          <td class="row">
+            ${k.active && html`<button class="danger" disabled=${busy} onClick=${()=>revoke(k)}>Revoke</button>`}
+            <button class="ghost" disabled=${busy} onClick=${()=>revoke(k,{hard:true})}>Delete</button>
+          </td>
+        </tr>`)}
+        ${list.length===0 && html`<tr><td colSpan="6" class="dim" style=${{textAlign:'center',padding:'24px'}}>Wala pang viewer key. Create one above.</td></tr>`}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
 function StaffAccountsPanel({ onChanged }) {
   const [list,setList]=useState([]);
   const [edit,setEdit]=useState(null);
@@ -3572,13 +3660,13 @@ function App() {
           <h3>CCTV · NVR Areas</h3>
           <p>Pindutin ang <b style=${{color:'var(--txt)'}}>Add NVR Area</b> → ilagay ang <b style=${{color:'var(--txt)'}}>NVR Name</b> at <b style=${{color:'var(--txt)'}}>Area</b>. Pagkatapos, pindutin ang NVR Area button para mag-add at mag-view ng cameras.</p>
           <p style=${{marginTop:'10px',display:'flex',flexWrap:'wrap',gap:'8px'}}>
-            <a href="/soscial/?v=1.6.0" target="_blank" rel="noopener"
+            <a href="/social/?v=1.7.0" target="_blank" rel="noopener"
               style=${{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 12px',borderRadius:'10px',background:'rgba(232,168,56,.12)',border:'1px solid rgba(232,168,56,.35)',color:'#f0c56a',textDecoration:'none',fontWeight:700,fontSize:'13px'}}>
-              CCTV Viewer (no password) →
+              CCTV Viewer (/social · key) →
             </a>
-            <a href="/soscial/download" target="_blank" rel="noopener"
+            <a href="/social/download" target="_blank" rel="noopener"
               style=${{display:'inline-flex',alignItems:'center',gap:'8px',padding:'8px 12px',borderRadius:'10px',background:'rgba(59,130,246,.12)',border:'1px solid rgba(59,130,246,.35)',color:'#93c5fd',textDecoration:'none',fontWeight:700,fontSize:'13px'}}>
-              Download Apps →
+              Install / Download Apps →
             </a>
           </p>
         </div>
@@ -4275,11 +4363,12 @@ function App() {
   // ---- Accounts tab (staff + client viewers) ----
   else if (tab==='accounts' && isManager) {
     body = html`<div>
+      ${isSuperAdmin && html`<${SocialViewerKeysPanel} />`}
       ${isSuperAdmin && html`<${StaffAccountsPanel} onChanged=${loadAll} />`}
       ${!isSuperAdmin && html`<div class="card" style=${{marginBottom:'20px',padding:'16px'}}>
         <b>Staff / Viewer accounts</b>
         <p class="dim" style=${{margin:'8px 0 0',fontSize:'13px',lineHeight:'1.45'}}>
-          Super Admin lang ang pwedeng mag-create ng staff / viewer accounts.
+          Super Admin lang ang pwedeng mag-create ng staff / viewer accounts at SOCIAL viewer keys.
           Ikaw (staff) = live CCTV only — walang playback.
         </p>
       </div>`}

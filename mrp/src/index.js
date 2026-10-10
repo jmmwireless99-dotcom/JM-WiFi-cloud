@@ -26,6 +26,7 @@ import { sync } from './services/provisioner.js';
 import { runMigrations } from './migrate.js';
 import { BASE_PATH } from './config.js';
 import soscialUpdateRouter from './routes/soscialUpdate.js';
+import socialKeysRouter from './routes/socialKeys.js';
 
 const app = express();
 const BASE = BASE_PATH();
@@ -87,7 +88,8 @@ app.use(`${BASE}/api/gasoline`, requireAuth, gasolineRouter);
 app.use(`${BASE}/api/hotspot`, requireAuth, hotspotRouter);
 app.use(`${BASE}/api/vendo`, vendoRouter); // ESP32 device API key auth
 app.use(`${BASE}/api/pay`, payRouter); // public phone client (no API key)
-app.use(`${BASE}/api/soscial`, soscialUpdateRouter); // public CCTV app updater + camera fingerprint
+app.use(`${BASE}/api/soscial`, soscialUpdateRouter); // SOCIAL CCTV (key-gated cameras)
+app.use(`${BASE}/api/social`, socialKeysRouter); // viewer keys + auth
 app.use(`${BASE}/api/store`, storeOrdersRouter); // buyer checkout + orders (public register first)
 app.use(`${BASE}/api/store`, storeRouter); // marketplace (public catalog + seller auth)
 app.post(`${BASE}/api/forex/register`, registerForexClient);
@@ -127,14 +129,32 @@ app.get(`${BASE}/forex`, (_req, res) => {
   res.sendFile(path.join(publicDir, 'forex.html'));
 });
 
-// SOCIAL Park mobile CCTV PWA — passwordless; /soscial, /soscial/, /soscial/v/:id
+// SOCIAL Park mobile CCTV PWA — key gate; /social (canonical) + /soscial (legacy)
 const sendSoscialApp = (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(publicDir, 'soscial', 'index.html'));
 };
+app.get(`${BASE}/social`, sendSoscialApp);
+app.get(`${BASE}/social/`, sendSoscialApp);
+app.get(`${BASE}/social/v/:id`, sendSoscialApp);
+app.get(`${BASE}/social/view/:id`, sendSoscialApp);
 app.get(`${BASE}/soscial`, sendSoscialApp);
 app.get(`${BASE}/soscial/v/:id`, sendSoscialApp);
 app.get(`${BASE}/soscial/view/:id`, sendSoscialApp);
+app.get(`${BASE}/social/download`, (_req, res) => {
+  res.sendFile(path.join(publicDir, 'soscial', 'download.html'));
+});
+// Static assets for /social/* (same files as /soscial)
+app.use(`${BASE}/social`, express.static(path.join(publicDir, 'soscial'), {
+  maxAge: '1h',
+  etag: true,
+  setHeaders(res, filePath) {
+    if (String(filePath).endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+  },
+}));
 
 // Forced APK/ZIP download (mobile browsers often need Content-Disposition)
 function sendDownload(res, fileName, downloadName, contentType) {
