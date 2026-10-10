@@ -1,0 +1,10 @@
+{
+  "versionName": "1.8.2",
+  "versionCode": 16,
+  "webBuild": "1.8.2",
+  "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
+  "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.8.2",
+  "notes": "Live Wall restore: NAT 10560 re-push + JWT admin wall (no SPK) + 6-up lite remux pool (max 8)",
+  "releasedAt": "2026-10-10T08:00:00Z"
+}
