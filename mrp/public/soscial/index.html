@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0c1410" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon-192.png?v=1.4.1" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.4.1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
+  <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
+  <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
+  <title>SOCIAL Park CCTV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  <style>
+    :root {
+      --bg: #0c1410;
+      --bg2: #14201a;
+      --card: #1a2a22;
+      --line: rgba(215, 227, 219, 0.12);
+      --txt: #eef4ef;
+      --dim: #9bb0a4;
+      --acc: #e8a838;
+      --acc2: #f0c56a;
+      --ok: #3dcf8a;
+      --bad: #ef6b5c;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+      --nav-h: 64px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; min-height: 100%;
+      background: var(--bg);
+      color: var(--txt);
+      font-family: Figtree, system-ui, sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(120% 80% at 50% -10%, rgba(232,168,56,.18), transparent 55%),
+        radial-gradient(90% 60% at 100% 100%, rgba(61,207,138,.08), transparent 45%),
+        linear-gradient(180deg, #101a15 0%, var(--bg) 40%, #0a100d 100%);
+      background-attachment: fixed;
+    }
+    button, input { font: inherit; color: inherit; }
+    button {
+      border: 0; border-radius: 14px; background: var(--acc); color: #1a1204;
+      font-weight: 700; padding: 14px 18px; cursor: pointer;
+      transition: transform .15s ease, filter .15s ease;
+    }
+    button:active { transform: scale(.98); }
+    button.ghost {
+      background: transparent; color: var(--txt);
+      border: 1px solid var(--line);
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    input {
+      width: 100%; background: rgba(0,0,0,.28); border: 1px solid var(--line);
+      border-radius: 14px; padding: 14px 16px; outline: none;
+    }
+    input:focus { border-color: rgba(232,168,56,.55); box-shadow: 0 0 0 3px rgba(232,168,56,.15); }
+    label { display:block; font-size: 12px; letter-spacing: .04em; color: var(--dim); margin: 0 0 6px; text-transform: uppercase; }
+    .err { color: var(--bad); font-size: 13px; margin-top: 10px; }
+    .hidden { display: none !important; }
+
+    /* ---- Login / brand hero ---- */
+    #login {
+      min-height: 100dvh;
+      padding: calc(28px + var(--safe-top)) 22px calc(28px + var(--safe-bot));
+      display: flex; flex-direction: column; justify-content: flex-end;
+      position: relative; overflow: hidden;
+    }
+    #login::before {
+      content: ""; position: absolute; inset: 0;
+      background:
+        linear-gradient(180deg, transparent 20%, rgba(12,20,16,.55) 55%, rgba(12,20,16,.95) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cpath fill='none' stroke='%23e8a838' stroke-opacity='.07' d='M0 80h160M80 0v160'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    .brand-block { position: relative; z-index: 1; margin-bottom: auto; padding-top: 12vh; animation: rise .7s ease both; }
+    .brand-mark {
+      width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px);
+      border-radius: 50%;
+      background: #0a100d;
+      border: 2px solid rgba(232,168,56,.45);
+      display: grid; place-items: center; margin-bottom: 18px;
+      box-shadow: 0 12px 36px rgba(0,0,0,.45);
+      overflow: hidden;
+      padding: 0;
+    }
+    .brand-mark img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .topbar-logo {
+      width: 36px; height: 36px; border-radius: 50%;
+      object-fit: cover; border: 1px solid rgba(232,168,56,.4);
+      flex-shrink: 0;
+    }
+    .brand-block h1 {
+      font-family: Sora, sans-serif; font-weight: 800; font-size: clamp(2.4rem, 11vw, 3.4rem);
+      line-height: .95; letter-spacing: -.03em; margin: 0 0 12px;
+    }
+    .brand-block h1 span { color: var(--acc); display: block; }
+    .brand-block p { margin: 0; max-width: 18rem; color: var(--dim); font-size: 1.05rem; line-height: 1.45; }
+    .login-card {
+      position: relative; z-index: 1;
+      background: rgba(26,42,34,.78); backdrop-filter: blur(16px);
+      border: 1px solid var(--line); border-radius: 22px; padding: 20px;
+      animation: rise .7s ease .08s both;
+    }
+    .login-card .row { display: grid; gap: 12px; margin-top: 4px; }
+    .login-card button { width: 100%; margin-top: 8px; }
+    .login-foot { text-align: center; color: var(--dim); font-size: 12px; margin-top: 14px; }
+
+    /* ---- App shell ---- */
+    #app { min-height: 100dvh; padding-bottom: calc(var(--nav-h) + var(--safe-bot) + 12px); }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      padding: calc(12px + var(--safe-top)) 16px 12px;
+      background: linear-gradient(180deg, rgba(12,20,16,.96), rgba(12,20,16,.82));
+      backdrop-filter: blur(12px); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .topbar h2 {
+      font-family: Sora, sans-serif; font-size: 1.05rem; font-weight: 700;
+      margin: 0; letter-spacing: -.01em; flex: 1;
+    }
+    .topbar .sub { color: var(--dim); font-size: 12px; margin-top: 2px; }
+    .pill {
+      font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line);
+      color: var(--dim);
+    }
+    .pill.on { color: #0c1410; background: var(--ok); border-color: transparent; }
+    .pill.off { color: #fff; background: rgba(239,107,92,.25); border-color: rgba(239,107,92,.4); }
+
+    .content { padding: 16px; }
+    .section-label {
+      font-family: Sora, sans-serif; font-size: 13px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+      margin: 4px 0 12px;
+    }
+
+    .cam-grid {
+      display: grid; grid-template-columns: 1fr; gap: 14px;
+    }
+    @media (min-width: 520px) {
+      .cam-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .cam-tile {
+      background: linear-gradient(165deg, var(--card), #132019);
+      border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+      cursor: pointer; animation: rise .5s ease both;
+      transition: border-color .2s ease, transform .2s ease;
+    }
+    .cam-tile:active { transform: scale(.985); }
+    .cam-tile .preview {
+      aspect-ratio: 16/10; background: #070b09; position: relative;
+      display: grid; place-items: center; overflow: hidden;
+    }
+    .cam-tile .preview video {
+      width: 100%; height: 100%; object-fit: cover; display: none;
+    }
+    .cam-tile .preview .play {
+      width: 54px; height: 54px; border-radius: 50%;
+      background: rgba(232,168,56,.92); color: #1a1204;
+      display: grid; place-items: center; font-size: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .cam-tile .preview .badge {
+      position: absolute; top: 10px; left: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,.55);
+    }
+    .cam-tile .meta {
+      padding: 12px 14px 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .cam-tile .meta .nm { font-weight: 700; font-size: 15px; }
+    .cam-tile .meta .loc { color: var(--dim); font-size: 12px; margin-top: 2px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); margin-left: auto; flex: 0 0 auto; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(61,207,138,.18); }
+
+    .empty {
+      border: 1px dashed var(--line); border-radius: 18px; padding: 36px 18px;
+      text-align: center; color: var(--dim); line-height: 1.5;
+    }
+
+    .bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+      height: calc(var(--nav-h) + var(--safe-bot));
+      padding: 8px 10px var(--safe-bot);
+      background: rgba(12,20,16,.94); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    }
+    .bottom-nav button {
+      background: transparent; color: var(--dim); border-radius: 14px;
+      padding: 8px 6px; font-size: 11px; font-weight: 600;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .bottom-nav button.active { color: var(--acc2); background: rgba(232,168,56,.1); }
+    .bottom-nav .ico { font-size: 18px; line-height: 1; }
+
+    /* ---- Player ---- */
+    #player {
+      position: fixed; inset: 0; z-index: 50; background: #000;
+      display: flex; flex-direction: column;
+    }
+    #player .ph {
+      padding: calc(10px + var(--safe-top)) 12px 10px;
+      display: flex; align-items: center; gap: 10px;
+      background: linear-gradient(180deg, rgba(0,0,0,.75), transparent);
+      position: absolute; left: 0; right: 0; top: 0; z-index: 2;
+    }
+    #player .ph button { padding: 10px 12px; border-radius: 12px; }
+    #player .ph .title { flex: 1; min-width: 0; }
+    #player .ph .title b { display: block; font-size: 15px; }
+    #player .ph .title span { color: var(--dim); font-size: 12px; }
+    #player .stage {
+      flex: 1; display: grid; place-items: center; position: relative;
+      background: #000;
+    }
+    #player video {
+      width: 100%; height: 100%; max-height: 100dvh; object-fit: contain; background: #000;
+    }
+    #player .overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      background: rgba(0,0,0,.35); color: var(--txt); font-weight: 600;
+      pointer-events: none;
+    }
+    #player .pf {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+      padding: 14px 14px calc(14px + var(--safe-bot));
+      background: linear-gradient(0deg, rgba(0,0,0,.8), transparent);
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+
+    .install-bar {
+      margin: 0 16px 12px; padding: 14px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(232,168,56,.18), rgba(232,168,56,.05));
+      border: 1px solid rgba(232,168,56,.3);
+      animation: rise .45s ease both;
+    }
+    .install-bar h3 {
+      margin: 0 0 8px; font-family: Sora, sans-serif; font-size: 14px; font-weight: 700;
+      color: var(--acc2);
+    }
+    .install-bar ol { margin: 0; padding-left: 18px; color: var(--txt); font-size: 13px; line-height: 1.55; }
+    .install-bar .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .install-bar button { padding: 10px 14px; font-size: 13px; }
+
+    .wall-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .wall-cell {
+      aspect-ratio: 16/10; background: #070b09; border-radius: 12px;
+      overflow: hidden; position: relative; border: 1px solid var(--line);
+    }
+    .wall-cell video { width: 100%; height: 100%; object-fit: cover; }
+    .wall-cell .lbl {
+      position: absolute; left: 6px; bottom: 6px; font-size: 10px; font-weight: 700;
+      background: rgba(0,0,0,.55); padding: 3px 6px; border-radius: 5px;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* ---- Android TV / leanback ---- */
+    .tv-mode {
+      --nav-h: 84px;
+      font-size: 18px;
+    }
+    .tv-mode #login {
+      justify-content: center;
+      flex-direction: row;
+      align-items: center;
+      gap: 48px;
+      padding: 40px 56px;
+    }
+    .tv-mode .brand-block {
+      padding-top: 0;
+      margin: 0;
+      flex: 1;
+      max-width: 420px;
+    }
+    .tv-mode .brand-block h1 { font-size: clamp(3rem, 6vw, 4.5rem); }
+    .tv-mode .brand-block p { max-width: none; font-size: 1.2rem; }
+    .tv-mode .login-card {
+      flex: 0 0 380px;
+      max-width: 420px;
+      padding: 28px;
+    }
+    .tv-mode .login-card input,
+    .tv-mode .login-card button,
+    .tv-mode a[href*="apk"] {
+      font-size: 18px;
+      min-height: 52px;
+    }
+    .tv-mode .cam-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .tv-mode .cam-tile {
+      border-width: 2px;
+      outline: none;
+    }
+    .tv-mode .cam-tile:focus,
+    .tv-mode .cam-tile:focus-visible,
+    .tv-mode button:focus,
+    .tv-mode button:focus-visible,
+    .tv-mode a:focus,
+    .tv-mode a:focus-visible,
+    .tv-mode input:focus {
+      outline: 3px solid var(--acc);
+      outline-offset: 3px;
+      border-color: var(--acc);
+      transform: scale(1.02);
+    }
+    .tv-mode .bottom-nav button {
+      font-size: 14px;
+      padding: 12px 8px;
+    }
+    .tv-mode .bottom-nav .ico { font-size: 22px; }
+    .tv-mode .wall-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .tv-mode #player .ph .title b { font-size: 22px; }
+    .tv-mode #player .pf button { min-height: 52px; font-size: 16px; padding: 14px 20px; }
+    .tv-mode .install-bar { display: none !important; }
+    .tv-mode .tv-only { display: block !important; }
+    .tv-only { display: none; }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">
+        <img src="./logo.png?v=1.4.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+      </div>
+      <h1>SOCIAL<span>PARK</span></h1>
+      <p id="brandTagline">JM Wireless Internet Services · Live CCTV sa telepono at Android TV.</p>
+    </div>
+    <form class="login-card" id="loginForm">
+      <div class="row">
+        <div>
+          <label for="user">Username</label>
+          <input id="user" name="username" autocomplete="username" required placeholder="staff / admin" tabindex="1" />
+        </div>
+        <div>
+          <label for="pass">Password</label>
+          <input id="pass" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" tabindex="2" />
+        </div>
+      </div>
+      <div class="err hidden" id="loginErr"></div>
+      <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
+      <a href="/soscial.apk?v=1.4.1"
+        style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
+        tabindex="4">
+        ⬇ Download Android / TV APK v1.4.1
+      </a>
+      <a href="/soscial/download"
+        style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
+        tabindex="5">
+        Failed download? Buksan ang download page
+      </a>
+      <div class="login-foot">JM Wireless Internet Services · SOCIAL PARK · Phone &amp; Android TV</div>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="topbar">
+      <img class="topbar-logo" src="./logo.png?v=1.4.1" alt="" width="36" height="36" />
+      <div style="flex:1;min-width:0">
+        <h2>SOCIAL Park</h2>
+        <div class="sub" id="topSub">CCTV</div>
+      </div>
+      <span class="pill" id="vpnPill">VPN</span>
+    </div>
+    <div id="updateBar" class="install-bar hidden" style="border-color:rgba(61,207,138,.45)">
+      <h3 id="updateTitle">May update mula sa VPS</h3>
+      <p id="updateNotes" style="margin:8px 0 0;font-size:13px;color:var(--dim);line-height:1.45"></p>
+      <div class="actions" style="margin-top:12px">
+        <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
+          I-refresh cameras
+        </button>
+        <a id="updateApk" href="/soscial.apk?v=1.4.1" class="hidden"
+          style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
+          Download new APK
+        </a>
+        <button type="button" class="ghost" id="updateDismiss">Later</button>
+      </div>
+    </div>
+    <div id="installBar" class="install-bar">
+      <h3>📱 Android phone &amp; Android TV APK</h3>
+      <ol>
+        <li>Pindutin ang <b>Download APK</b> (isang APK para sa phone at TV box)</li>
+        <li>Buksan ang file → <b>Install</b> (payagan ang Unknown apps)</li>
+        <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
+      </ol>
+      <div class="actions">
+        <a id="apkBtn" href="/soscial.apk?v=1.4.1"
+          style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
+          Download APK v1.4.1
+        </a>
+        <a href="/soscial-tv.apk?v=1.4.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
+        <button type="button" class="ghost" id="installDismiss">Hide</button>
+      </div>
+      <p style="margin:12px 0 0;font-size:12px;color:var(--dim);line-height:1.45">
+        Kung failed: buksan sa <b>Chrome</b> (hindi Messenger) →
+        <a href="/soscial/download" style="color:var(--acc2)">/soscial/download</a><br/>
+        Android TV: sideload via USB / Downloader app · iPhone: Safari → Add to Home Screen.
+      </p>
+    </div>
+    <div class="content" id="viewCams"></div>
+    <div class="content hidden" id="viewWall"></div>
+    <div class="content hidden" id="viewAccount"></div>
+    <nav class="bottom-nav" aria-label="Main">
+      <button type="button" class="active" data-tab="cams"><span class="ico">▣</span>Cameras</button>
+      <button type="button" data-tab="wall"><span class="ico">▦</span>Live Wall</button>
+      <button type="button" data-tab="account"><span class="ico">◎</span>Account</button>
+    </nav>
+  </div>
+
+  <div id="player" class="hidden">
+    <div class="ph">
+      <button type="button" class="ghost" id="playerBack">←</button>
+      <div class="title">
+        <b id="playerName">Camera</b>
+        <span id="playerMeta"></span>
+      </div>
+      <span class="pill" id="playerModePill">LIVE</span>
+    </div>
+    <div class="stage">
+      <video id="playerVideo" playsinline controls muted></video>
+      <div class="overlay hidden" id="playerOverlay">Connecting…</div>
+    </div>
+    <div class="pf">
+      <button type="button" id="playerPlay">▶ Play</button>
+      <button type="button" class="ghost" id="playerMute">Unmute</button>
+      <button type="button" class="ghost" id="playerRefresh">↻ Live</button>
+      <button type="button" class="ghost" id="playerPlaybackToggle">Playback</button>
+    </div>
+    <p id="playbackDenied" class="hidden" style="padding:0 14px 12px;margin:0;font-size:12px;color:var(--dim);line-height:1.4">
+      Playback = Super Admin only. Staff / viewer accounts = live view.
+    </p>
+    <div id="playbackBar" class="hidden" style="padding:0 14px 14px;display:none;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <div style="flex:1;min-width:140px">
+        <label for="pbStart" style="margin:0">Start</label>
+        <input id="pbStart" type="datetime-local" />
+      </div>
+      <div style="flex:1;min-width:140px">
+        <label for="pbEnd" style="margin:0">End</label>
+        <input id="pbEnd" type="datetime-local" />
+      </div>
+      <button type="button" id="pbGo">▶ Play recording</button>
+      <div class="err hidden" id="pbErr" style="width:100%;margin:0"></div>
+      <p style="width:100%;margin:0;font-size:12px;color:var(--dim);line-height:1.4">
+        Playback = recording mula sa camera SD card o NVR. Kung walang naka-enable na record sa device, walang playback.
+        Live audio: i-tap ang Unmute — gumagana lang kung may Audio Enable / mic ang camera (hal. D5).
+      </p>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const TOKEN_KEY = 'soscial_cctv_token';
+  const USER_KEY = 'soscial_cctv_user';
+  const API_BASE = (() => {
+    // App lives at /soscial/ — API is site-root /api (or /cctv/api legacy)
+    const m = location.pathname.match(/^(\/cctv)(?:\/|$)/);
+    return (m ? m[1] : '') + '/api';
+  })();
+
+  let token = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || '';
+  let user = null;
+  try { user = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { user = null; }
+  if (user && user.role) {
+    user.canPlayback = user.canPlayback === true || user.role === 'admin';
+    user.canManageAccounts = user.canManageAccounts === true || user.role === 'admin';
+  }
+  let cams = [];
+  let stations = [];
+  let nvrs = [];
+  let currentCam = null;
+  let hls = null;
+  let wallPlayers = [];
+  let deferredPrompt = null;
+  let activeTab = 'cams';
+  let playMode = 'live'; // live | playback
+  let playbackHlsUrl = '';
+  const APP_WEB_BUILD = '1.4.1';
+  const APP_VERSION_CODE = 7;
+  const CAM_FP_KEY = 'soscial_cam_fp';
+  let lastCamFp = localStorage.getItem(CAM_FP_KEY) || '';
+  let lastUpdateInfo = null;
+  let updatePollTimer = null;
+  let autoReloadArmed = false;
+
+  const $ = (id) => document.getElementById(id);
+  const show = (el, on) => el.classList.toggle('hidden', !on);
+  const canPlayback = () => !!(user && (user.canPlayback === true || user.role === 'admin'));
+  function applyPlaybackAccess() {
+    const allow = canPlayback();
+    const btn = $('playerPlaybackToggle');
+    const denied = $('playbackDenied');
+    if (btn) {
+      btn.style.display = allow ? '' : 'none';
+      btn.disabled = !allow;
+    }
+    if (denied) denied.classList.toggle('hidden', allow);
+    if (!allow && playMode === 'playback') {
+      setPlayerMode('live');
+      playbackHlsUrl = '';
+    }
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function toLocalInputValue(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+  function defaultPlaybackRange() {
+    const end = new Date();
+    const start = new Date(end.getTime() - 15 * 60 * 1000);
+    return { start, end };
+  }
+
+  async function api(path, opts = {}) {
+    const res = await fetch(API_BASE + path, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        ...(opts.headers || {}),
+      },
+      body: opts.body != null ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
+    return data;
+  }
+
+  function isSoscialCam(c) {
+    const blob = [c.station, c.nvrName, c.name, c.barangay, String(c.stationId || '')].join(' ').toLowerCase();
+    return /social|soscial|soscail/.test(blob) || Number(c.stationId) === 71 || Number(c.nvrAreaId) === 2;
+  }
+
+  function brandLabel(b) {
+    return ({ dahua: 'Dahua', hikvision: 'Hikvision', v380: 'V380', other: 'RTSP' })[b] || (b || 'Cam');
+  }
+
+  async function loadData() {
+    const d = await api('/dashboard');
+    stations = d.stations || [];
+    cams = (d.cameras || []).filter(isSoscialCam);
+    nvrs = (d.nvrs || []).filter((n) => /social|soscial|soscail/i.test((n.name || '') + (n.notes || '') + (n.stationName || '')) || Number(n.stationId) === 71);
+    const site = stations.find((s) => Number(s.id) === 71) || stations.find((s) => /social|soscial/i.test(s.name || ''));
+    const vpnOn = !!(site && site.online);
+    const pill = $('vpnPill');
+    pill.textContent = vpnOn ? 'VPN up' : 'VPN down';
+    pill.className = 'pill ' + (vpnOn ? 'on' : 'off');
+    $('topSub').textContent = cams.length + ' camera(s) · ' + (nvrs[0]?.name || 'SOCIAL CENTER');
+    renderCams();
+    renderAccount();
+  }
+
+  function renderCams() {
+    const root = $('viewCams');
+    if (!cams.length) {
+      root.innerHTML = `<div class="section-label">Cameras</div>
+        <div class="empty">Walang SOCIAL Park camera pa.<br/>I-add sa portal CCTV → SOCIAL CENTER.</div>`;
+      return;
+    }
+    root.innerHTML = `<div class="section-label">Cameras</div><div class="cam-grid"></div>`;
+    const grid = root.querySelector('.cam-grid');
+    cams.forEach((c, i) => {
+      const tile = document.createElement('article');
+      tile.className = 'cam-tile';
+      tile.style.animationDelay = (i * 0.05) + 's';
+      tile.innerHTML = `
+        <div class="preview">
+          <span class="badge">${brandLabel(c.brand)}</span>
+          <div class="play">▶</div>
+        </div>
+        <div class="meta">
+          <div>
+            <div class="nm"></div>
+            <div class="loc"></div>
+          </div>
+          <span class="dot ${c.live ? 'on' : ''}"></span>
+        </div>`;
+      tile.querySelector('.nm').textContent = c.name;
+      tile.querySelector('.loc').textContent = [c.nvrName || 'SOCIAL', c.live ? 'ready' : 'offline'].filter(Boolean).join(' · ');
+      tile.tabIndex = 0;
+      tile.setAttribute('role', 'button');
+      tile.addEventListener('click', () => openPlayer(c));
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'MediaPlayPause') {
+          e.preventDefault();
+          openPlayer(c);
+        }
+      });
+      grid.appendChild(tile);
+    });
+  }
+
+  function stopWall() {
+    wallPlayers.forEach((p) => { try { p.hls?.destroy(); p.video.pause(); } catch {} });
+    wallPlayers = [];
+  }
+
+  function renderWall() {
+    stopWall();
+    const root = $('viewWall');
+    if (!cams.length) {
+      root.innerHTML = `<div class="section-label">Live Wall</div><div class="empty">Walang camera.</div>`;
+      return;
+    }
+    root.innerHTML = `<div class="section-label">Live Wall</div><div class="wall-grid"></div>`;
+    const grid = root.querySelector('.wall-grid');
+    cams.slice(0, 8).forEach((c) => {
+      const cell = document.createElement('div');
+      cell.className = 'wall-cell';
+      cell.innerHTML = `<video muted playsinline></video><div class="lbl"></div>`;
+      cell.querySelector('.lbl').textContent = c.name;
+      const video = cell.querySelector('video');
+      grid.appendChild(cell);
+      if (c.live && c.hlsUrl) {
+        const player = { video, hls: null };
+        if (window.Hls && Hls.isSupported()) {
+          const h = new Hls({ liveDurationInfinity: true, enableWorker: true });
+          player.hls = h;
+          h.loadSource(c.hlsUrl);
+          h.attachMedia(video);
+          h.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = c.hlsUrl;
+          video.play().catch(() => {});
+        }
+        wallPlayers.push(player);
+      }
+      cell.addEventListener('click', () => openPlayer(c));
+    });
+  }
+
+  function renderAccount() {
+    const root = $('viewAccount');
+    const url = location.origin + location.pathname.replace(/index\.html$/, '');
+    const u = lastUpdateInfo || {};
+    const camCount = u.cameras?.count ?? cams.length;
+    const remoteName = u.versionName || APP_WEB_BUILD;
+    const remoteCode = Number(u.versionCode) || APP_VERSION_CODE;
+    const isNative = !!(window.SoscialNative && typeof window.SoscialNative.checkUpdate === 'function');
+    const needsApk = remoteCode > APP_VERSION_CODE;
+    const needsWeb = u.webBuild && String(u.webBuild) !== APP_WEB_BUILD;
+    const statusColor = needsApk || needsWeb ? 'var(--acc)' : 'var(--ok)';
+    const statusText = needsApk
+      ? ('May bagong APK v' + remoteName + ' — auto-update…')
+      : needsWeb
+        ? ('May bagong web v' + u.webBuild + ' — auto-refresh…')
+        : ('Updated · v' + APP_WEB_BUILD + ' · ' + camCount + ' camera(s)');
+    const checked = u.checkedAt ? new Date(u.checkedAt).toLocaleString() : '—';
+    root.innerHTML = `
+      <div class="section-label">Account</div>
+      <div class="cam-tile" style="cursor:default;padding:16px">
+        <div class="nm" style="font-size:16px;font-weight:700">${(user && (user.displayName || user.role)) || 'Staff'}</div>
+        <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'} · ${canPlayback() ? 'Live + Playback' : 'Live view only'}</div>
+
+        <div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(61,207,138,.35);background:rgba(61,207,138,.08)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <b style="color:var(--ok)">Updates</b>
+            <span id="acctUpdatePill" style="font-size:11px;font-weight:700;color:${statusColor}">${needsApk || needsWeb ? 'UPDATE' : 'UP TO DATE'}</span>
+          </div>
+          <p id="acctUpdateStatus" style="margin:10px 0 0;font-size:13px;color:var(--txt);line-height:1.45">${statusText}</p>
+          <p style="margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.4">
+            App: v${APP_WEB_BUILD} (code ${APP_VERSION_CODE}) · VPS: v${remoteName} (code ${remoteCode})<br/>
+            Cameras sa VPS: <b style="color:var(--acc2)">${camCount}</b> · Last check: ${checked}<br/>
+            Auto-update: <b style="color:var(--ok)">ON</b> — kusa magre-refresh ang cameras; bagong APK auto-download.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+            <button type="button" id="acctCheckUpdate"
+              style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
+              Check update now
+            </button>
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.4.1'}"
+              style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
+              Install APK v${remoteName}
+            </a>
+          </div>
+        </div>
+
+        <p style="color:var(--dim);font-size:13px;line-height:1.45;margin:14px 0 0">
+          App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
+        </p>
+        <div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2)">
+          <b style="color:var(--acc2)">Android phone &amp; TV APK</b>
+          <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
+            Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
+          </p>
+          <a href="/soscial.apk?v=1.4.1"
+            style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
+            Download APK v1.4.1
+          </a>
+          <a href="/soscial-tv.apk?v=1.4.1"
+            style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
+            TV APK
+          </a>
+        </div>
+        <button type="button" class="ghost" id="logoutBtn" style="width:100%;margin-top:16px">Log out</button>
+      </div>`;
+    $('logoutBtn').onclick = logout;
+    const checkBtn = $('acctCheckUpdate');
+    if (checkBtn) {
+      checkBtn.onclick = async () => {
+        checkBtn.disabled = true;
+        checkBtn.textContent = 'Checking…';
+        try {
+          if (isNative) window.SoscialNative.checkUpdate();
+          await checkVpsUpdate({ forceBanner: true, autoApply: true });
+          if (activeTab === 'account') renderAccount();
+        } finally {
+          checkBtn.disabled = false;
+          checkBtn.textContent = 'Check update now';
+        }
+      };
+    }
+  }
+
+  function setTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.bottom-nav button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    show($('viewCams'), tab === 'cams');
+    show($('viewWall'), tab === 'wall');
+    show($('viewAccount'), tab === 'account');
+    if (tab === 'wall') renderWall();
+    else stopWall();
+    if (tab === 'cams') renderCams();
+    if (tab === 'account') renderAccount();
+  }
+
+  function stopPlayer() {
+    try { hls?.destroy(); } catch {}
+    hls = null;
+    const v = $('playerVideo');
+    v.removeAttribute('src');
+    v.load();
+  }
+
+  function setPlayerMode(mode) {
+    playMode = mode;
+    const pill = $('playerModePill');
+    pill.textContent = mode === 'playback' ? 'PLAYBACK' : 'LIVE';
+    pill.className = 'pill ' + (mode === 'playback' ? 'off' : 'on');
+    const bar = $('playbackBar');
+    bar.classList.toggle('hidden', mode !== 'playback');
+    bar.style.display = mode === 'playback' ? 'flex' : 'none';
+  }
+
+  function openPlayer(cam) {
+    currentCam = cam;
+    playbackHlsUrl = '';
+    setPlayerMode('live');
+    show($('player'), true);
+    applyPlaybackAccess();
+    $('playerName').textContent = cam.name;
+    $('playerMeta').textContent = [cam.nvrName || 'SOCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
+    $('playerOverlay').textContent = cam.live ? 'Connecting…' : 'Camera / station offline';
+    show($('playerOverlay'), true);
+    const range = defaultPlaybackRange();
+    $('pbStart').value = toLocalInputValue(range.start);
+    $('pbEnd').value = toLocalInputValue(range.end);
+    show($('pbErr'), false);
+    stopPlayer();
+    if (cam.live) playUrl(cam.hlsUrl, true, true);
+  }
+
+  function playUrl(url, muted, isLive) {
+    if (!url) return;
+    const video = $('playerVideo');
+    video.muted = !!muted;
+    $('playerMute').textContent = video.muted ? 'Unmute' : 'Mute';
+    show($('playerOverlay'), true);
+    $('playerOverlay').textContent = 'Connecting…';
+    stopPlayer();
+    const hlsOpts = isLive
+      ? { liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 4 }
+      : { enableWorker: true, manifestLoadingMaxRetry: 4 };
+    if (window.Hls && Hls.isSupported()) {
+      hls = new Hls(hlsOpts);
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().then(() => {
+          show($('playerOverlay'), false);
+          // Detect audio tracks after play
+          try {
+            const hasAudio = (video.audioTracks && video.audioTracks.length > 0)
+              || (hls.audioTracks && hls.audioTracks.length > 0);
+            if (!hasAudio && !muted) {
+              $('playerMeta').textContent = (currentCam?.name || '') + ' · no audio track on this cam';
+            }
+          } catch {}
+        }).catch(() => {
+          $('playerOverlay').textContent = 'Tap Play (audio needs a tap on mobile)';
+        });
+      });
+      hls.on(Hls.Events.ERROR, (_e, d) => {
+        if (d.fatal) {
+          $('playerOverlay').textContent = playMode === 'playback'
+            ? 'Walang playback / recording sa oras na ito'
+            : 'Stream error — check password / VPN';
+          show($('playerOverlay'), true);
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.play().then(() => show($('playerOverlay'), false)).catch(() => {
+        $('playerOverlay').textContent = 'Tap Play';
+      });
+    } else {
+      $('playerOverlay').textContent = 'HLS not supported on this browser';
+    }
+  }
+
+  function playCurrent(muted) {
+    const cam = currentCam;
+    if (playMode === 'playback' && playbackHlsUrl) return playUrl(playbackHlsUrl, muted, false);
+    if (!cam?.hlsUrl) return;
+    playUrl(cam.hlsUrl, muted, true);
+  }
+
+  async function startPlayback() {
+    if (!canPlayback()) {
+      const err = $('pbErr');
+      err.textContent = 'Playback = Super Admin only';
+      show(err, true);
+      return;
+    }
+    const cam = currentCam;
+    if (!cam) return;
+    const err = $('pbErr');
+    show(err, false);
+    const startVal = $('pbStart').value;
+    const endVal = $('pbEnd').value;
+    if (!startVal || !endVal) {
+      err.textContent = 'Piliin ang start at end time';
+      show(err, true);
+      return;
+    }
+    const btn = $('pbGo');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    try {
+      const r = await api('/cameras/' + cam.id + '/playback', {
+        method: 'POST',
+        body: { start: new Date(startVal).toISOString(), end: new Date(endVal).toISOString() },
+      });
+      playbackHlsUrl = r.hlsUrl;
+      setPlayerMode('playback');
+      playUrl(playbackHlsUrl, $('playerVideo').muted, false);
+      $('playerMeta').textContent = `Playback ${r.start} → ${r.end}`;
+    } catch (ex) {
+      err.textContent = ex.message || 'Playback failed';
+      show(err, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '▶ Play recording';
+    }
+  }
+
+  function closePlayer() {
+    stopPlayer();
+    currentCam = null;
+    playbackHlsUrl = '';
+    setPlayerMode('live');
+    show($('player'), false);
+  }
+
+  function enterApp() {
+    show($('login'), false);
+    show($('app'), true);
+    setTab('cams');
+    loadData().catch((e) => {
+      alert('Load failed: ' + e.message);
+      logout();
+    });
+  }
+
+  function logout() {
+    token = '';
+    user = null;
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    stopPlayer();
+    stopWall();
+    show($('app'), false);
+    show($('player'), false);
+    show($('login'), true);
+  }
+
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const u = $('user').value.trim();
+    const p = $('pass').value;
+    const err = $('loginErr');
+    const btn = $('loginBtn');
+    show(err, false);
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    try {
+      const r = await api('/login', { method: 'POST', body: { username: u, password: p } });
+      token = r.token;
+      user = {
+        role: r.role,
+        displayName: r.displayName,
+        canPlayback: !!r.canPlayback || r.role === 'admin',
+        canManageAccounts: !!r.canManageAccounts || r.role === 'admin',
+      };
+      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      enterApp();
+    } catch (ex) {
+      err.textContent = ex.message || 'Login failed';
+      show(err, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Open cameras';
+    }
+  });
+
+  document.querySelectorAll('.bottom-nav button').forEach((b) => {
+    b.addEventListener('click', () => setTab(b.dataset.tab));
+  });
+  $('playerBack').onclick = closePlayer;
+  $('playerPlay').onclick = () => playCurrent($('playerVideo').muted);
+  $('playerMute').onclick = () => {
+    const v = $('playerVideo');
+    v.muted = !v.muted;
+    $('playerMute').textContent = v.muted ? 'Unmute' : 'Mute';
+    if (!v.muted) {
+      // Mobile browsers require unmute + play from a user gesture
+      v.play().catch(() => {});
+    }
+  };
+  $('playerRefresh').onclick = () => {
+    setPlayerMode('live');
+    playbackHlsUrl = '';
+    playCurrent($('playerVideo').muted);
+  };
+  $('playerPlaybackToggle').onclick = () => {
+    if (!canPlayback()) {
+      applyPlaybackAccess();
+      return;
+    }
+    const next = playMode === 'playback' ? 'live' : 'playback';
+    setPlayerMode(next);
+    if (next === 'live') {
+      playbackHlsUrl = '';
+      playCurrent(true);
+    }
+  };
+  applyPlaybackAccess();
+  $('pbGo').onclick = () => startPlayback();
+
+  // Android TV / large leanback UI
+  const isTvApp = /SocialParkCctvTV|SoscialParkCctvTV/i.test(navigator.userAgent)
+    || /Android TV|GoogleTV|BRAVIA|AFT[M-Z]|MIBOX|MiTV|SmartTV/i.test(navigator.userAgent)
+    || (window.matchMedia('(min-width: 960px) and (pointer: coarse)').matches);
+  function applyTvMode() {
+    document.documentElement.classList.add('tv-mode');
+    document.body.classList.add('tv-mode');
+    const tag = $('brandTagline');
+    if (tag) tag.textContent = 'Live CCTV sa Android TV — gamitin ang remote (D-pad) para pumili.';
+    show($('installBar'), false);
+    // Make camera tiles keyboard/D-pad focusable
+    document.querySelectorAll('.cam-tile, .bottom-nav button, #loginBtn').forEach((el) => {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    });
+  }
+  if (isTvApp) applyTvMode();
+  window.__soscialApplyTvMode = applyTvMode;
+
+  // Standalone / installed WebView app — hide banner
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+    || /SocialParkCctvApp|SocialParkCctvTV|SoscialParkCctvApp|SoscialParkCctvTV/i.test(navigator.userAgent);
+  if (isStandalone) show($('installBar'), false);
+
+  $('installDismiss').onclick = () => show($('installBar'), false);
+
+  // ---- Auto-updater (Account tab + silent apply) ----
+  async function applyWebUpdateSilent() {
+    try {
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      }
+      const regs = await navigator.serviceWorker?.getRegistrations?.();
+      if (regs) await Promise.all(regs.map((r) => r.update()));
+    } catch (_) {}
+    if (token) {
+      await loadData().catch(() => {});
+      if (activeTab === 'wall') renderWall();
+      if (activeTab === 'account') renderAccount();
+    }
+  }
+
+  function showUpdateBar({ title, notes, showApk, apkUrl }) {
+    const bar = $('updateBar');
+    if (!bar) return;
+    $('updateTitle').textContent = title || 'May update mula sa VPS';
+    $('updateNotes').textContent = notes || '';
+    const apk = $('updateApk');
+    if (apk) {
+      if (showApk) {
+        apk.href = apkUrl || '/soscial.apk?v=1.4.1';
+        apk.style.display = 'inline-flex';
+        apk.classList.remove('hidden');
+      } else {
+        apk.style.display = 'none';
+        apk.classList.add('hidden');
+      }
+    }
+    show(bar, true);
+  }
+
+  async function checkVpsUpdate({ forceBanner = false, autoApply = true } = {}) {
+    try {
+      const res = await fetch(API_BASE + '/soscial/update', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const info = await res.json();
+      lastUpdateInfo = info;
+      const fp = info?.cameras?.fingerprint || '';
+      const remoteWeb = String(info.webBuild || info.versionName || '');
+      const remoteCode = Number(info.versionCode) || 0;
+      const camCount = info?.cameras?.count;
+      let camsChanged = false;
+
+      if (fp && fp !== lastCamFp) {
+        camsChanged = true;
+        lastCamFp = fp;
+        localStorage.setItem(CAM_FP_KEY, fp);
+        if (autoApply) await applyWebUpdateSilent();
+        if (forceBanner || !autoApply) {
+          showUpdateBar({
+            title: 'Bagong CCTV cameras sa VPS',
+            notes: (camCount || '?') + ' camera(s) · auto-updated.',
+            showApk: false,
+          });
+        }
+      }
+
+      if (remoteWeb && remoteWeb !== APP_WEB_BUILD) {
+        showUpdateBar({
+          title: 'Auto-updating web app → v' + remoteWeb,
+          notes: info.notes || 'Kusa magre-reload ang app…',
+          showApk: remoteCode > APP_VERSION_CODE,
+          apkUrl: info.apkUrl,
+        });
+        if (autoApply && !autoReloadArmed) {
+          autoReloadArmed = true;
+          setTimeout(() => {
+            location.href = (info.webUrl || ('./?v=' + remoteWeb)) + (location.hash || '');
+          }, 1200);
+        }
+      } else if (remoteCode > APP_VERSION_CODE) {
+        showUpdateBar({
+          title: 'Auto-updating APK → v' + (info.versionName || remoteCode),
+          notes: 'Dina-download ang bagong APK mula sa VPS…',
+          showApk: true,
+          apkUrl: info.apkUrl,
+        });
+        // Native Android WebView: trigger silent download; else navigate to APK (browser install)
+        if (autoApply && window.SoscialNative?.checkUpdate) {
+          window.SoscialNative.checkUpdate();
+        } else if (autoApply && /SocialParkCctvApp|SocialParkCctvTV/i.test(navigator.userAgent) && !sessionStorage.getItem('soscial_apk_autodl')) {
+          sessionStorage.setItem('soscial_apk_autodl', '1');
+          // Fallback: open APK URL inside webview
+          const a = document.createElement('a');
+          a.href = info.apkUrl || '/soscial.apk';
+          a.click();
+        }
+      }
+
+      if (activeTab === 'account') renderAccount();
+      return info;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  $('updateDismiss') && ($('updateDismiss').onclick = () => show($('updateBar'), false));
+  $('updateReload') && ($('updateReload').onclick = async () => {
+    show($('updateBar'), false);
+    await applyWebUpdateSilent();
+    location.reload();
+  });
+
+  function startUpdatePolling() {
+    if (updatePollTimer) clearInterval(updatePollTimer);
+    checkVpsUpdate({ autoApply: true });
+    updatePollTimer = setInterval(() => {
+      checkVpsUpdate({ autoApply: true });
+      if (token) loadData().catch(() => {});
+    }, 45_000);
+  }
+  startUpdatePolling();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkVpsUpdate({ autoApply: true });
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js?v=1.4.1').then((reg) => {
+      reg.update().catch(() => {});
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!sessionStorage.getItem('soscial_sw_reloaded')) {
+          sessionStorage.setItem('soscial_sw_reloaded', '1');
+          location.reload();
+        }
+      });
+    }).catch(() => {});
+  }
+
+  if (token) enterApp();
+})();
+</script>
+</body>
+</html>
