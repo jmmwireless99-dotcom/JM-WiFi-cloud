@@ -266,12 +266,13 @@ r.post('/:id/restore', async (req, res) => {
     }
   }
 
-  // Disable channels beyond want (e.g. 31–32) on this NVR
+  // Disable NVR-channel rows beyond want. Keep direct-IP cams (lan ≠ NVR) enabled.
   await pool.query(
     `UPDATE cameras SET enabled=false
       WHERE nvr_area_id=$1
+        AND host(lan_ip) = $3
         AND COALESCE(NULLIF(substring(rtsp_path from 'channel=([0-9]+)'), '')::int, 0) > $2`,
-    [nvr.id, want]
+    [nvr.id, want, lanIp]
   );
   await pool.query(`UPDATE nvr_areas SET channels=$1 WHERE id=$2`, [want, nvr.id]);
   await sync('admin', `nvr restore ${nvr.name} ${want}ch`);
