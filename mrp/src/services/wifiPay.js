@@ -199,8 +199,10 @@ export async function createWifiPaySession({
   let session = rows[0];
 
   try {
-    // Full walled garden: cloud + PayMongo + GCash/Maya so QR pay works without cellular data
-    await ensureWifiPayWalledGarden(site, [HUB() || 'jmtechsolution.cloud']).catch((e) => {
+    // Do NOT await walled-garden here — 100+ MikroTik REST calls (~15s) cause Apache 502
+    // on jmtechsolution.cloud and make Buy Unli look like it cannot generate QR.
+    // Garden is already open from deploy; refresh in background after QR is returned.
+    void ensureWifiPayWalledGarden(site, [HUB() || 'jmtechsolution.cloud']).catch((e) => {
       console.warn('walled-garden:', e.message);
     });
 
