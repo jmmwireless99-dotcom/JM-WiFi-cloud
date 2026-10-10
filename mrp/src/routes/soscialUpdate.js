@@ -38,32 +38,40 @@ r.get('/update', async (_req, res) => {
     const ver = await readVersionFile();
     const base = publicBase();
     const { rows } = await pool.query(
-      `SELECT id, name, enabled, lan_ip, stream_token
+      `SELECT id, name, enabled, lan_ip, rtsp_path, stream_token
          FROM cameras
         WHERE station_id = 71
         ORDER BY id`
     );
     const ids = rows.map((c) => c.id);
+    const enabledCount = rows.filter((c) => c.enabled).length;
+    const items = rows.map((c) => {
+      const m = String(c.rtsp_path || '').match(/channel=(\d+)/i);
+      return {
+        id: c.id,
+        name: c.name,
+        lanIp: c.lan_ip,
+        enabled: !!c.enabled,
+        channel: m ? Number(m[1]) : null,
+      };
+    });
     res.setHeader('Cache-Control', 'no-store');
     res.json({
-      versionName: ver.versionName || '1.4.0',
-      versionCode: Number(ver.versionCode) || 6,
-      webBuild: ver.webBuild || ver.versionName || '1.4.0',
+      versionName: ver.versionName || '1.5.0',
+      versionCode: Number(ver.versionCode) || 8,
+      webBuild: ver.webBuild || ver.versionName || '1.5.0',
       apkUrl: ver.apkUrl || `${base}/soscial.apk`,
       tvApkUrl: ver.tvApkUrl || `${base}/soscial-tv.apk`,
-      webUrl: ver.webUrl || `${base}/soscial/?v=${ver.webBuild || ver.versionName || '1.4.0'}`,
+      webUrl: ver.webUrl || `${base}/soscial/?v=${ver.webBuild || ver.versionName || '1.5.0'}`,
       notes: ver.notes || '',
       releasedAt: ver.releasedAt || null,
       cameras: {
         stationId: 71,
         count: rows.length,
+        enabledCount,
         ids,
-        fingerprint: `${rows.length}:${ids.join(',')}`,
-        items: rows.map((c) => ({
-          id: c.id,
-          name: c.name,
-          lanIp: c.lan_ip,
-        })),
+        fingerprint: `${rows.length}:${enabledCount}:${ids.join(',')}`,
+        items,
       },
       checkedAt: new Date().toISOString(),
     });

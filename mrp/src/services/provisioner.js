@@ -92,31 +92,212 @@ export function streamPathName(cam) {
   return `cam${cam.id}-${cam.stream_token}`;
 }
 
-export function rtspSource(cam, vpnIp) {
+/** Prefer Dahua/Hik substream (subtype=1 / Channels/102) for live HLS — lower bitrate. */
+export function liveRtspPath(rtspPath) {
+  const raw = String(rtspPath || '').trim() || '/';
+  let path = raw.startsWith('/') ? raw : `/${raw}`;
+  if (/subtype=\d+/i.test(path)) {
+    path = path.replace(/subtype=\d+/i, 'subtype=1');
+  } else if (/\/Channels\/\d+/i.test(path)) {
+    // Hikvision main .../101 → sub .../102
+    path = path.replace(/\/Channels\/(\d)01\b/i, '/Channels/$102');
+  }
+  return path;
+}
+
+export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
   const auth = cam.rtsp_user
     ? `${encodeURIComponent(cam.rtsp_user)}:${encodeURIComponent(cam.rtsp_pass || '')}@`
     : '';
-  const path = cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path;
+  const path = liveSubstream
+    ? liveRtspPath(cam.rtsp_path)
+    : (cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path);
   return `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${path}`;
 }
 
-/** ffmpeg remux: copy video, AAC audio (browsers can't play G.711 in HLS).
- *  Use runOnInit (not runOnDemand): HLS clients do not count as demand on an
- *  empty publisher path in MediaMTX 1.9 — they get instant 404. runOnInit keeps
- *  ffmpeg publishing so /hls stays ready. Do NOT set sourceOnDemand with publisher. */
-function pathBlock(name, originRtsp) {
-  // YAML: escape quotes in shell command via single-quoted runOnInit string
-  const cmd =
+/**
+ * ffmpeg → MediaMTX publisher for browser HLS.
+ * SOCIAL / modern Dahua cams often send HEVC; browsers cannot play HEVC in MSE/HLS.
+ *
+ * MediaMTX 1.9: HLS readers do NOT trigger runOnDemand on empty publisher paths
+ * (instant 404). runOnInit works — but always-on remux of ~30 HEVC channels
+ * saturates a 1-vCPU VPS so streams flap offline.
+ *
+ * Default MEDIAMTX_REMUX_MODE=pool:
+ *  - YAML registers publisher stubs only (idle CPU ~0)
+ *  - ensureLiveRemux() starts runOnInit via API when a viewer opens a cam
+ *  - sweepRemuxIdle() stops remux when readers=0 after idle TTL
+ * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
+ */
+const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 10));
+const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 90_000));
+const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
+
+/** pathName → { origin, startedAt, lastEnsureAt } */
+const remuxActive = new Map();
+let remuxSweepTimer = null;
+
+export function remuxFfmpegCmd(originRtsp) {
+  return (
     `ffmpeg -hide_banner -loglevel error -fflags nobuffer -flags low_delay ` +
     `-rtsp_transport tcp -i '${originRtsp}' ` +
-    `-map 0:v:0 -map 0:a:0? -c:v copy -c:a aac -ac 1 -ar 16000 -b:a 64k ` +
-    `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`;
+    `-map 0:v:0 -map 0:a:0? ` +
+    `-c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p ` +
+    `-profile:v baseline -level 3.0 -g 40 -vf scale=640:-2 ` +
+    `-b:v 500k -maxrate 600k -bufsize 1200k ` +
+    `-c:a aac -ac 1 -ar 16000 -b:a 64k ` +
+    `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`
+  );
+}
+
+function pathBlockAlways(name, originRtsp) {
+  const cmd = remuxFfmpegCmd(originRtsp);
   return (
     `  ${name}:\n` +
     `    source: publisher\n` +
     `    runOnInit: ${JSON.stringify(cmd)}\n` +
     `    runOnInitRestart: yes`
   );
+}
+
+function pathBlockPool(name) {
+  return (
+    `  ${name}:\n` +
+    `    source: publisher`
+  );
+}
+
+async function mtxFetch(path, { method = 'GET', body } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), EXEC_MS * 4);
+  try {
+    const res = await fetch(`${MTX_API()}${path}`, {
+      method,
+      signal: ctrl.signal,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function stopRemuxPath(name) {
+  await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
+    method: 'POST',
+    body: { name, source: 'publisher' },
+  });
+  remuxActive.delete(name);
+}
+
+async function evictOldestRemux(keepName) {
+  while (remuxActive.size >= REMUX_MAX) {
+    let victim = null;
+    let oldest = Infinity;
+    for (const [n, meta] of remuxActive) {
+      if (n === keepName) continue;
+      const ts = meta.lastEnsureAt || meta.startedAt || 0;
+      if (ts < oldest) { oldest = ts; victim = n; }
+    }
+    if (!victim) break;
+    try { await stopRemuxPath(victim); } catch (e) {
+      console.error('remux evict', victim, e.message);
+      remuxActive.delete(victim);
+    }
+  }
+}
+
+/**
+ * Start (or refresh) H.264 remux for one camera path.
+ * Call from the player / live wall before loading HLS.
+ */
+export async function ensureLiveRemux(cam, vpnIp) {
+  if (process.env.MEDIAMTX_AAC_REMUX === '0') {
+    return { ok: true, mode: 'passthrough', pathName: streamPathName(cam) };
+  }
+  const name = streamPathName(cam);
+  const origin = rtspSource(cam, vpnIp, { liveSubstream: true });
+  const now = Date.now();
+
+  if (REMUX_MODE !== 'pool') {
+    return { ok: true, mode: 'always', pathName: name };
+  }
+
+  const existing = remuxActive.get(name);
+  if (existing) {
+    existing.lastEnsureAt = now;
+    try {
+      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
+      if (st.ok && st.data?.ready) {
+        return { ok: true, mode: 'pool', pathName: name, ready: true, reused: true };
+      }
+    } catch { /* restart below */ }
+  }
+
+  await evictOldestRemux(name);
+  const cmd = remuxFfmpegCmd(origin);
+  const res = await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
+    method: 'POST',
+    body: {
+      name,
+      source: 'publisher',
+      runOnInit: cmd,
+      runOnInitRestart: true,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(typeof res.data === 'string' ? res.data : `mediamtx remux start failed (${res.status})`);
+  }
+  remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
+  scheduleRemuxSweep();
+
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 700));
+    try {
+      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
+      if (st.ok && st.data?.ready) {
+        return { ok: true, mode: 'pool', pathName: name, ready: true };
+      }
+    } catch { /* keep waiting */ }
+  }
+  return { ok: true, mode: 'pool', pathName: name, ready: false, warming: true };
+}
+
+export async function sweepRemuxIdle() {
+  if (REMUX_MODE !== 'pool' || !remuxActive.size) return { stopped: 0 };
+  let stopped = 0;
+  const states = await getStreamStates(true);
+  const now = Date.now();
+  for (const [name, meta] of [...remuxActive.entries()]) {
+    const st = states[name];
+    const readers = st?.readers || 0;
+    const idleFor = now - (meta.lastEnsureAt || meta.startedAt || now);
+    if (readers > 0) {
+      meta.lastEnsureAt = now;
+      continue;
+    }
+    if (idleFor < REMUX_IDLE_MS) continue;
+    try {
+      await stopRemuxPath(name);
+      stopped += 1;
+    } catch (e) {
+      console.error('remux sweep', name, e.message);
+    }
+  }
+  return { stopped, active: remuxActive.size };
+}
+
+function scheduleRemuxSweep() {
+  if (remuxSweepTimer) return;
+  remuxSweepTimer = setInterval(() => {
+    sweepRemuxIdle().catch((e) => console.error('remux sweep', e.message));
+  }, Math.min(30_000, Math.max(10_000, Math.floor(REMUX_IDLE_MS / 3))));
+  if (typeof remuxSweepTimer.unref === 'function') remuxSweepTimer.unref();
 }
 
 async function syncMediamtx() {
@@ -127,18 +308,22 @@ async function syncMediamtx() {
       ORDER BY c.id`
   );
   const useRemux = process.env.MEDIAMTX_AAC_REMUX !== '0';
+  const poolMode = useRemux && REMUX_MODE === 'pool';
   const paths = rows.map(c => {
-    const origin = rtspSource(c, c.vpn_ip);
+    const origin = rtspSource(c, c.vpn_ip, { liveSubstream: true });
     const name = streamPathName(c);
-    if (useRemux) return pathBlock(name, origin);
-    return (
-      `  ${name}:\n` +
-      `    source: ${origin}\n` +
-      `    sourceOnDemand: yes\n` +
-      `    sourceOnDemandStartTimeout: 20s\n` +
-      `    sourceOnDemandCloseAfter: 45s\n` +
-      `    rtspTransport: tcp`
-    );
+    if (!useRemux) {
+      return (
+        `  ${name}:\n` +
+        `    source: ${origin}\n` +
+        `    sourceOnDemand: yes\n` +
+        `    sourceOnDemandStartTimeout: 20s\n` +
+        `    sourceOnDemandCloseAfter: 45s\n` +
+        `    rtspTransport: tcp`
+      );
+    }
+    if (poolMode) return pathBlockPool(name);
+    return pathBlockAlways(name, origin);
   }).join('\n');
 
   const cfg = `# MANAGED BY mrp-backend - DO NOT EDIT BY HAND
@@ -154,7 +339,7 @@ webrtc: no
 
 hls: yes
 hlsAddress: :${process.env.HLS_PORT || 8888}
-hlsAlwaysRemux: yes
+hlsAlwaysRemux: ${poolMode ? 'no' : 'yes'}
 hlsVariant: fmp4
 hlsSegmentCount: 7
 hlsSegmentDuration: 2s
@@ -165,6 +350,7 @@ ${paths || '  {}'}
 `;
   const target = process.env.MEDIAMTX_CONFIG || '/etc/mediamtx/mediamtx.yml';
   await atomicWrite(target, cfg, 0o644);
+  if (poolMode) remuxActive.clear();
   // MediaMTX hot-reloads on file change. Do NOT systemctl restart here —
   // restart storms hit start-limit and take /hls down (404/503).
   try {
@@ -176,6 +362,7 @@ ${paths || '  {}'}
   } catch {
     // mediamtx not installed — skip
   }
+  if (poolMode) scheduleRemuxSweep();
 }
 
 export async function terminateSession(username) {
@@ -204,14 +391,14 @@ export async function getActiveSessions() {
   }
 }
 
-export async function getStreamStates() {
+export async function getStreamStates(force = false) {
   const now = Date.now();
-  if (now - streamsCache.at < CACHE_MS) return streamsCache.data;
+  if (!force && now - streamsCache.at < CACHE_MS) return streamsCache.data;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), EXEC_MS);
     const res = await fetch(
-      (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997') + '/v3/paths/list?itemsPerPage=500',
+      MTX_API() + '/v3/paths/list?itemsPerPage=500',
       { signal: ctrl.signal }
     );
     clearTimeout(t);
@@ -256,16 +443,11 @@ export async function startPlaybackPath(cam, vpnIp, start, end) {
   const useRemux = process.env.MEDIAMTX_AAC_REMUX !== '0';
   let body;
   if (useRemux) {
-    // runOnInit so ffmpeg starts as soon as the path is added (HLS cannot
-    // trigger runOnDemand on an empty publisher path).
-    const cmd =
-      `ffmpeg -hide_banner -loglevel error -rtsp_transport tcp -i '${origin}' ` +
-      `-map 0:v:0 -map 0:a:0? -c:v copy -c:a aac -ac 1 -ar 16000 -b:a 64k ` +
-      `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`;
+    // HEVC playback also needs H.264 remux for browser HLS
     body = {
       name,
       source: 'publisher',
-      runOnInit: cmd,
+      runOnInit: remuxFfmpegCmd(origin),
       runOnInitRestart: true,
     };
   } else {
