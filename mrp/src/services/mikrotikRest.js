@@ -272,7 +272,9 @@ const CCTV_TAG = 'JM TECH SOLUTION';
 
 /**
  * Ensure SSTP firewall forward + dst-nat rules so hub can pull RTSP from LAN cameras/NVR.
- * Idempotent by comment. cameras: [{ name, tunnelPort, lanIp, rtspPort }]
+ * Dedupes by tunnelPort (NVR multi-channel shares one port → one NAT rule).
+ * Cleans leftover duplicate dst-port rules from older per-camera pushes.
+ * cameras: [{ name, tunnelPort, lanIp, rtspPort }]
  */
 export async function pushCameraNat(site, cameras = []) {
   const steps = [];
@@ -305,40 +307,85 @@ export async function pushCameraNat(site, cameras = []) {
     errors.push(e.message);
   }
 
+  // One NAT rule per tunnel port (shared NVR channel model)
+  const byPort = new Map();
   for (const cam of cameras) {
-    const name = String(cam.name || 'cam').trim();
     const tunnelPort = Number(cam.tunnelPort ?? cam.tunnel_port);
     const lanIp = String((cam.lanIp ?? cam.lan_ip) || '').trim();
     const rtspPort = Number(cam.rtspPort ?? cam.rtsp_port ?? 554) || 554;
+    const name = String(cam.name || 'cam').trim();
     if (!tunnelPort || !lanIp) {
       steps.push({ step: `nat ${name}`, ok: false, error: 'missing tunnelPort/lanIp' });
       continue;
     }
-    const comment = `${CCTV_TAG}: ${name}`;
+    if (!byPort.has(tunnelPort)) {
+      byPort.set(tunnelPort, { name, tunnelPort, lanIp, rtspPort, aliases: [name] });
+    } else {
+      byPort.get(tunnelPort).aliases.push(name);
+    }
+  }
+
+  let allNat = [];
+  try {
+    const rows = await rest(site, 'GET', 'ip/firewall/nat');
+    allNat = Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    errors.push(`list nat: ${e.message}`);
+  }
+
+  for (const entry of byPort.values()) {
+    const shared = entry.aliases.length > 1;
+    const comment = shared
+      ? `${CCTV_TAG}: NVR-RTSP :${entry.tunnelPort}`
+      : `${CCTV_TAG}: ${entry.name}`;
+    const body = {
+      chain: 'dstnat',
+      'in-interface': CCTV_IFACE,
+      protocol: 'tcp',
+      'dst-port': String(entry.tunnelPort),
+      action: 'dst-nat',
+      'to-addresses': entry.lanIp,
+      'to-ports': String(entry.rtspPort),
+      comment,
+      disabled: 'false',
+    };
     try {
-      const rows = await rest(site, 'GET', `ip/firewall/nat?comment=${encodeURIComponent(comment)}`).catch(() => []);
-      const list = Array.isArray(rows) ? rows : (rows ? [rows] : []);
-      const hit = list.find((r) => String(r.comment) === comment) || null;
-      const body = {
-        chain: 'dstnat',
-        'in-interface': CCTV_IFACE,
-        protocol: 'tcp',
-        'dst-port': String(tunnelPort),
-        action: 'dst-nat',
-        'to-addresses': lanIp,
-        'to-ports': String(rtspPort),
-        comment,
-      };
-      if (hit?.['.id']) {
-        await rest(site, 'PATCH', `ip/firewall/nat/${hit['.id']}`, body);
-        steps.push({ step: `nat ${name}`, ok: true, skipped: false, updated: true, id: hit['.id'] });
+      const samePort = allNat.filter((r) => String(r['dst-port']) === String(entry.tunnelPort));
+      let keep = samePort.find((r) => String(r.comment) === comment)
+        || samePort.find((r) => String(r.comment || '').includes('NVR-RTSP'))
+        || samePort[0]
+        || null;
+      // Drop extras with same dst-port (old per-camera duplicates)
+      for (const r of samePort) {
+        if (keep && r['.id'] === keep['.id']) continue;
+        try {
+          await rest(site, 'DELETE', `ip/firewall/nat/${r['.id']}`);
+          steps.push({ step: `nat cleanup ${r['.id']}`, ok: true, removed: true });
+        } catch (e) {
+          steps.push({ step: `nat cleanup ${r['.id']}`, ok: false, error: e.message });
+        }
+      }
+      if (keep?.['.id']) {
+        await rest(site, 'PATCH', `ip/firewall/nat/${keep['.id']}`, body);
+        steps.push({
+          step: `nat :${entry.tunnelPort}`,
+          ok: true,
+          updated: true,
+          id: keep['.id'],
+          cameras: entry.aliases.length,
+        });
       } else {
         const created = await rest(site, 'PUT', 'ip/firewall/nat', body);
-        steps.push({ step: `nat ${name}`, ok: true, skipped: false, id: created?.['.id'] });
+        steps.push({
+          step: `nat :${entry.tunnelPort}`,
+          ok: true,
+          id: created?.['.id'],
+          cameras: entry.aliases.length,
+        });
       }
     } catch (e) {
-      steps.push({ step: `nat ${name}`, ok: false, error: e.message });
-      errors.push(`${name}: ${e.message}`);
+      steps.push({ step: `nat :${entry.tunnelPort}`, ok: false, error: e.message });
+      errors.push(`:${entry.tunnelPort}: ${e.message}`);
     }
   }
 

@@ -105,14 +105,20 @@ export function liveRtspPath(rtspPath) {
   return path;
 }
 
+/** stations.vpn_ip is inet (often 10.90.0.42/32) — strip CIDR for RTSP URLs. */
+export function vpnHost(vpnIp) {
+  return String(vpnIp || '').trim().replace(/\/\d+$/, '');
+}
+
 export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
   const auth = cam.rtsp_user
     ? `${encodeURIComponent(cam.rtsp_user)}:${encodeURIComponent(cam.rtsp_pass || '')}@`
     : '';
+  const host = vpnHost(vpnIp);
   const path = liveSubstream
     ? liveRtspPath(cam.rtsp_path)
     : (cam.rtsp_path.startsWith('/') ? cam.rtsp_path : '/' + cam.rtsp_path);
-  return `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${path}`;
+  return `rtsp://${auth}${host}:${cam.tunnel_port}${path}`;
 }
 
 /**
@@ -444,7 +450,7 @@ export async function startPlaybackPath(cam, vpnIp, start, end) {
   // Prefer dedicated playback URL; cams without SD/NVR record will fail clearly
   const pbPath =
     `/cam/playback?channel=1&subtype=0&starttime=${startStr}&endtime=${endStr}`;
-  const origin = `rtsp://${auth}${vpnIp}:${cam.tunnel_port}${pbPath}`;
+  const origin = `rtsp://${auth}${vpnHost(vpnIp)}:${cam.tunnel_port}${pbPath}`;
   const name = `pb${cam.id}-${Date.now().toString(36)}`;
   const api = (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
