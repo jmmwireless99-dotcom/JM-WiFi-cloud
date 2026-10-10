@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool, audit } from '../db.js';
 import { allocateTunnelPort, generateToken } from '../services/allocator.js';
-import { sync, getStreamStates, streamPathName, startPlaybackPath } from '../services/provisioner.js';
+import { sync, getStreamStates, streamPathName, startPlaybackPath, ensureLiveRemux } from '../services/provisioner.js';
 import { clientBarangayIds, hasBarangayAccess, requireAdmin, requirePlayback } from '../auth.js';
 import { hlsBase } from '../config.js';
 import { coordsFromRow, parseLatLngPair } from '../geoCoords.js';
@@ -29,7 +29,9 @@ function mapCamera(c, streams, { includeSecrets = false } = {}) {
     rtspUser: c.rtsp_user || '', tunnelPort: c.tunnel_port, enabled: c.enabled,
     hlsUrl: `${HLS()}/${streamPathName(c)}/index.m3u8`,
     stream: streams[streamPathName(c)] || null,
-    live: !!(c.enabled && c.station_status === 'active' && streams[streamPathName(c)]?.ready),
+    // online = VPN up + enabled. streaming = remux currently warm (pool mode).
+    live: !!(c.enabled && c.station_status === 'active'),
+    streaming: !!(streams[streamPathName(c)]?.ready),
     station: c.station_name, stationStatus: c.station_status,
     nvrAreaId: c.nvr_area_id || null,
     nvrName: c.nvr_name || null,
@@ -238,6 +240,38 @@ r.delete('/:id', requireAdmin, async (req, res) => {
   await audit('admin', 'camera.delete', { id: req.params.id, name: rows[0].name });
   res.json({ ok: true });
 });
+
+/**
+ * POST /api/cameras/:id/ensure-live  (alias: /live)
+ * Warm MediaMTX H.264 remux for this camera (pool mode). Call before opening HLS.
+ */
+async function ensureLiveHandler(req, res) {
+  try {
+    const q = selectSql('WHERE c.id = $1', [req.params.id]);
+    const { rows } = await pool.query(q.text, q.params);
+    const c = rows[0];
+    if (!c) return res.status(404).json({ error: 'not found' });
+    if (c.barangay_id && !hasBarangayAccess(req, c.barangay_id)) {
+      return res.status(403).json({ error: 'access denied' });
+    }
+    if (!c.enabled) return res.status(400).json({ error: 'camera disabled' });
+    if (!c.vpn_ip) return res.status(400).json({ error: 'camera station has no VPN IP' });
+    if (c.station_status !== 'active') {
+      return res.status(400).json({ error: 'station offline / inactive' });
+    }
+    const result = await ensureLiveRemux(c, c.vpn_ip);
+    res.json({
+      ok: true,
+      ...result,
+      hlsUrl: `${HLS()}/${result.pathName}/index.m3u8`,
+    });
+  } catch (err) {
+    console.error('ensure-live:', err.message);
+    res.status(500).json({ error: err.message || 'ensure-live failed' });
+  }
+}
+r.post('/:id/ensure-live', ensureLiveHandler);
+r.post('/:id/live', ensureLiveHandler);
 
 /**
  * POST /api/cameras/:id/playback { start, end }

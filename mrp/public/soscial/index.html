@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.4.1" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.4.1" />
+  <link rel="icon" href="./icon-192.png?v=1.5.0" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.5.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.5.0" />
   <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.5.0" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -347,7 +347,7 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.4.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.5.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless Internet Services · Live CCTV sa telepono at Android TV.</p>
@@ -365,10 +365,10 @@
       </div>
       <div class="err hidden" id="loginErr"></div>
       <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
-      <a href="/soscial.apk?v=1.4.1"
+      <a href="/soscial.apk?v=1.5.0"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
         tabindex="4">
-        ⬇ Download Android / TV APK v1.4.1
+        ⬇ Download Android / TV APK v1.5.0
       </a>
       <a href="/soscial/download"
         style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
@@ -381,7 +381,7 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.4.1" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.5.0" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV</div>
@@ -395,7 +395,7 @@
         <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           I-refresh cameras
         </button>
-        <a id="updateApk" href="/soscial.apk?v=1.4.1" class="hidden"
+        <a id="updateApk" href="/soscial.apk?v=1.5.0" class="hidden"
           style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download new APK
         </a>
@@ -410,11 +410,11 @@
         <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
       </ol>
       <div class="actions">
-        <a id="apkBtn" href="/soscial.apk?v=1.4.1"
+        <a id="apkBtn" href="/soscial.apk?v=1.5.0"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.4.1
+          Download APK v1.5.0
         </a>
-        <a href="/soscial-tv.apk?v=1.4.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.5.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
@@ -501,8 +501,8 @@
   let activeTab = 'cams';
   let playMode = 'live'; // live | playback
   let playbackHlsUrl = '';
-  const APP_WEB_BUILD = '1.4.1';
-  const APP_VERSION_CODE = 7;
+  const APP_WEB_BUILD = '1.5.0';
+  const APP_VERSION_CODE = 8;
   const CAM_FP_KEY = 'soscial_cam_fp';
   let lastCamFp = localStorage.getItem(CAM_FP_KEY) || '';
   let lastUpdateInfo = null;
@@ -557,6 +557,20 @@
     return /social|soscial|soscail/.test(blob) || Number(c.stationId) === 71 || Number(c.nvrAreaId) === 2;
   }
 
+  function channelNum(c) {
+    const m = String(c.rtspPath || '').match(/channel=(\d+)/i)
+      || String(c.rtspPath || '').match(/\/Channels\/(\d+)/i);
+    return m ? Number(m[1]) : (Number(c.id) || 0);
+  }
+  function displayCh(c) {
+    // Direct IPC cams (not on NVR LAN) — don't show misleading channel=1
+    if (c.lanIp && c.lanIp !== '192.168.20.254' && /circle/i.test(c.name||'')) return '';
+    const n = channelNum(c);
+    return n ? ('Ch' + n + ' · ') : '';
+  }
+  function sortSocialCams(list) {
+    return [...list].sort((a, b) => channelNum(a) - channelNum(b) || String(a.name||'').localeCompare(String(b.name||'')));
+  }
   function brandLabel(b) {
     return ({ dahua: 'Dahua', hikvision: 'Hikvision', v380: 'V380', other: 'RTSP' })[b] || (b || 'Cam');
   }
@@ -564,14 +578,14 @@
   async function loadData() {
     const d = await api('/dashboard');
     stations = d.stations || [];
-    cams = (d.cameras || []).filter(isSoscialCam);
+    cams = sortSocialCams((d.cameras || []).filter(isSoscialCam));
     nvrs = (d.nvrs || []).filter((n) => /social|soscial|soscail/i.test((n.name || '') + (n.notes || '') + (n.stationName || '')) || Number(n.stationId) === 71);
     const site = stations.find((s) => Number(s.id) === 71) || stations.find((s) => /social|soscial/i.test(s.name || ''));
     const vpnOn = !!(site && site.online);
     const pill = $('vpnPill');
     pill.textContent = vpnOn ? 'VPN up' : 'VPN down';
     pill.className = 'pill ' + (vpnOn ? 'on' : 'off');
-    $('topSub').textContent = cams.length + ' camera(s) · ' + (nvrs[0]?.name || 'SOCIAL CENTER');
+    $('topSub').textContent = cams.length + ' channels · ' + cams.filter((c)=>c.streaming).length + ' streaming · ' + (nvrs[0]?.name || 'SOCIAL CENTER');
     renderCams();
     renderAccount();
   }
@@ -601,8 +615,10 @@
           </div>
           <span class="dot ${c.live ? 'on' : ''}"></span>
         </div>`;
-      tile.querySelector('.nm').textContent = c.name;
-      tile.querySelector('.loc').textContent = [c.nvrName || 'SOCIAL', c.live ? 'ready' : 'offline'].filter(Boolean).join(' · ');
+      const ch = channelNum(c);
+      tile.querySelector('.nm').textContent = displayCh(c) + c.name;
+      tile.querySelector('.loc').textContent = [c.nvrName || 'SOCIAL', c.live ? (c.streaming ? 'streaming' : 'online') : 'offline'].filter(Boolean).join(' · ');
+      tile.querySelector('.dot').classList.toggle('on', !!(c.live && c.streaming));
       tile.tabIndex = 0;
       tile.setAttribute('role', 'button');
       tile.addEventListener('click', () => openPlayer(c));
@@ -628,30 +644,34 @@
       root.innerHTML = `<div class="section-label">Live Wall</div><div class="empty">Walang camera.</div>`;
       return;
     }
-    root.innerHTML = `<div class="section-label">Live Wall</div><div class="wall-grid"></div>`;
+    root.innerHTML = `<div class="section-label">Live Wall (first 4)</div><div class="wall-grid"></div>`;
     const grid = root.querySelector('.wall-grid');
-    cams.slice(0, 8).forEach((c) => {
+    const wallCams = cams.slice(0, 4);
+    wallCams.forEach((c) => {
       const cell = document.createElement('div');
       cell.className = 'wall-cell';
       cell.innerHTML = `<video muted playsinline></video><div class="lbl"></div>`;
       cell.querySelector('.lbl').textContent = c.name;
       const video = cell.querySelector('video');
       grid.appendChild(cell);
-      if (c.live && c.hlsUrl) {
-        const player = { video, hls: null };
+      cell.addEventListener('click', () => openPlayer(c));
+      if (!(c.live && c.hlsUrl)) return;
+      const player = { video, hls: null };
+      wallPlayers.push(player);
+      (async () => {
+        const url = await ensureLive(c);
+        if (!wallPlayers.includes(player) || !url) return;
         if (window.Hls && Hls.isSupported()) {
-          const h = new Hls({ liveDurationInfinity: true, enableWorker: true });
+          const h = new Hls({ liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 6 });
           player.hls = h;
-          h.loadSource(c.hlsUrl);
+          h.loadSource(url);
           h.attachMedia(video);
           h.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = c.hlsUrl;
+          video.src = url;
           video.play().catch(() => {});
         }
-        wallPlayers.push(player);
-      }
-      cell.addEventListener('click', () => openPlayer(c));
+      })();
     });
   }
 
@@ -694,7 +714,7 @@
               style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
               Check update now
             </button>
-            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.4.1'}"
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.5.0'}"
               style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
               Install APK v${remoteName}
             </a>
@@ -709,11 +729,11 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.4.1"
+          <a href="/soscial.apk?v=1.5.0"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.4.1
+            Download APK v1.5.0
           </a>
-          <a href="/soscial-tv.apk?v=1.4.1"
+          <a href="/soscial-tv.apk?v=1.5.0"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
@@ -770,22 +790,40 @@
     bar.style.display = mode === 'playback' ? 'flex' : 'none';
   }
 
-  function openPlayer(cam) {
+  async function ensureLive(cam) {
+    if (!cam?.id || !cam.live) return cam?.hlsUrl || '';
+    try {
+      $('playerOverlay') && ($('playerOverlay').textContent = 'Starting stream…');
+      const r = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
+      if (r?.hlsUrl) cam.hlsUrl = r.hlsUrl;
+      return cam.hlsUrl;
+    } catch (e) {
+      console.warn('ensure-live', e);
+      return cam.hlsUrl;
+    }
+  }
+
+  async function openPlayer(cam) {
     currentCam = cam;
     playbackHlsUrl = '';
     setPlayerMode('live');
     show($('player'), true);
     applyPlaybackAccess();
-    $('playerName').textContent = cam.name;
-    $('playerMeta').textContent = [cam.nvrName || 'SOCIAL CENTER', cam.station, cam.live ? 'live' : 'offline'].filter(Boolean).join(' · ');
-    $('playerOverlay').textContent = cam.live ? 'Connecting…' : 'Camera / station offline';
+    const ch = channelNum(cam);
+    $('playerName').textContent = displayCh(cam) + cam.name;
+    $('playerMeta').textContent = [cam.nvrName || 'SOCIAL CENTER', cam.station, cam.live ? 'online' : 'offline'].filter(Boolean).join(' · ');
+    $('playerOverlay').textContent = cam.live ? 'Starting stream…' : 'Camera / station offline';
     show($('playerOverlay'), true);
     const range = defaultPlaybackRange();
     $('pbStart').value = toLocalInputValue(range.start);
     $('pbEnd').value = toLocalInputValue(range.end);
     show($('pbErr'), false);
     stopPlayer();
-    if (cam.live) playUrl(cam.hlsUrl, true, true);
+    if (cam.live) {
+      const url = await ensureLive(cam);
+      if (currentCam !== cam) return; // user switched away
+      playUrl(url, true, true);
+    }
   }
 
   function playUrl(url, muted, isLive) {
@@ -836,11 +874,13 @@
     }
   }
 
-  function playCurrent(muted) {
+  async function playCurrent(muted) {
     const cam = currentCam;
     if (playMode === 'playback' && playbackHlsUrl) return playUrl(playbackHlsUrl, muted, false);
-    if (!cam?.hlsUrl) return;
-    playUrl(cam.hlsUrl, muted, true);
+    if (!cam) return;
+    const url = await ensureLive(cam);
+    if (!url) return;
+    playUrl(url, muted, true);
   }
 
   async function startPlayback() {
@@ -1027,7 +1067,7 @@
     const apk = $('updateApk');
     if (apk) {
       if (showApk) {
-        apk.href = apkUrl || '/soscial.apk?v=1.4.1';
+        apk.href = apkUrl || '/soscial.apk?v=1.5.0';
         apk.style.display = 'inline-flex';
         apk.classList.remove('hidden');
       } else {
@@ -1124,7 +1164,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.4.1').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.5.0').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {

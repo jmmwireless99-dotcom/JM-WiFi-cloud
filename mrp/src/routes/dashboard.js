@@ -55,7 +55,9 @@ function cameraView(c, streams) {
     rtspUser: c.rtsp_user || '', tunnelPort: c.tunnel_port, enabled: c.enabled,
     hlsUrl: `${HLS()}/${streamPathName(c)}/index.m3u8`,
     stream: streams[streamPathName(c)] || null,
-    live: !!(c.enabled && c.station_status === 'active' && streams[streamPathName(c)]?.ready),
+    // online = VPN station up + cam enabled. streaming = remux currently warm.
+    live: !!(c.enabled && c.station_status === 'active'),
+    streaming: !!(streams[streamPathName(c)]?.ready),
     station: c.station_name, stationStatus: c.station_status,
     nvrAreaId: c.nvr_area_id || null,
     nvrName: c.nvr_name || null,
