@@ -24,7 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
     /** Always load latest web shell from VPS — cameras come from live API. */
-    public static final String APP_URL = "https://jmtechsolution.cloud/social/?v=1.7.0";
+    public static final String APP_URL = "https://jmtechsolution.cloud/social/?v=1.8.0";
 
     private WebView webView;
     private ProgressBar progress;

@@ -136,24 +136,34 @@ export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
  * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
  */
 const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
-// Cap concurrent ffmpeg remuxes (1-vCPU hub). Raise via env for NVR multi-view.
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 12));
+// Cap concurrent ffmpeg remuxes. Default 30 so All Cam / Live Wall can warm D1–D30
+// (NVR substream + lite scale). Override via MEDIAMTX_REMUX_MAX.
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 30));
 const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 120_000));
 const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
-/** pathName → { origin, startedAt, lastEnsureAt } */
+/** pathName → { origin, startedAt, lastEnsureAt, lite } */
 const remuxActive = new Map();
 let remuxSweepTimer = null;
 
-export function remuxFfmpegCmd(originRtsp) {
+export function remuxFfmpegCmd(originRtsp, { lite = false } = {}) {
+  // Lite: wall / All-Cam-30 — smaller encode + no audio so ~30 remuxes fit a 1-vCPU hub.
+  const vf = lite ? 'scale=320:-2' : 'scale=640:-2';
+  const bv = lite ? '180k' : '500k';
+  const maxrate = lite ? '220k' : '600k';
+  const bufsize = lite ? '440k' : '1200k';
+  const mapAudio = lite ? '' : ' -map 0:a:0?';
+  const audio = lite
+    ? '-an'
+    : '-c:a aac -ac 1 -ar 16000 -b:a 64k';
   return (
     `ffmpeg -hide_banner -loglevel error -fflags nobuffer -flags low_delay ` +
     `-rtsp_transport tcp -i '${originRtsp}' ` +
-    `-map 0:v:0 -map 0:a:0? ` +
+    `-map 0:v:0${mapAudio} ` +
     `-c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p ` +
-    `-profile:v baseline -level 3.0 -g 40 -vf scale=640:-2 ` +
-    `-b:v 500k -maxrate 600k -bufsize 1200k ` +
-    `-c:a aac -ac 1 -ar 16000 -b:a 64k ` +
+    `-profile:v baseline -level 3.0 -g 40 -vf ${vf} ` +
+    `-b:v ${bv} -maxrate ${maxrate} -bufsize ${bufsize} ` +
+    `${audio} ` +
     `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`
   );
 }
@@ -225,13 +235,15 @@ async function evictOldestRemux(keepName) {
  * Start (or refresh) H.264 remux for one camera path.
  * Call from the player / live wall before loading HLS.
  */
-export async function ensureLiveRemux(cam, vpnIp) {
+export async function ensureLiveRemux(cam, vpnIp, { lite = false } = {}) {
   if (process.env.MEDIAMTX_AAC_REMUX === '0') {
     return { ok: true, mode: 'passthrough', pathName: streamPathName(cam) };
   }
   const name = streamPathName(cam);
   const origin = rtspSource(cam, vpnIp, { liveSubstream: true });
   const now = Date.now();
+  // Auto-lite when many remuxes already warm (All Cam wall) unless explicitly false.
+  const useLite = lite || remuxActive.size >= 8;
 
   if (REMUX_MODE !== 'pool') {
     return { ok: true, mode: 'always', pathName: name };
@@ -243,13 +255,13 @@ export async function ensureLiveRemux(cam, vpnIp) {
     try {
       const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
       if (st.ok && st.data?.ready) {
-        return { ok: true, mode: 'pool', pathName: name, ready: true, reused: true };
+        return { ok: true, mode: 'pool', pathName: name, ready: true, reused: true, lite: !!existing.lite };
       }
     } catch { /* restart below */ }
   }
 
   await evictOldestRemux(name);
-  const cmd = remuxFfmpegCmd(origin);
+  const cmd = remuxFfmpegCmd(origin, { lite: useLite });
   try {
     const res = await mtxFetch(`/v3/config/paths/replace/${encodeURIComponent(name)}`, {
       method: 'POST',
@@ -267,7 +279,7 @@ export async function ensureLiveRemux(cam, vpnIp) {
     }
   } catch (e) {
     // Still mark warming so clients retry instead of hard Stream error.
-    remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
+    remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now, lite: useLite });
     scheduleRemuxSweep();
     return {
       ok: true,
@@ -276,10 +288,11 @@ export async function ensureLiveRemux(cam, vpnIp) {
       ready: false,
       warming: true,
       deferred: true,
+      lite: useLite,
       error: e?.message || String(e),
     };
   }
-  remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
+  remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now, lite: useLite });
   scheduleRemuxSweep();
 
   // Short poll only — clients re-call ensure-live until ready (avoids event-loop
@@ -289,11 +302,11 @@ export async function ensureLiveRemux(cam, vpnIp) {
     try {
       const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`, { timeoutMs: 4000 });
       if (st.ok && st.data?.ready) {
-        return { ok: true, mode: 'pool', pathName: name, ready: true };
+        return { ok: true, mode: 'pool', pathName: name, ready: true, lite: useLite };
       }
     } catch { /* keep waiting */ }
   }
-  return { ok: true, mode: 'pool', pathName: name, ready: false, warming: true };
+  return { ok: true, mode: 'pool', pathName: name, ready: false, warming: true, lite: useLite };
 }
 
 export async function sweepRemuxIdle() {

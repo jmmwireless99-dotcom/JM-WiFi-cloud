@@ -5,6 +5,16 @@ import { coordsFromRow, parseLatLngPair } from '../geoCoords.js';
 import { pushCameraNat, probeMikrotik } from '../services/mikrotikRest.js';
 import { sync } from '../services/provisioner.js';
 import { allocateTunnelPort, generateToken } from '../services/allocator.js';
+import {
+  channelFromRtspPath,
+  isCanonicalSocialChannel,
+  formatSocialCamName,
+} from '../lib/socialCameraNames.js';
+import {
+  dahuaDigestGet,
+  parseChannelTitleTable,
+  normalizeNvrChannelName,
+} from '../lib/dahuaCgi.js';
 
 const r = Router();
 r.use(requireAdmin);
@@ -417,6 +427,108 @@ r.post('/:id/push', async (req, res) => {
     host,
     cameras: cams.length,
     ...push,
+  });
+});
+
+/**
+ * POST /api/nvrs/:id/sync-names
+ * Pull Dahua ChannelTitle into camera.name for channels on this NVR (no seed overwrite).
+ * Needs station MikroTik API + dstnat HTTP tunnel (default :10580 → NVR :80).
+ */
+r.post('/:id/sync-names', async (req, res) => {
+  const nvr = await loadNvrRow(req.params.id);
+  if (!nvr) return res.status(404).json({ error: 'not found' });
+  const nvrLan = String(nvr.lan_ip || '').replace(/\/\d+$/, '').trim();
+  if (!nvrLan) return res.status(400).json({ error: 'NVR LAN IP missing' });
+  if (String(nvr.brand || 'dahua').toLowerCase() !== 'dahua') {
+    return res.status(400).json({ error: 'ChannelTitle sync supports Dahua NVR only' });
+  }
+  const host = String(nvr.vpn_ip || '').replace(/\/\d+$/, '');
+  if (!host || !nvr.api_password) {
+    return res.status(400).json({
+      error: 'Station MikroTik API missing — need VPN + API to reach NVR HTTP',
+    });
+  }
+  const httpPort = Number(req.body?.httpTunnelPort || process.env.SOCIAL_NVR_HTTP_TUNNEL || 10580);
+  const site = {
+    mikrotik_host: host,
+    api_user: nvr.api_user || 'admin',
+    api_password: nvr.api_password,
+  };
+  try {
+    await probeMikrotik(site);
+  } catch (e) {
+    return res.status(502).json({ ok: false, error: e.message || 'MikroTik unreachable' });
+  }
+
+  // Ensure dstnat for NVR HTTP CGI
+  try {
+    const listUrl = `http://${host}/rest/ip/firewall/nat?dst-port=${httpPort}`;
+    const auth = 'Basic ' + Buffer.from(`${site.api_user}:${site.api_password}`).toString('base64');
+    const listRes = await fetch(listUrl, { headers: { Authorization: auth } });
+    const listText = await listRes.text();
+    let rows = [];
+    try { rows = listText ? JSON.parse(listText) : []; } catch { rows = []; }
+    if (!Array.isArray(rows)) rows = rows ? [rows] : [];
+    const found = rows.some(
+      (r) => String(r['to-addresses'] || '') === nvrLan && String(r['to-ports'] || '') === '80'
+    );
+    if (!found) {
+      await fetch(`http://${host}/rest/ip/firewall/nat`, {
+        method: 'PUT',
+        headers: { Authorization: auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chain: 'dstnat',
+          protocol: 'tcp',
+          'dst-port': String(httpPort),
+          action: 'dst-nat',
+          'to-addresses': nvrLan,
+          'to-ports': '80',
+          comment: 'mrp-nvr-http-channeltitle',
+        }),
+      });
+    }
+  } catch (e) {
+    return res.status(502).json({ ok: false, error: 'HTTP tunnel setup failed: ' + (e.message || e) });
+  }
+
+  let titles;
+  try {
+    const cgi = await dahuaDigestGet(
+      `http://${host}:${httpPort}`,
+      '/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle',
+      { user: nvr.rtsp_user || 'admin', pass: nvr.rtsp_pass || '' }
+    );
+    titles = parseChannelTitleTable(cgi);
+  } catch (e) {
+    return res.status(502).json({ ok: false, error: 'NVR ChannelTitle fetch failed: ' + (e.message || e) });
+  }
+
+  const { rows: cams } = await pool.query(
+    `SELECT id, name, host(lan_ip) AS lan, rtsp_path FROM cameras WHERE nvr_area_id = $1`,
+    [nvr.id]
+  );
+  const updated = [];
+  for (const cam of cams) {
+    const ch = channelFromRtspPath(cam.rtsp_path);
+    if (!isCanonicalSocialChannel(ch) && !(ch >= 1 && ch <= 32)) continue;
+    const raw = titles.get(ch);
+    if (!raw) continue;
+    const next = formatSocialCamName(normalizeNvrChannelName(raw));
+    if (next === cam.name) continue;
+    await pool.query(`UPDATE cameras SET name = $2 WHERE id = $1`, [cam.id, next]);
+    updated.push({ id: cam.id, channel: ch, from: cam.name, to: next });
+  }
+
+  await audit(req.user?.sub || 'admin', 'nvr.sync-names', {
+    id: nvr.id, titles: titles.size, updated: updated.length,
+  });
+  res.json({
+    ok: true,
+    nvrId: nvr.id,
+    titles: titles.size,
+    updated: updated.length,
+    changes: updated,
   });
 });
 
