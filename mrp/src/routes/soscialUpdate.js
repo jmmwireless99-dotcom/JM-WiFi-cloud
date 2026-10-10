@@ -264,7 +264,8 @@ r.post('/cameras/:id/ensure-live', requireSocialViewerOrAdmin, async (req, res) 
     if (c.station_status !== 'active') {
       return res.status(400).json({ error: 'station offline / inactive' });
     }
-    const result = await ensureLiveRemux(c, c.vpn_ip);
+    const wall = !!(req.body?.wall || req.body?.lite || req.query?.wall === '1');
+    const result = await ensureLiveRemux(c, c.vpn_ip, { lite: wall });
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       ok: true,

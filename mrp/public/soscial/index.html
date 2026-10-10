@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.7.4" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.4" />
+  <link rel="icon" href="./icon-192.png?v=1.8.0" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.8.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.4" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.8.0" />
   <meta property="og:url" content="https://jmtechsolution.cloud/social/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.4" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.8.0" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -282,17 +282,33 @@
     .install-bar button { padding: 10px 14px; font-size: 13px; }
 
     .wall-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+    @media (min-width: 700px) {
+      .wall-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    }
+    @media (min-width: 1100px) {
+      .wall-grid { grid-template-columns: repeat(6, 1fr); gap: 6px; }
     }
     .wall-cell {
-      aspect-ratio: 16/10; background: #070b09; border-radius: 12px;
+      aspect-ratio: 16/10; background: #070b09; border-radius: 8px;
       overflow: hidden; position: relative; border: 1px solid var(--line);
     }
-    .wall-cell video { width: 100%; height: 100%; object-fit: cover; }
+    .wall-cell video { width: 100%; height: 100%; object-fit: cover; background: #050805; }
     .wall-cell .lbl {
-      position: absolute; left: 6px; bottom: 6px; font-size: 10px; font-weight: 700;
-      background: rgba(0,0,0,.55); padding: 3px 6px; border-radius: 5px;
+      position: absolute; left: 4px; bottom: 4px; right: 4px; font-size: 9px; font-weight: 700;
+      background: rgba(0,0,0,.55); padding: 2px 5px; border-radius: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .wall-cell .warm {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      font-size: 10px; color: var(--dim); background: rgba(0,0,0,.35);
+      pointer-events: none;
+    }
+    .wall-cell.wall-dim { opacity: 0.55; }
+    .wall-cell.wall-dim .warm { display: grid; }
 
     @keyframes rise {
       from { opacity: 0; transform: translateY(14px); }
@@ -355,7 +371,8 @@
       padding: 12px 8px;
     }
     .tv-mode .bottom-nav .ico { font-size: 22px; }
-    .tv-mode .wall-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .tv-mode .wall-grid { grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .tv-mode .wall-cell .lbl { font-size: 11px; }
     .tv-mode #player .ph .title b { font-size: 22px; }
     .tv-mode #player .pf button { min-height: 52px; font-size: 16px; padding: 14px 20px; }
     .tv-mode .install-bar { display: none !important; }
@@ -367,7 +384,7 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.7.4" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.8.0" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless · Live CCTV — enter viewer key. Walang password.</p>
@@ -387,10 +404,10 @@
         style="display:block;width:100%;margin-top:10px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.45);background:rgba(232,168,56,.12);color:var(--acc2);font-weight:800;font-size:14px;cursor:pointer">
         Install App
       </button>
-      <a href="/soscial.apk?v=1.7.4"
+      <a href="/soscial.apk?v=1.8.0"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
         tabindex="3">
-        ⬇ Download Android / TV APK v1.7.4
+        ⬇ Download Android / TV APK v1.8.0
       </a>
       <a href="/social/download"
         style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
@@ -403,7 +420,7 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.7.4" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.8.0" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV · key access</div>
@@ -417,7 +434,7 @@
         <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           I-refresh cameras
         </button>
-        <a id="updateApk" href="/soscial.apk?v=1.7.4" class="hidden"
+        <a id="updateApk" href="/soscial.apk?v=1.8.0" class="hidden"
           style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download new APK
         </a>
@@ -437,11 +454,11 @@
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           Install App
         </button>
-        <a id="apkBtn" href="/soscial.apk?v=1.7.4"
+        <a id="apkBtn" href="/soscial.apk?v=1.8.0"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.7.4
+          Download APK v1.8.0
         </a>
-        <a href="/soscial-tv.apk?v=1.7.4" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.8.0" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
@@ -522,8 +539,8 @@
   let playbackHlsUrl = '';
   let pendingAutoCamId = null;
   let autoViewHandled = false;
-  const APP_WEB_BUILD = '1.7.4';
-  const APP_VERSION_CODE = 13;
+  const APP_WEB_BUILD = '1.8.0';
+  const APP_VERSION_CODE = 14;
   const CAM_FP_KEY = 'soscial_cam_fp';
   const KEY_STORE = 'social_viewer_key';
   const TOKEN_STORE = 'social_viewer_token';
@@ -700,7 +717,7 @@
       .replace(/[-\s]\d{1,3}(?:\.\d{1,3}){3}\s*$/i, '')
       .trim() || c.name || ('Cam ' + c.id);
   }
-  /** Area tab key from display name (CIRCLE INDOOR / CIRCLE-INDOOR / Circle-In → same) */
+  /** Area tab key from NVR ChannelTitle (CIRCLE-OUTDOOR-1 / MINI_PLAZA / TOWER1 / CAPITOL-2) */
   function areaGroupFromName(name) {
     let raw = String(name || '').trim();
     if (!raw) return 'OTHER';
@@ -708,23 +725,22 @@
       .replace(/\s*[·|]\s*\d{1,3}(?:\.\d{1,3}){3}\s*$/i, '')
       .replace(/[-\s]\d{1,3}(?:\.\d{1,3}){3}\s*$/i, '')
       .trim();
-    const compact = raw.replace(/[-_\s]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
-    if (/^CIRCLE\s*IN(?:DOOR)?(?:\s|$|-)/.test(compact) || /^CIRCLE[\s-]*IN(?:DOOR)?/i.test(raw) || /^CIRCLE[\s-]*IN[\s-]/i.test(raw)) {
-      return 'CIRCLE INDOOR';
-    }
-    if (/^CIRCLE[\s-]*OUTDOOR/i.test(raw)) return 'CIRCLE OUTDOOR';
-    if (/^CSU\b/i.test(compact)) return 'CSU';
-    if (/^TOURISM\b/i.test(compact)) return 'TOURISM';
-    if (/^MINI[\s-]*PLAZA/i.test(raw)) return 'MINI PLAZA';
-    if (/^1ST[\s-]*GATE/i.test(raw)) return '1ST GATE';
-    if (/^2ND[\s-]*GATE/i.test(raw)) return '2ND GATE';
-    if (/^TOWER\b/i.test(compact)) return 'TOWER';
-    if (/^PDRRMO\b/i.test(compact)) return 'PDRRMO';
-    if (/^RIZAL\b/i.test(compact)) return 'RIZAL';
-    if (/^CAPITOL[\s-]*SIDE/i.test(raw)) return 'CAPITOL SIDE';
-    if (/^4R?T?H?[\s-]*GATE/i.test(raw) || /^4RT/i.test(raw)) return '4TH GATE';
-    if (/^3RD[\s-]*GATE/i.test(raw)) return '3RD GATE';
-    const generic = compact.replace(/[\s-]+\d+[A-Z]?$/, '').trim();
+    const spaced = raw.replace(/_/g, ' ').replace(/[-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const compact = spaced.toUpperCase();
+    if (/^CIRCLE\s*IN(?:DOOR)?(?:\s|$)/.test(compact)) return 'CIRCLE INDOOR';
+    if (/^CIRCLE\s*OUTDOOR/.test(compact)) return 'CIRCLE OUTDOOR';
+    if (/^CSU\b/.test(compact)) return 'CSU';
+    if (/^TOURISM\b/.test(compact)) return 'TOURISM';
+    if (/^MINI\s*PLAZA/.test(compact)) return 'MINI PLAZA';
+    if (/^1ST\s*GATE/.test(compact)) return '1ST GATE';
+    if (/^2ND\s*GATE/.test(compact)) return '2ND GATE';
+    if (/^TOWER\b/.test(compact) || /^TOWER\d/.test(compact)) return 'TOWER';
+    if (/^PDRRMO\b/.test(compact)) return 'PDRRMO';
+    if (/^RIZAL\b/.test(compact)) return 'RIZAL';
+    if (/^CAPITOL(?:\s*SIDE)?/.test(compact)) return 'CAPITOL SIDE';
+    if (/^4(?:TH|RT|RTH)?\s*GATE/.test(compact)) return '4TH GATE';
+    if (/^3RD\s*GATE/.test(compact)) return '3RD GATE';
+    const generic = compact.replace(/\s+\d+[A-Z]?$/, '').trim();
     return generic || 'OTHER';
   }
   const AREA_TAB_ORDER = [
@@ -878,9 +894,118 @@
     });
   }
 
+  let wallRotateTimer = null;
+  let wallPage = 0;
+  /** 1-vCPU hub cannot sustain 30 concurrent HEVC→H.264 remuxes (load≈30). */
+  const WALL_PAGE_SIZE = 6;
+  const WALL_PAGE_MS = 12_000;
+
   function stopWall() {
+    if (wallRotateTimer) { clearInterval(wallRotateTimer); wallRotateTimer = null; }
     wallPlayers.forEach((p) => { try { p.hls?.destroy(); p.video.pause(); } catch {} });
     wallPlayers = [];
+  }
+
+  /** Wall warm: one ensure-live (lite remux), no long poll — HLS retries cover readiness. */
+  async function ensureLiveWall(cam) {
+    if (!cam?.id || !cam.live) return cam?.hlsUrl || '';
+    try {
+      const r = await api('/soscial/cameras/' + cam.id + '/ensure-live', {
+        method: 'POST',
+        body: { wall: true, lite: true },
+      });
+      if (r?.hlsUrl) cam.hlsUrl = r.hlsUrl;
+      return cam.hlsUrl;
+    } catch (e) {
+      console.warn('ensure-live wall', e);
+      return cam.hlsUrl || '';
+    }
+  }
+
+  function detachWallPlayer(player) {
+    try { player.hls?.destroy(); } catch {}
+    player.hls = null;
+    try {
+      player.video.removeAttribute('src');
+      player.video.load();
+    } catch {}
+    const warm = player.video.parentElement?.querySelector('.warm');
+    if (warm) {
+      warm.textContent = '…';
+      warm.style.display = '';
+    } else {
+      const w = document.createElement('div');
+      w.className = 'warm';
+      w.textContent = '…';
+      player.video.parentElement?.appendChild(w);
+    }
+  }
+
+  function attachWallHls(player, cam, url) {
+    const video = player.video;
+    if (!url || !wallPlayers.includes(player) || !player.active) return;
+    if (window.Hls && Hls.isSupported()) {
+      try { player.hls?.destroy(); } catch {}
+      const h = new Hls({
+        liveDurationInfinity: true,
+        enableWorker: true,
+        lowLatencyMode: false,
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 8,
+        levelLoadingRetryDelay: 1000,
+        maxBufferLength: 6,
+      });
+      player.hls = h;
+      h.loadSource(url);
+      h.attachMedia(video);
+      h.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (!player.active) return;
+        const warm = video.parentElement?.querySelector('.warm');
+        if (warm) warm.style.display = 'none';
+        video.play().catch(() => {});
+      });
+      h.on(Hls.Events.ERROR, (_e, d) => {
+        if (!d?.fatal || !wallPlayers.includes(player) || !player.active) return;
+        ensureLiveWall(cam).then((u) => {
+          if (u && wallPlayers.includes(player) && player.active) {
+            try { h.loadSource(u); } catch {}
+          }
+        });
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.play().catch(() => {});
+      const warm = video.parentElement?.querySelector('.warm');
+      if (warm) warm.style.display = 'none';
+    }
+  }
+
+  function setWallActivePage(players, page, metaEl) {
+    const n = players.length;
+    if (!n) return;
+    const pages = Math.max(1, Math.ceil(n / WALL_PAGE_SIZE));
+    wallPage = ((page % pages) + pages) % pages;
+    const start = wallPage * WALL_PAGE_SIZE;
+    const end = Math.min(start + WALL_PAGE_SIZE, n);
+    if (metaEl) {
+      metaEl.textContent = 'streaming ' + (start + 1) + '–' + end + ' of ' + n
+        + ' · page ' + (wallPage + 1) + '/' + pages + ' · auto-cycle';
+    }
+    players.forEach((p, i) => {
+      const on = i >= start && i < end;
+      p.active = on;
+      p.cell.classList.toggle('wall-dim', !on);
+      if (!on) {
+        detachWallPlayer(p);
+        return;
+      }
+      const delay = (i - start) * 150;
+      setTimeout(() => {
+        if (!wallPlayers.includes(p) || !p.active) return;
+        ensureLiveWall(p.cam).then((url) => attachWallHls(p, p.cam, url || p.cam.hlsUrl));
+      }, delay);
+    });
   }
 
   function renderWall() {
@@ -894,8 +1019,14 @@
     root.innerHTML = '';
     const label = document.createElement('div');
     label.className = 'section-label';
-    label.textContent = areaTab === 'ALL' ? 'Live Wall (first 4)' : ('Live Wall · ' + areaTab);
+    label.textContent = areaTab === 'ALL'
+      ? ('All Cam ' + shown.length)
+      : ('Live Wall · ' + areaTab + ' · ' + shown.length);
     root.appendChild(label);
+    const meta = document.createElement('div');
+    meta.className = 'dim';
+    meta.style.cssText = 'margin:0 16px 8px;font-size:12px';
+    root.appendChild(meta);
     renderAreaTabs(root);
     if (!shown.length) {
       const empty = document.createElement('div');
@@ -907,46 +1038,29 @@
     const grid = document.createElement('div');
     grid.className = 'wall-grid';
     root.appendChild(grid);
-    const wallCams = shown.slice(0, 4);
-    wallCams.forEach((c) => {
+    // All 30 tiles visible; only WALL_PAGE_SIZE remux at once (1-vCPU), auto-cycle pages.
+    shown.forEach((c) => {
       const cell = document.createElement('div');
-      cell.className = 'wall-cell';
-      cell.innerHTML = `<video muted playsinline></video><div class="lbl"></div>`;
+      cell.className = 'wall-cell wall-dim';
+      cell.innerHTML = `<video muted playsinline></video><div class="warm">…</div><div class="lbl"></div>`;
       cell.querySelector('.lbl').textContent = shortCamName(c);
       const video = cell.querySelector('video');
       grid.appendChild(cell);
       cell.addEventListener('click', () => openPlayer(c));
-      if (!(c.live && c.hlsUrl)) return;
-      const player = { video, hls: null };
+      if (!(c.live && c.hlsUrl)) {
+        const warm = cell.querySelector('.warm');
+        if (warm) warm.textContent = 'off';
+        return;
+      }
+      const player = { video, hls: null, camId: c.id, cam: c, cell, active: false };
       wallPlayers.push(player);
-      (async () => {
-        const url = await ensureLive(c);
-        if (!wallPlayers.includes(player) || !url) return;
-        if (window.Hls && Hls.isSupported()) {
-          const h = new Hls({
-            liveDurationInfinity: true,
-            enableWorker: true,
-            manifestLoadingMaxRetry: 12,
-            manifestLoadingRetryDelay: 1000,
-            levelLoadingMaxRetry: 8,
-            levelLoadingRetryDelay: 1000,
-          });
-          player.hls = h;
-          h.loadSource(url);
-          h.attachMedia(video);
-          h.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
-          h.on(Hls.Events.ERROR, (_e, d) => {
-            if (d?.fatal) {
-              // Remux may have been evicted — one more warm + reload
-              ensureLive(c).then((u) => { if (u && wallPlayers.includes(player)) { try { h.loadSource(u); } catch {} } });
-            }
-          });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = url;
-          video.play().catch(() => {});
-        }
-      })();
     });
+    setWallActivePage(wallPlayers, 0, meta);
+    if (wallPlayers.length > WALL_PAGE_SIZE) {
+      wallRotateTimer = setInterval(() => {
+        setWallActivePage(wallPlayers, wallPage + 1, meta);
+      }, WALL_PAGE_MS);
+    }
   }
 
   function renderAccount() {
@@ -992,7 +1106,7 @@
               style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
               Check update now
             </button>
-            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.7.4'}"
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.8.0'}"
               style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
               Install APK v${remoteName}
             </a>
@@ -1007,11 +1121,11 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.7.4"
+          <a href="/soscial.apk?v=1.8.0"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.7.4
+            Download APK v1.8.0
           </a>
-          <a href="/soscial-tv.apk?v=1.7.4"
+          <a href="/soscial-tv.apk?v=1.8.0"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
@@ -1366,7 +1480,7 @@
     const apk = $('updateApk');
     if (apk) {
       if (showApk) {
-        apk.href = apkUrl || '/soscial.apk?v=1.7.4';
+        apk.href = apkUrl || '/soscial.apk?v=1.8.0';
         apk.style.display = 'inline-flex';
         apk.classList.remove('hidden');
       } else {
@@ -1465,7 +1579,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.7.4').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.8.0').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {

@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * Rename SOCIAL station 71 cameras to canonical names (D# = NVR channel).
- * Names are label-only (no IP). Deletes extras outside D1–D30.
+ * SOCIAL station 71 cleanup:
+ * - Keep only NVR channels D1–D30 (delete extras / direct IPC leftovers)
+ * - Do NOT apply hardcoded seed labels — names come from the NVR.
  *
- * Run on VPS: node /opt/mrp/scripts/rename-social-cameras.mjs
- * Dry-run:    node /opt/mrp/scripts/rename-social-cameras.mjs --dry-run
+ * Prefer: node /opt/mrp/scripts/sync-social-nvr-names.mjs
+ * This script only prunes non-canonical rows.
+ *
+ * Dry-run: node /opt/mrp/scripts/rename-social-cameras.mjs --dry-run
  */
 import 'dotenv/config';
 import { pool } from '../src/db.js';
 import {
   SOCIAL_STATION_ID,
-  SOCIAL_CHANNEL_NAMES,
   SOCIAL_NVR_LAN,
-  formatSocialCamName,
   channelFromRtspPath,
   isCanonicalSocialChannel,
   areaGroupFromName,
@@ -28,30 +29,18 @@ async function main() {
   );
   if (!cams.length) throw new Error(`No cameras on station ${SOCIAL_STATION_ID}`);
 
-  const updates = [];
   const toDelete = [];
+  const keep = [];
 
   for (const cam of cams) {
     const ch = channelFromRtspPath(cam.rtsp_path);
     const lan = String(cam.lan || '').trim();
 
     if (isCanonicalSocialChannel(ch) && (lan === SOCIAL_NVR_LAN || !lan)) {
-      const { label } = SOCIAL_CHANNEL_NAMES[ch];
-      const nextName = formatSocialCamName(label);
-      if (nextName !== cam.name || !cam.enabled) {
-        updates.push({
-          id: cam.id,
-          ch,
-          from: cam.name,
-          to: nextName,
-          group: areaGroupFromName(nextName),
-          enable: true,
-        });
-      }
+      keep.push(cam);
       continue;
     }
 
-    // Anything else on station 71 (Circle-In .42/.43, UNKNOWN, ch>30, duplicates)
     toDelete.push({
       id: cam.id,
       ch,
@@ -62,23 +51,14 @@ async function main() {
   }
 
   console.log(
-    `station ${SOCIAL_STATION_ID}: ${cams.length} cams → ${updates.length} renames, ${toDelete.length} deletes${dryRun ? ' (dry-run)' : ''}`
+    `station ${SOCIAL_STATION_ID}: keep ${keep.length} NVR D1–D30, delete ${toDelete.length} extras${dryRun ? ' (dry-run)' : ''}`
   );
-  for (const u of updates) {
-    console.log(`  rename id=${u.id} D${u.ch} [${u.group}] ${u.from} → ${u.to}`);
-  }
+  console.log('Names are owned by NVR ChannelTitle — run sync-social-nvr-names.mjs to refresh.');
   for (const d of toDelete) {
     console.log(`  DELETE id=${d.id} ch=${d.ch ?? '-'} lan=${d.lan} ${d.name}${d.enabled ? '' : ' (was off)'}`);
   }
 
   if (!dryRun) {
-    for (const u of updates) {
-      await pool.query(
-        `UPDATE cameras SET name = $2, enabled = true
-          WHERE id = $1 AND station_id = $3`,
-        [u.id, u.to, SOCIAL_STATION_ID]
-      );
-    }
     for (const d of toDelete) {
       await pool.query(`DELETE FROM cameras WHERE id = $1 AND station_id = $2`, [
         d.id,
