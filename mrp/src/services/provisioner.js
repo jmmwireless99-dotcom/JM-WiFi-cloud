@@ -322,7 +322,14 @@ async function syncMediamtx() {
         `    rtspTransport: tcp`
       );
     }
-    if (poolMode) return pathBlockPool(name);
+    // Keep currently-warm remuxes in YAML so file reload does not kill them.
+    if (poolMode) {
+      if (remuxActive.has(name)) {
+        remuxActive.get(name).origin = origin;
+        return pathBlockAlways(name, origin);
+      }
+      return pathBlockPool(name);
+    }
     return pathBlockAlways(name, origin);
   }).join('\n');
 
@@ -350,7 +357,6 @@ ${paths || '  {}'}
 `;
   const target = process.env.MEDIAMTX_CONFIG || '/etc/mediamtx/mediamtx.yml';
   await atomicWrite(target, cfg, 0o644);
-  if (poolMode) remuxActive.clear();
   // MediaMTX hot-reloads on file change. Do NOT systemctl restart here —
   // restart storms hit start-limit and take /hls down (404/503).
   try {
