@@ -136,8 +136,9 @@ export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
  * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
  */
 const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 10));
-const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 90_000));
+// Cap concurrent ffmpeg remuxes (1-vCPU hub). Raise via env for NVR multi-view.
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 12));
+const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 120_000));
 const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
 /** pathName → { origin, startedAt, lastEnsureAt } */
@@ -262,10 +263,10 @@ export async function ensureLiveRemux(cam, vpnIp) {
   remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now });
   scheduleRemuxSweep();
 
-  // Short poll only — long waits stall the single Node process under multi-cam warmups.
-  // HLS.js retries cover the remaining ffmpeg startup time.
-  for (let i = 0; i < 4; i++) {
-    await new Promise((r) => setTimeout(r, 400));
+  // Poll until ready, but keep each request short so parallel Live Wall warmups
+  // do not monopolize the single Node event loop. Clients also re-call ensure-live.
+  for (let i = 0; i < 8; i++) {
+    await new Promise((r) => setTimeout(r, 350));
     try {
       const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
       if (st.ok && st.data?.ready) {

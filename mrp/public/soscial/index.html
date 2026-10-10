@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.7.2" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.2" />
+  <link rel="icon" href="./icon-192.png?v=1.7.3" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.3" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.2" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.3" />
   <meta property="og:url" content="https://jmtechsolution.cloud/social/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.2" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.3" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -367,7 +367,7 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.7.2" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.7.3" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless · Live CCTV — enter viewer key. Walang password.</p>
@@ -402,7 +402,7 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.7.2" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.7.3" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV · key access</div>
@@ -521,7 +521,7 @@
   let playbackHlsUrl = '';
   let pendingAutoCamId = null;
   let autoViewHandled = false;
-  const APP_WEB_BUILD = '1.7.2';
+  const APP_WEB_BUILD = '1.7.3';
   const APP_VERSION_CODE = 11;
   const CAM_FP_KEY = 'soscial_cam_fp';
   const KEY_STORE = 'social_viewer_key';
@@ -935,11 +935,24 @@
         const url = await ensureLive(c);
         if (!wallPlayers.includes(player) || !url) return;
         if (window.Hls && Hls.isSupported()) {
-          const h = new Hls({ liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 6 });
+          const h = new Hls({
+            liveDurationInfinity: true,
+            enableWorker: true,
+            manifestLoadingMaxRetry: 12,
+            manifestLoadingRetryDelay: 1000,
+            levelLoadingMaxRetry: 8,
+            levelLoadingRetryDelay: 1000,
+          });
           player.hls = h;
           h.loadSource(url);
           h.attachMedia(video);
           h.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+          h.on(Hls.Events.ERROR, (_e, d) => {
+            if (d?.fatal) {
+              // Remux may have been evicted — one more warm + reload
+              ensureLive(c).then((u) => { if (u && wallPlayers.includes(player)) { try { h.loadSource(u); } catch {} } });
+            }
+          });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = url;
           video.play().catch(() => {});
@@ -1074,15 +1087,19 @@
 
   async function ensureLive(cam) {
     if (!cam?.id || !cam.live) return cam?.hlsUrl || '';
-    try {
-      $('playerOverlay') && ($('playerOverlay').textContent = 'Starting stream…');
-      const r = await api('/soscial/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
-      if (r?.hlsUrl) cam.hlsUrl = r.hlsUrl;
-      return cam.hlsUrl;
-    } catch (e) {
-      console.warn('ensure-live', e);
-      return cam.hlsUrl;
+    // Pool remux: cold /hls is 404 until ffmpeg publishes — wait for ready.
+    for (let i = 0; i < 12; i++) {
+      try {
+        if ($('playerOverlay')) $('playerOverlay').textContent = i ? ('Starting stream… (' + (i + 1) + ')') : 'Starting stream…';
+        const r = await api('/soscial/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
+        if (r?.hlsUrl) cam.hlsUrl = r.hlsUrl;
+        if (r?.ready || r?.reused) return cam.hlsUrl;
+      } catch (e) {
+        console.warn('ensure-live', e);
+      }
+      await new Promise((res) => setTimeout(res, 500));
     }
+    return cam.hlsUrl;
   }
 
   async function openPlayer(cam) {
@@ -1122,8 +1139,8 @@
     $('playerOverlay').textContent = 'Connecting…';
     stopPlayer();
     const hlsOpts = isLive
-      ? { liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 4 }
-      : { enableWorker: true, manifestLoadingMaxRetry: 4 };
+      ? { liveDurationInfinity: true, enableWorker: true, manifestLoadingMaxRetry: 12, manifestLoadingRetryDelay: 1000, levelLoadingMaxRetry: 8, levelLoadingRetryDelay: 1000 }
+      : { enableWorker: true, manifestLoadingMaxRetry: 6 };
     if (window.Hls && Hls.isSupported()) {
       hls = new Hls(hlsOpts);
       hls.loadSource(url);
@@ -1462,7 +1479,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.7.2').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.7.3').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {

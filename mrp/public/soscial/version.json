@@ -1,10 +1,10 @@
 {
-  "versionName": "1.7.2",
+  "versionName": "1.7.3",
   "versionCode": 12,
-  "webBuild": "1.7.2",
+  "webBuild": "1.7.3",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.2",
-  "notes": "D18 \u2192 2ND GATE \u00b7 192.168.20.28 \u00b7 2ND GATE area tab",
-  "releasedAt": "2026-10-10T05:20:00Z"
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.3",
+  "notes": "Fix SOCIAL stream errors: wait for remux ready before HLS; remux pool 12",
+  "releasedAt": "2026-10-10T05:25:00Z"
 }

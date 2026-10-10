@@ -45,9 +45,9 @@ async function readVersionFile() {
     return JSON.parse(raw);
   } catch {
     return {
-      versionName: '1.7.0',
+      versionName: '1.7.3',
       versionCode: 10,
-      webBuild: '1.7.0',
+      webBuild: '1.7.3',
       notes: '',
     };
   }
