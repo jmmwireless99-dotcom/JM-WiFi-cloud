@@ -1,10 +1,10 @@
 {
-  "versionName": "1.8.0",
-  "versionCode": 14,
-  "webBuild": "1.8.0",
+  "versionName": "1.8.1",
+  "versionCode": 15,
+  "webBuild": "1.8.1",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/social/?v=1.8.0",
-  "notes": "NVR ChannelTitle names + All Cam 30 wall (6-up auto-cycle, lite remux; 1-vCPU cannot sustain 30 concurrent)",
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.8.1",
+  "notes": "Fast Live Wall: remux max 8 + lite 240p + parallel 6-up page warm; HLS starts on first segment (no stuck Connecting)",
   "releasedAt": "2026-10-10T07:00:00Z"
 }
