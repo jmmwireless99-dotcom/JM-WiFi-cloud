@@ -562,6 +562,12 @@
       || String(c.rtspPath || '').match(/\/Channels\/(\d+)/i);
     return m ? Number(m[1]) : (Number(c.id) || 0);
   }
+  function displayCh(c) {
+    // Direct IPC cams (not on NVR LAN) — don't show misleading channel=1
+    if (c.lanIp && c.lanIp !== '192.168.20.254' && /circle/i.test(c.name||'')) return '';
+    const n = channelNum(c);
+    return n ? ('Ch' + n + ' · ') : '';
+  }
   function sortSocialCams(list) {
     return [...list].sort((a, b) => channelNum(a) - channelNum(b) || String(a.name||'').localeCompare(String(b.name||'')));
   }
@@ -610,7 +616,7 @@
           <span class="dot ${c.live ? 'on' : ''}"></span>
         </div>`;
       const ch = channelNum(c);
-      tile.querySelector('.nm').textContent = (ch ? ('Ch' + ch + ' · ') : '') + c.name;
+      tile.querySelector('.nm').textContent = displayCh(c) + c.name;
       tile.querySelector('.loc').textContent = [c.nvrName || 'SOCIAL', c.live ? (c.streaming ? 'streaming' : 'online') : 'offline'].filter(Boolean).join(' · ');
       tile.querySelector('.dot').classList.toggle('on', !!(c.live && c.streaming));
       tile.tabIndex = 0;
@@ -804,7 +810,7 @@
     show($('player'), true);
     applyPlaybackAccess();
     const ch = channelNum(cam);
-    $('playerName').textContent = (ch ? ('Ch' + ch + ' · ') : '') + cam.name;
+    $('playerName').textContent = displayCh(cam) + cam.name;
     $('playerMeta').textContent = [cam.nvrName || 'SOCIAL CENTER', cam.station, cam.live ? 'online' : 'offline'].filter(Boolean).join(' · ');
     $('playerOverlay').textContent = cam.live ? 'Starting stream…' : 'Camera / station offline';
     show($('playerOverlay'), true);
