@@ -3434,6 +3434,7 @@ function App() {
   const [nvrs,setNvrs]=useState([]);
   const [ztClients,setZtClients]=useState([]);
   const [ztStatus,setZtStatus]=useState(null);
+  const [vpsStats,setVpsStats]=useState(null);
   const [gasSummary,setGasSummary]=useState({todayAmount:0,todayLiters:0,todayCount:0,totalAmount:0,totalLiters:0,salesCount:0,pricePerLiter:65,presets:[50,100,200,500]});
   const [gasSales,setGasSales]=useState([]);
   const [gasDevices,setGasDevices]=useState([]);
@@ -3520,6 +3521,19 @@ function App() {
     }
   },[]);
   useEffect(()=>{ if(authed){ loadAll(); const t=setInterval(loadAll,60000); return ()=>clearInterval(t);} },[authed,loadAll]);
+  // VPS CPU / RAM / Net — poll every 8s while Dashboard is open (managers)
+  useEffect(()=>{
+    if (!authed || !isManager || tab !== 'dash') return;
+    let dead = false;
+    const tick = () => {
+      api('/system/stats')
+        .then((d) => { if (!dead) setVpsStats(d); })
+        .catch(() => { if (!dead) setVpsStats(null); });
+    };
+    tick();
+    const t = setInterval(tick, 8000);
+    return () => { dead = true; clearInterval(t); };
+  },[authed, isManager, tab]);
   useEffect(()=>{
     if (isManager && !dashPref.current) { dashPref.current = true; setTab('dash'); }
   },[isManager]);
@@ -3557,6 +3571,24 @@ function App() {
     const onlineN = stations.filter(s=>s.online).length;
     const liveN = cams.filter(c=>c.live).length;
     const ztOn = ztStatus && (ztStatus.online===true || ztStatus.status==='ONLINE' || ztStatus.joined);
+    const cpuPct = vpsStats?.cpu?.pct != null ? vpsStats.cpu.pct : null;
+    const ramPct = vpsStats?.ram?.usedPct != null ? vpsStats.ram.usedPct : null;
+    const rx = vpsStats?.net?.rxMbps != null ? vpsStats.net.rxMbps : null;
+    const tx = vpsStats?.net?.txMbps != null ? vpsStats.net.txMbps : null;
+    const netPct = vpsStats?.net?.pct;
+    const load1 = vpsStats?.cpu?.loadavg?.[0];
+    const sparkFromPct = (pct) => {
+      const p = Math.max(8, Math.min(100, Number(pct) || 12));
+      return [p*0.55, p*0.7, p*0.45, p*0.85, p*0.6, p*0.95, p*0.75, p].map(h=>Math.round(h));
+    };
+    const barsFromPct = (pct) => {
+      const p = Math.max(10, Math.min(100, Number(pct) || 15));
+      return [p*0.5, p*0.75, p*0.4, p*0.9, p*0.65, p].map(h=>Math.round(h));
+    };
+    const cpuSpark = sparkFromPct(cpuPct ?? 20);
+    const ramBars = barsFromPct(ramPct ?? 25);
+    const netSpark = sparkFromPct(netPct ?? ((rx||0)+(tx||0) > 0 ? Math.min(100, ((rx||0)+(tx||0))*4) : 18));
+    const fmtMbps = (v) => v == null ? '—' : (v >= 10 ? v.toFixed(1) : v.toFixed(2));
     body = html`<div class="dash-grid">
       <div class="metric">
         <div class="ml">MikroTik Sites</div>
@@ -3581,6 +3613,24 @@ function App() {
         <div class="mv">${liveN}</div>
         <div class="ms"><span class="trend ${liveN?'up':'down'}">${liveN?'streaming':'idle'}</span></div>
         <div class="bars">${[40,55,70,50,80,65].map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+      <div class="metric">
+        <div class="ml">VPS CPU Usage</div>
+        <div class="mv">${cpuPct != null ? cpuPct+'%' : '—'}</div>
+        <div class="ms"><span class="trend ${cpuPct != null && cpuPct > 85 ? 'down' : 'up'}">${load1 != null ? 'Load '+load1 : 'polling…'}</span>${vpsStats?.cpu?.cores ? ' · '+vpsStats.cpu.cores+' core'+(vpsStats.cpu.cores>1?'s':'') : ''}</div>
+        <div class="spark">${cpuSpark.map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
+      </div>
+      <div class="metric">
+        <div class="ml">VPS RAM Usage</div>
+        <div class="mv">${ramPct != null ? ramPct+'%' : '—'}</div>
+        <div class="ms"><span class="trend ${ramPct != null && ramPct > 90 ? 'down' : 'up'}">${vpsStats?.ram ? (vpsStats.ram.usedGb+' / '+vpsStats.ram.totalGb+' GB') : 'polling…'}</span></div>
+        <div class="bars">${ramBars.map(h=>html`<span style=${{'--h':h+'%'}}></span>`)}</div>
+      </div>
+      <div class="metric wide">
+        <div class="ml">VPS Network · ${vpsStats?.net?.iface || 'traffic'}</div>
+        <div class="mv" style=${{fontSize:'22px'}}>↓ ${fmtMbps(rx)} · ↑ ${fmtMbps(tx)} <span style=${{fontSize:'14px',fontWeight:600,color:'var(--dim)'}}>Mbps</span></div>
+        <div class="ms"><span class="trend up">${netPct != null ? netPct+'% of link' : (rx==null && tx==null ? 'polling…' : 'live throughput')}</span>${vpsStats?.net?.linkMbps ? ' · '+vpsStats.net.linkMbps+' Mbps cap' : ''}</div>
+        <div class="spark">${netSpark.map(h=>html`<i style=${{'--h':h+'%'}}></i>`)}</div>
       </div>
       <div class="metric wide">
         <div class="ml">ZeroTier Clients</div>

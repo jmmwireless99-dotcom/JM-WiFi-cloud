@@ -7,6 +7,7 @@ import stationsRouter from './routes/stations.js';
 import camerasRouter from './routes/cameras.js';
 import nvrsRouter from './routes/nvrs.js';
 import serverRouter from './routes/server.js';
+import systemRouter from './routes/system.js';
 import dashboardRouter from './routes/dashboard.js';
 import billingRouter from './routes/billing.js';
 import clientsRouter from './routes/clients.js';
@@ -81,6 +82,8 @@ app.use(`${BASE}/api/stations`, requireAuth, stationsRouter);
 app.use(`${BASE}/api/cameras`, requireAuth, camerasRouter);
 app.use(`${BASE}/api/nvrs`, requireAuth, nvrsRouter);
 app.use(`${BASE}/api/server`, requireAuth, serverRouter);
+app.use(`${BASE}/api/system`, requireAuth, systemRouter);
+app.use(`${BASE}/api/vps`, requireAuth, systemRouter); // alias → /api/vps/metrics
 app.use(`${BASE}/api/clients`, requireAuth, clientsRouter);
 app.use(`${BASE}/api/staff`, requireAuth, staffRouter);
 app.use(`${BASE}/api/zerotier`, requireAuth, zerotierRouter);

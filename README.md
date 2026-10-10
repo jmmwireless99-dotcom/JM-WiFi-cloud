@@ -40,6 +40,20 @@ Admin UI: **NVR Cameras → SOCIAL CENTER** (Viewer Keys panel) — Super Admin 
 Enter **pangalan** (required) → **Generate Key** → copy plaintext once → give to that person for `/social` or Install App.
 Revoke ends device access. Keys are remembered on the viewer until revoked.
 
+### VPS monitoring (Dashboard)
+
+Admin Dashboard cards poll **CPU %**, **RAM % / GB**, and **network ↓↑ Mbps** every ~8s.
+
+| Method | Path | Auth |
+|--------|------|------|
+| `GET` | `/api/system/stats` | admin/staff JWT |
+| `GET` | `/api/server/stats` | admin/staff JWT (same payload) |
+| `GET` | `/api/vps/metrics` | alias of system stats |
+
+Optional env: `WAN_INTERFACE` (NIC for traffic), `WAN_LINK_MBPS` (link capacity → net %).
+
 ### Stack / base
 
-This branch builds on `cursor/social-cctv-noauth-mobile-9f0b` (PR #16 passwordless PWA), which stacks on `cursor/social-nvr-30ch-restore-9f0b` (PR #15).
+**This branch (`cursor/dashboard-vps-monitoring-6344`)** is based on `cursor/social-nvr-names-all30-9f0b` (dashboard + SOCIAL NVR stack). Separate from Live Wall stream-restore work.
+
+Earlier: `cursor/social-cctv-noauth-mobile-9f0b` (PR #16) → `cursor/social-nvr-30ch-restore-9f0b` (PR #15).
