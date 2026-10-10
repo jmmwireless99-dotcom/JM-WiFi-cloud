@@ -1013,23 +1013,35 @@ function Player({ cam }) {
   const hlsRef = useRef(null);
   const [state, setState] = useState('idle');
   const stop = useCallback(() => { hlsRef.current?.destroy(); hlsRef.current=null; setState('idle'); }, []);
-  const play = () => {
+  const play = async () => {
     if (!cam.live) return;
     setState('loading');
+    let url = cam.hlsUrl;
+    try {
+      // Warm on-demand H.264 remux (pool mode) before HLS — avoids blank HEVC tiles
+      // and stops always-on ffmpeg from melting the 1-vCPU hub.
+      const warm = await api('/cameras/' + cam.id + '/ensure-live', { method: 'POST', body: {} });
+      if (warm?.hlsUrl) url = warm.hlsUrl;
+    } catch (e) {
+      console.warn('ensure-live', e);
+    }
     const video = vidRef.current;
     if (Hls.isSupported()) {
-      const hls = new Hls({ liveDurationInfinity:true, manifestLoadingMaxRetry:4 });
+      const hls = new Hls({ liveDurationInfinity:true, manifestLoadingMaxRetry:6, manifestLoadingRetryDelay:800 });
       hlsRef.current = hls;
-      hls.loadSource(cam.hlsUrl);
+      hls.loadSource(url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); setState('playing'); });
       hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) { stop(); setState('error'); } });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = cam.hlsUrl; video.play().then(()=>setState('playing')).catch(()=>setState('error'));
+      video.src = url; video.play().then(()=>setState('playing')).catch(()=>setState('error'));
+    } else {
+      setState('error');
     }
   };
   useEffect(() => stop, [stop]);
   const brandLabel = (CAM_BRANDS.find(b=>b.id===cam.brand)||{}).label || cam.brand || '';
+  const streaming = !!(cam.streaming || cam.stream?.ready);
   return html`<div class="cam">
     <div class="vid" onClick=${() => state==='idle'||state==='error' ? play() : null}>
       <video ref=${vidRef} muted playsInline controls=${state==='playing'}
@@ -1048,7 +1060,7 @@ function Player({ cam }) {
         <div class="nm">${cam.name}</div>
         <div class="loc">${[cam.station, cam.barangay, cam.municipality, cam.city, cam.province].filter(Boolean).join(' • ')}</div>
       </div>
-      <span class="dot ${cam.live ? 'on':'off'}"></span>
+      <span class="dot ${cam.live ? 'on':'off'}" title=${streaming ? 'streaming' : (cam.live ? 'online' : 'offline')}></span>
     </div>
   </div>`;
 }
@@ -3540,7 +3552,9 @@ function App() {
               <td class="mono">${c.lanIp}</td>
               <td class="mono dim">:${c.tunnelPort}</td>
               <td><span class="badge ${c.enabled?'b-ok':'b-warn'}">${c.enabled?'enabled':'disabled'}</span>
-                ${c.stream?.ready && html` <span class="badge b-ok">streaming</span>`}</td>
+                ${(c.streaming || c.stream?.ready)
+                  ? html` <span class="badge b-ok">streaming</span>`
+                  : (c.live && html` <span class="badge b-ok">ready</span>`)}</td>
               <td class="row">
                 <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}} onClick=${()=>setModal({type:'editCamera',cam:c})}>edit</button>
                 <button class="ghost" style=${{fontSize:'11px',padding:'3px 8px'}}
