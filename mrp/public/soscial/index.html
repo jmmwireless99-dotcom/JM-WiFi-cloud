@@ -307,6 +307,8 @@
       font-size: 10px; color: var(--dim); background: rgba(0,0,0,.35);
       pointer-events: none;
     }
+    .wall-cell.wall-dim { opacity: 0.55; }
+    .wall-cell.wall-dim .warm { display: grid; }
 
     @keyframes rise {
       from { opacity: 0; transform: translateY(14px); }
@@ -892,7 +894,14 @@
     });
   }
 
+  let wallRotateTimer = null;
+  let wallPage = 0;
+  /** 1-vCPU hub cannot sustain 30 concurrent HEVC→H.264 remuxes (load≈30). */
+  const WALL_PAGE_SIZE = 6;
+  const WALL_PAGE_MS = 12_000;
+
   function stopWall() {
+    if (wallRotateTimer) { clearInterval(wallRotateTimer); wallRotateTimer = null; }
     wallPlayers.forEach((p) => { try { p.hls?.destroy(); p.video.pause(); } catch {} });
     wallPlayers = [];
   }
@@ -913,33 +922,53 @@
     }
   }
 
+  function detachWallPlayer(player) {
+    try { player.hls?.destroy(); } catch {}
+    player.hls = null;
+    try {
+      player.video.removeAttribute('src');
+      player.video.load();
+    } catch {}
+    const warm = player.video.parentElement?.querySelector('.warm');
+    if (warm) {
+      warm.textContent = '…';
+      warm.style.display = '';
+    } else {
+      const w = document.createElement('div');
+      w.className = 'warm';
+      w.textContent = '…';
+      player.video.parentElement?.appendChild(w);
+    }
+  }
+
   function attachWallHls(player, cam, url) {
     const video = player.video;
-    if (!url || !wallPlayers.includes(player)) return;
+    if (!url || !wallPlayers.includes(player) || !player.active) return;
     if (window.Hls && Hls.isSupported()) {
       try { player.hls?.destroy(); } catch {}
       const h = new Hls({
         liveDurationInfinity: true,
         enableWorker: true,
         lowLatencyMode: false,
-        manifestLoadingMaxRetry: 16,
-        manifestLoadingRetryDelay: 1200,
-        levelLoadingMaxRetry: 10,
-        levelLoadingRetryDelay: 1200,
-        maxBufferLength: 8,
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 8,
+        levelLoadingRetryDelay: 1000,
+        maxBufferLength: 6,
       });
       player.hls = h;
       h.loadSource(url);
       h.attachMedia(video);
       h.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (!player.active) return;
         const warm = video.parentElement?.querySelector('.warm');
-        if (warm) warm.remove();
+        if (warm) warm.style.display = 'none';
         video.play().catch(() => {});
       });
       h.on(Hls.Events.ERROR, (_e, d) => {
-        if (!d?.fatal || !wallPlayers.includes(player)) return;
+        if (!d?.fatal || !wallPlayers.includes(player) || !player.active) return;
         ensureLiveWall(cam).then((u) => {
-          if (u && wallPlayers.includes(player)) {
+          if (u && wallPlayers.includes(player) && player.active) {
             try { h.loadSource(u); } catch {}
           }
         });
@@ -948,8 +977,35 @@
       video.src = url;
       video.play().catch(() => {});
       const warm = video.parentElement?.querySelector('.warm');
-      if (warm) warm.remove();
+      if (warm) warm.style.display = 'none';
     }
+  }
+
+  function setWallActivePage(players, page, metaEl) {
+    const n = players.length;
+    if (!n) return;
+    const pages = Math.max(1, Math.ceil(n / WALL_PAGE_SIZE));
+    wallPage = ((page % pages) + pages) % pages;
+    const start = wallPage * WALL_PAGE_SIZE;
+    const end = Math.min(start + WALL_PAGE_SIZE, n);
+    if (metaEl) {
+      metaEl.textContent = 'streaming ' + (start + 1) + '–' + end + ' of ' + n
+        + ' · page ' + (wallPage + 1) + '/' + pages + ' · auto-cycle';
+    }
+    players.forEach((p, i) => {
+      const on = i >= start && i < end;
+      p.active = on;
+      p.cell.classList.toggle('wall-dim', !on);
+      if (!on) {
+        detachWallPlayer(p);
+        return;
+      }
+      const delay = (i - start) * 150;
+      setTimeout(() => {
+        if (!wallPlayers.includes(p) || !p.active) return;
+        ensureLiveWall(p.cam).then((url) => attachWallHls(p, p.cam, url || p.cam.hlsUrl));
+      }, delay);
+    });
   }
 
   function renderWall() {
@@ -967,6 +1023,10 @@
       ? ('All Cam ' + shown.length)
       : ('Live Wall · ' + areaTab + ' · ' + shown.length);
     root.appendChild(label);
+    const meta = document.createElement('div');
+    meta.className = 'dim';
+    meta.style.cssText = 'margin:0 16px 8px;font-size:12px';
+    root.appendChild(meta);
     renderAreaTabs(root);
     if (!shown.length) {
       const empty = document.createElement('div');
@@ -978,10 +1038,10 @@
     const grid = document.createElement('div');
     grid.className = 'wall-grid';
     root.appendChild(grid);
-    // True all-N wall (up to 30) — stagger ensure-live so remux pool can warm.
-    shown.forEach((c, i) => {
+    // All 30 tiles visible; only WALL_PAGE_SIZE remux at once (1-vCPU), auto-cycle pages.
+    shown.forEach((c) => {
       const cell = document.createElement('div');
-      cell.className = 'wall-cell';
+      cell.className = 'wall-cell wall-dim';
       cell.innerHTML = `<video muted playsinline></video><div class="warm">…</div><div class="lbl"></div>`;
       cell.querySelector('.lbl').textContent = shortCamName(c);
       const video = cell.querySelector('video');
@@ -992,14 +1052,15 @@
         if (warm) warm.textContent = 'off';
         return;
       }
-      const player = { video, hls: null, camId: c.id };
+      const player = { video, hls: null, camId: c.id, cam: c, cell, active: false };
       wallPlayers.push(player);
-      const delay = Math.min(i * 120, 3500);
-      setTimeout(() => {
-        if (!wallPlayers.includes(player)) return;
-        ensureLiveWall(c).then((url) => attachWallHls(player, c, url || c.hlsUrl));
-      }, delay);
     });
+    setWallActivePage(wallPlayers, 0, meta);
+    if (wallPlayers.length > WALL_PAGE_SIZE) {
+      wallRotateTimer = setInterval(() => {
+        setWallActivePage(wallPlayers, wallPage + 1, meta);
+      }, WALL_PAGE_MS);
+    }
   }
 
   function renderAccount() {

@@ -136,10 +136,13 @@ export function rtspSource(cam, vpnIp, { liveSubstream = false } = {}) {
  * Set MEDIAMTX_REMUX_MODE=always for legacy always-on runOnInit.
  */
 const REMUX_MODE = String(process.env.MEDIAMTX_REMUX_MODE || 'pool').toLowerCase();
-// Cap concurrent ffmpeg remuxes. Default 30 so All Cam / Live Wall can warm D1–D30
-// (NVR substream + lite scale). Override via MEDIAMTX_REMUX_MAX.
-const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 30));
-const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 120_000));
+// Cap concurrent ffmpeg remuxes for a 1-vCPU hub. 30 concurrent HEVC→x264
+// saturates load≈30 and leaves tiles stuck on Connecting. Wall warms a page
+// of visible cams; All Cam cycles / LRU-evicts. Override via MEDIAMTX_REMUX_MAX.
+const REMUX_MAX = Math.max(1, Number(process.env.MEDIAMTX_REMUX_MAX || 8));
+const REMUX_IDLE_MS = Math.max(15_000, Number(process.env.MEDIAMTX_REMUX_IDLE_MS || 45_000));
+// Keep a small set of recently-used remuxes warm (first-paint cache). 0 = off.
+const REMUX_KEEPALIVE = Math.max(0, Math.min(REMUX_MAX, Number(process.env.MEDIAMTX_REMUX_KEEPALIVE || 4)));
 const MTX_API = () => (process.env.MEDIAMTX_API || 'http://127.0.0.1:9997').replace(/\/$/, '');
 
 /** pathName → { origin, startedAt, lastEnsureAt, lite } */
@@ -147,21 +150,23 @@ const remuxActive = new Map();
 let remuxSweepTimer = null;
 
 export function remuxFfmpegCmd(originRtsp, { lite = false } = {}) {
-  // Lite: wall / All-Cam-30 — smaller encode + no audio so ~30 remuxes fit a 1-vCPU hub.
-  const vf = lite ? 'scale=320:-2' : 'scale=640:-2';
-  const bv = lite ? '180k' : '500k';
-  const maxrate = lite ? '220k' : '600k';
-  const bufsize = lite ? '440k' : '1200k';
+  // Lite: Live Wall grid — tiny encode + no audio so a handful fit a 1-vCPU hub.
+  // Short GOP → first HLS keyframe/segment arrives sooner.
+  const vf = lite ? 'scale=240:-2' : 'scale=480:-2';
+  const bv = lite ? '120k' : '400k';
+  const maxrate = lite ? '150k' : '500k';
+  const bufsize = lite ? '300k' : '1000k';
+  const gop = lite ? 16 : 30;
   const mapAudio = lite ? '' : ' -map 0:a:0?';
   const audio = lite
     ? '-an'
-    : '-c:a aac -ac 1 -ar 16000 -b:a 64k';
+    : '-c:a aac -ac 1 -ar 16000 -b:a 48k';
   return (
     `ffmpeg -hide_banner -loglevel error -fflags nobuffer -flags low_delay ` +
-    `-rtsp_transport tcp -i '${originRtsp}' ` +
+    `-rtsp_transport tcp -probesize 32k -analyzeduration 0 -i '${originRtsp}' ` +
     `-map 0:v:0${mapAudio} ` +
     `-c:v libx264 -preset ultrafast -tune zerolatency -pix_fmt yuv420p ` +
-    `-profile:v baseline -level 3.0 -g 40 -vf ${vf} ` +
+    `-profile:v baseline -level 3.0 -g ${gop} -keyint_min ${gop} -sc_threshold 0 -vf ${vf} ` +
     `-b:v ${bv} -maxrate ${maxrate} -bufsize ${bufsize} ` +
     `${audio} ` +
     `-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH`
@@ -235,15 +240,15 @@ async function evictOldestRemux(keepName) {
  * Start (or refresh) H.264 remux for one camera path.
  * Call from the player / live wall before loading HLS.
  */
-export async function ensureLiveRemux(cam, vpnIp, { lite = false } = {}) {
+export async function ensureLiveRemux(cam, vpnIp, { lite = false, waitReady = false } = {}) {
   if (process.env.MEDIAMTX_AAC_REMUX === '0') {
     return { ok: true, mode: 'passthrough', pathName: streamPathName(cam) };
   }
   const name = streamPathName(cam);
   const origin = rtspSource(cam, vpnIp, { liveSubstream: true });
   const now = Date.now();
-  // Auto-lite when many remuxes already warm (All Cam wall) unless explicitly false.
-  const useLite = lite || remuxActive.size >= 8;
+  // Prefer lite whenever the pool is busy or the caller asks (Live Wall / All Cam).
+  const useLite = lite || remuxActive.size >= 3;
 
   if (REMUX_MODE !== 'pool') {
     return { ok: true, mode: 'always', pathName: name };
@@ -253,9 +258,18 @@ export async function ensureLiveRemux(cam, vpnIp, { lite = false } = {}) {
   if (existing) {
     existing.lastEnsureAt = now;
     try {
-      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`);
+      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`, { timeoutMs: 3000 });
       if (st.ok && st.data?.ready) {
-        return { ok: true, mode: 'pool', pathName: name, ready: true, reused: true, lite: !!existing.lite };
+        return {
+          ok: true,
+          mode: 'pool',
+          pathName: name,
+          ready: true,
+          reused: true,
+          lite: !!existing.lite,
+          active: remuxActive.size,
+          max: REMUX_MAX,
+        };
       }
     } catch { /* restart below */ }
   }
@@ -271,14 +285,14 @@ export async function ensureLiveRemux(cam, vpnIp, { lite = false } = {}) {
         runOnInit: cmd,
         runOnInitRestart: true,
       },
-      // MediaMTX can stall under multi-cam warm; give replace room.
-      timeoutMs: 25_000,
+      // Keep replace snappy — under load MediaMTX stalls; client retries + HLS cover it.
+      timeoutMs: 8_000,
     });
     if (!res.ok) {
       throw new Error(typeof res.data === 'string' ? res.data : `mediamtx remux start failed (${res.status})`);
     }
   } catch (e) {
-    // Still mark warming so clients retry instead of hard Stream error.
+    // Still mark warming so clients attach HLS / retry instead of hard Stream error.
     remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now, lite: useLite });
     scheduleRemuxSweep();
     return {
@@ -289,24 +303,49 @@ export async function ensureLiveRemux(cam, vpnIp, { lite = false } = {}) {
       warming: true,
       deferred: true,
       lite: useLite,
+      active: remuxActive.size,
+      max: REMUX_MAX,
       error: e?.message || String(e),
     };
   }
   remuxActive.set(name, { origin, startedAt: now, lastEnsureAt: now, lite: useLite });
   scheduleRemuxSweep();
 
-  // Short poll only — clients re-call ensure-live until ready (avoids event-loop
-  // stalls when the NVR Live Wall warms many cams). HLS retries cover the rest.
-  for (let i = 0; i < 4; i++) {
-    await new Promise((r) => setTimeout(r, 250));
+  // Default: return immediately so the player can start HLS as soon as the first
+  // segment exists (HLS.js retries). Optional single quick probe when waitReady.
+  if (waitReady) {
+    await new Promise((r) => setTimeout(r, 200));
     try {
-      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`, { timeoutMs: 4000 });
+      const st = await mtxFetch(`/v3/paths/get/${encodeURIComponent(name)}`, { timeoutMs: 2000 });
       if (st.ok && st.data?.ready) {
-        return { ok: true, mode: 'pool', pathName: name, ready: true, lite: useLite };
+        return {
+          ok: true,
+          mode: 'pool',
+          pathName: name,
+          ready: true,
+          lite: useLite,
+          active: remuxActive.size,
+          max: REMUX_MAX,
+        };
       }
-    } catch { /* keep waiting */ }
+    } catch { /* warming */ }
   }
-  return { ok: true, mode: 'pool', pathName: name, ready: false, warming: true, lite: useLite };
+  return {
+    ok: true,
+    mode: 'pool',
+    pathName: name,
+    ready: false,
+    warming: true,
+    lite: useLite,
+    active: remuxActive.size,
+    max: REMUX_MAX,
+  };
+}
+
+/** Count only real viewers — MediaMTX hlsMuxer stays attached and must not block idle sweep. */
+function liveReaderCount(readers) {
+  if (!Array.isArray(readers)) return Number(readers) || 0;
+  return readers.filter((r) => r && r.type && r.type !== 'hlsMuxer').length;
 }
 
 export async function sweepRemuxIdle() {
@@ -314,14 +353,24 @@ export async function sweepRemuxIdle() {
   let stopped = 0;
   const states = await getStreamStates(true);
   const now = Date.now();
+
+  // Protect a small keep-alive set (most recently ensured) from eviction.
+  const keep = new Set(
+    [...remuxActive.entries()]
+      .sort((a, b) => (b[1].lastEnsureAt || 0) - (a[1].lastEnsureAt || 0))
+      .slice(0, REMUX_KEEPALIVE)
+      .map(([n]) => n)
+  );
+
   for (const [name, meta] of [...remuxActive.entries()]) {
     const st = states[name];
-    const readers = st?.readers || 0;
+    const readers = st?.liveReaders ?? st?.readers ?? 0;
     const idleFor = now - (meta.lastEnsureAt || meta.startedAt || now);
     if (readers > 0) {
       meta.lastEnsureAt = now;
       continue;
     }
+    if (keep.has(name) && remuxActive.size <= REMUX_MAX) continue;
     if (idleFor < REMUX_IDLE_MS) continue;
     try {
       await stopRemuxPath(name);
@@ -330,7 +379,7 @@ export async function sweepRemuxIdle() {
       console.error('remux sweep', name, e.message);
     }
   }
-  return { stopped, active: remuxActive.size };
+  return { stopped, active: remuxActive.size, keepalive: keep.size };
 }
 
 function scheduleRemuxSweep() {
@@ -452,7 +501,14 @@ export async function getStreamStates(force = false) {
     const data = await res.json();
     const map = {};
     for (const item of data.items || []) {
-      map[item.name] = { ready: item.ready, readers: (item.readers || []).length };
+      const raw = item.readers || [];
+      const live = liveReaderCount(raw);
+      map[item.name] = {
+        ready: item.ready,
+        readers: live,
+        liveReaders: live,
+        hlsMuxer: raw.some((r) => r?.type === 'hlsMuxer'),
+      };
     }
     streamsCache = { at: now, data: map };
     return map;
