@@ -5,12 +5,26 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VPS="${VPS_HOST:-jmtechsolution.cloud}"
 VPS_USER="${VPS_USER:-root}"
 
-echo "==> Sync wifi-pay modules to ${VPS_USER}@${VPS}:/opt/mrp"
-ssh "${VPS_USER}@${VPS}" 'mkdir -p /opt/mrp/src/routes /opt/mrp/src/services /opt/mrp/public/hotspot/social-park /opt/mrp/scripts'
+echo "==> Sync wifi-pay + SOCIAL CCTV portal links to ${VPS_USER}@${VPS}:/opt/mrp"
+ssh "${VPS_USER}@${VPS}" 'mkdir -p /opt/mrp/src/routes /opt/mrp/src/services /opt/mrp/public/hotspot/social-park /opt/mrp/public/soscial /opt/mrp/scripts'
 
 scp "$ROOT/src/services/wifiPay.js" "${VPS_USER}@${VPS}:/opt/mrp/src/services/wifiPay.js"
 scp "$ROOT/src/routes/wifiPay.js" "${VPS_USER}@${VPS}:/opt/mrp/src/routes/wifiPay.js"
 scp "$ROOT/public/hotspot/social-park/login.html" "${VPS_USER}@${VPS}:/opt/mrp/public/hotspot/social-park/login.html"
+
+# Browser portal targets: CCTV Viewer (/soscial/) + Download Apps (/soscial/download) + APKs
+echo "==> Sync SOCIAL CCTV viewer + APKs"
+scp "$ROOT/public/soscial/index.html" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/index.html"
+scp "$ROOT/public/soscial/download.html" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/download.html"
+scp "$ROOT/public/soscial/sw.js" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/sw.js"
+scp "$ROOT/public/soscial/manifest.webmanifest" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/manifest.webmanifest"
+scp "$ROOT/public/soscial/version.json" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/version.json"
+scp "$ROOT/public/soscial/soscial-park-cctv.apk" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/soscial-park-cctv.apk"
+scp "$ROOT/public/soscial/soscial-park-cctv-tv.apk" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/soscial-park-cctv-tv.apk"
+scp "$ROOT/public/soscial/soscial-park-cctv.zip" "${VPS_USER}@${VPS}:/opt/mrp/public/soscial/soscial-park-cctv.zip"
+if [[ -f "$ROOT/src/routes/soscialUpdate.js" ]]; then
+  scp "$ROOT/src/routes/soscialUpdate.js" "${VPS_USER}@${VPS}:/opt/mrp/src/routes/soscialUpdate.js"
+fi
 
 # Patch index.js mount if missing
 ssh "${VPS_USER}@${VPS}" 'python3 - << "PY"
@@ -30,11 +44,21 @@ if "/api/wifi-pay" not in t:
         "app.use(`${BASE}/api/pay`, payRouter); // public phone client (no API key)\napp.use(`${BASE}/api/wifi-pay`, wifiPayRouter); // Social Park Buy Unli (public captive portal)",
     )
     changed = True
+if "soscialUpdateRouter" not in t and Path("/opt/mrp/src/routes/soscialUpdate.js").exists():
+    t = t.replace(
+        "import { BASE_PATH } from '\''./config.js'\'';",
+        "import { BASE_PATH } from '\''./config.js'\'';\nimport soscialUpdateRouter from '\''./routes/soscialUpdate.js'\'';",
+    )
+    t = t.replace(
+        "app.use(`${BASE}/api/wifi-pay`, wifiPayRouter); // Social Park Buy Unli (public captive portal)",
+        "app.use(`${BASE}/api/wifi-pay`, wifiPayRouter); // Social Park Buy Unli (public captive portal)\napp.use(`${BASE}/api/soscial`, soscialUpdateRouter); // public CCTV app updater + camera fingerprint",
+    )
+    changed = True
 if changed:
     p.write_text(t)
     print("index.js patched")
 else:
-    print("index.js already has wifi-pay")
+    print("index.js already has wifi-pay / soscial update")
 PY'
 
 # Patch settings webhook for wifi-pay

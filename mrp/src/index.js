@@ -26,6 +26,7 @@ import { startCron } from './cron.js';
 import { sync } from './services/provisioner.js';
 import { runMigrations } from './migrate.js';
 import { BASE_PATH } from './config.js';
+import soscialUpdateRouter from './routes/soscialUpdate.js';
 
 const app = express();
 const BASE = BASE_PATH();
@@ -88,6 +89,7 @@ app.use(`${BASE}/api/hotspot`, requireAuth, hotspotRouter);
 app.use(`${BASE}/api/vendo`, vendoRouter); // ESP32 device API key auth
 app.use(`${BASE}/api/pay`, payRouter); // public phone client (no API key)
 app.use(`${BASE}/api/wifi-pay`, wifiPayRouter); // Social Park Buy Unli (public captive portal)
+app.use(`${BASE}/api/soscial`, soscialUpdateRouter); // public CCTV app updater + camera fingerprint
 app.use(`${BASE}/api/store`, storeOrdersRouter); // buyer checkout + orders (public register first)
 app.use(`${BASE}/api/store`, storeRouter); // marketplace (public catalog + seller auth)
 app.post(`${BASE}/api/forex/register`, registerForexClient);

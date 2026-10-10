@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.3.1" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.3.1" />
+  <link rel="icon" href="./icon-192.png?v=1.4.1" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.4.1" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.1" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
   <meta property="og:url" content="https://jmtechsolution.cloud/soscial/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.3.1" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/soscial/logo.png?v=1.4.1" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -347,7 +347,7 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.3.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.4.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless Internet Services · Live CCTV sa telepono at Android TV.</p>
@@ -365,10 +365,10 @@
       </div>
       <div class="err hidden" id="loginErr"></div>
       <button type="submit" id="loginBtn" tabindex="3">Open cameras</button>
-      <a href="/soscial.apk?v=1.3.1"
+      <a href="/soscial.apk?v=1.4.1"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
         tabindex="4">
-        ⬇ Download Android / TV APK v1.3
+        ⬇ Download Android / TV APK v1.4.1
       </a>
       <a href="/soscial/download"
         style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
@@ -381,12 +381,26 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.3.1" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.4.1" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV</div>
       </div>
       <span class="pill" id="vpnPill">VPN</span>
+    </div>
+    <div id="updateBar" class="install-bar hidden" style="border-color:rgba(61,207,138,.45)">
+      <h3 id="updateTitle">May update mula sa VPS</h3>
+      <p id="updateNotes" style="margin:8px 0 0;font-size:13px;color:var(--dim);line-height:1.45"></p>
+      <div class="actions" style="margin-top:12px">
+        <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
+          I-refresh cameras
+        </button>
+        <a id="updateApk" href="/soscial.apk?v=1.4.1" class="hidden"
+          style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
+          Download new APK
+        </a>
+        <button type="button" class="ghost" id="updateDismiss">Later</button>
+      </div>
     </div>
     <div id="installBar" class="install-bar">
       <h3>📱 Android phone &amp; Android TV APK</h3>
@@ -396,11 +410,11 @@
         <li>Phone: open app · TV: hanapin sa Apps / Leanback row → login</li>
       </ol>
       <div class="actions">
-        <a id="apkBtn" href="/soscial.apk?v=1.3.1"
+        <a id="apkBtn" href="/soscial.apk?v=1.4.1"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.2
+          Download APK v1.4.1
         </a>
-        <a href="/soscial-tv.apk?v=1.3.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.4.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
@@ -487,6 +501,13 @@
   let activeTab = 'cams';
   let playMode = 'live'; // live | playback
   let playbackHlsUrl = '';
+  const APP_WEB_BUILD = '1.4.1';
+  const APP_VERSION_CODE = 7;
+  const CAM_FP_KEY = 'soscial_cam_fp';
+  let lastCamFp = localStorage.getItem(CAM_FP_KEY) || '';
+  let lastUpdateInfo = null;
+  let updatePollTimer = null;
+  let autoReloadArmed = false;
 
   const $ = (id) => document.getElementById(id);
   const show = (el, on) => el.classList.toggle('hidden', !on);
@@ -637,32 +658,84 @@
   function renderAccount() {
     const root = $('viewAccount');
     const url = location.origin + location.pathname.replace(/index\.html$/, '');
+    const u = lastUpdateInfo || {};
+    const camCount = u.cameras?.count ?? cams.length;
+    const remoteName = u.versionName || APP_WEB_BUILD;
+    const remoteCode = Number(u.versionCode) || APP_VERSION_CODE;
+    const isNative = !!(window.SoscialNative && typeof window.SoscialNative.checkUpdate === 'function');
+    const needsApk = remoteCode > APP_VERSION_CODE;
+    const needsWeb = u.webBuild && String(u.webBuild) !== APP_WEB_BUILD;
+    const statusColor = needsApk || needsWeb ? 'var(--acc)' : 'var(--ok)';
+    const statusText = needsApk
+      ? ('May bagong APK v' + remoteName + ' — auto-update…')
+      : needsWeb
+        ? ('May bagong web v' + u.webBuild + ' — auto-refresh…')
+        : ('Updated · v' + APP_WEB_BUILD + ' · ' + camCount + ' camera(s)');
+    const checked = u.checkedAt ? new Date(u.checkedAt).toLocaleString() : '—';
     root.innerHTML = `
       <div class="section-label">Account</div>
       <div class="cam-tile" style="cursor:default;padding:16px">
         <div class="nm" style="font-size:16px;font-weight:700">${(user && (user.displayName || user.role)) || 'Staff'}</div>
         <div class="loc" style="color:var(--dim);margin-top:4px;font-size:13px">Role: ${(user && user.role) || '—'} · ${canPlayback() ? 'Live + Playback' : 'Live view only'}</div>
+
+        <div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(61,207,138,.35);background:rgba(61,207,138,.08)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <b style="color:var(--ok)">Updates</b>
+            <span id="acctUpdatePill" style="font-size:11px;font-weight:700;color:${statusColor}">${needsApk || needsWeb ? 'UPDATE' : 'UP TO DATE'}</span>
+          </div>
+          <p id="acctUpdateStatus" style="margin:10px 0 0;font-size:13px;color:var(--txt);line-height:1.45">${statusText}</p>
+          <p style="margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.4">
+            App: v${APP_WEB_BUILD} (code ${APP_VERSION_CODE}) · VPS: v${remoteName} (code ${remoteCode})<br/>
+            Cameras sa VPS: <b style="color:var(--acc2)">${camCount}</b> · Last check: ${checked}<br/>
+            Auto-update: <b style="color:var(--ok)">ON</b> — kusa magre-refresh ang cameras; bagong APK auto-download.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+            <button type="button" id="acctCheckUpdate"
+              style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
+              Check update now
+            </button>
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.4.1'}"
+              style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
+              Install APK v${remoteName}
+            </a>
+          </div>
+        </div>
+
         <p style="color:var(--dim);font-size:13px;line-height:1.45;margin:14px 0 0">
           App URL:<br/><span style="color:var(--acc2);word-break:break-all">${url}</span>
         </p>
         <div style="margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2)">
           <b style="color:var(--acc2)">Android phone &amp; TV APK</b>
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
-            Isang APK para sa cellphone at Android TV box. I-install (Unknown sources).
+            Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.3.1"
+          <a href="/soscial.apk?v=1.4.1"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.3
+            Download APK v1.4.1
           </a>
-          <a href="/soscial-tv.apk?v=1.3.1"
+          <a href="/soscial-tv.apk?v=1.4.1"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
-          <a href="/soscial/download" style="display:inline-block;margin-top:10px;color:var(--acc2);font-size:13px">Failed? Open download page</a>
         </div>
         <button type="button" class="ghost" id="logoutBtn" style="width:100%;margin-top:16px">Log out</button>
       </div>`;
     $('logoutBtn').onclick = logout;
+    const checkBtn = $('acctCheckUpdate');
+    if (checkBtn) {
+      checkBtn.onclick = async () => {
+        checkBtn.disabled = true;
+        checkBtn.textContent = 'Checking…';
+        try {
+          if (isNative) window.SoscialNative.checkUpdate();
+          await checkVpsUpdate({ forceBanner: true, autoApply: true });
+          if (activeTab === 'account') renderAccount();
+        } finally {
+          checkBtn.disabled = false;
+          checkBtn.textContent = 'Check update now';
+        }
+      };
+    }
   }
 
   function setTab(tab) {
@@ -930,8 +1003,136 @@
 
   $('installDismiss').onclick = () => show($('installBar'), false);
 
+  // ---- Auto-updater (Account tab + silent apply) ----
+  async function applyWebUpdateSilent() {
+    try {
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      }
+      const regs = await navigator.serviceWorker?.getRegistrations?.();
+      if (regs) await Promise.all(regs.map((r) => r.update()));
+    } catch (_) {}
+    if (token) {
+      await loadData().catch(() => {});
+      if (activeTab === 'wall') renderWall();
+      if (activeTab === 'account') renderAccount();
+    }
+  }
+
+  function showUpdateBar({ title, notes, showApk, apkUrl }) {
+    const bar = $('updateBar');
+    if (!bar) return;
+    $('updateTitle').textContent = title || 'May update mula sa VPS';
+    $('updateNotes').textContent = notes || '';
+    const apk = $('updateApk');
+    if (apk) {
+      if (showApk) {
+        apk.href = apkUrl || '/soscial.apk?v=1.4.1';
+        apk.style.display = 'inline-flex';
+        apk.classList.remove('hidden');
+      } else {
+        apk.style.display = 'none';
+        apk.classList.add('hidden');
+      }
+    }
+    show(bar, true);
+  }
+
+  async function checkVpsUpdate({ forceBanner = false, autoApply = true } = {}) {
+    try {
+      const res = await fetch(API_BASE + '/soscial/update', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const info = await res.json();
+      lastUpdateInfo = info;
+      const fp = info?.cameras?.fingerprint || '';
+      const remoteWeb = String(info.webBuild || info.versionName || '');
+      const remoteCode = Number(info.versionCode) || 0;
+      const camCount = info?.cameras?.count;
+      let camsChanged = false;
+
+      if (fp && fp !== lastCamFp) {
+        camsChanged = true;
+        lastCamFp = fp;
+        localStorage.setItem(CAM_FP_KEY, fp);
+        if (autoApply) await applyWebUpdateSilent();
+        if (forceBanner || !autoApply) {
+          showUpdateBar({
+            title: 'Bagong CCTV cameras sa VPS',
+            notes: (camCount || '?') + ' camera(s) · auto-updated.',
+            showApk: false,
+          });
+        }
+      }
+
+      if (remoteWeb && remoteWeb !== APP_WEB_BUILD) {
+        showUpdateBar({
+          title: 'Auto-updating web app → v' + remoteWeb,
+          notes: info.notes || 'Kusa magre-reload ang app…',
+          showApk: remoteCode > APP_VERSION_CODE,
+          apkUrl: info.apkUrl,
+        });
+        if (autoApply && !autoReloadArmed) {
+          autoReloadArmed = true;
+          setTimeout(() => {
+            location.href = (info.webUrl || ('./?v=' + remoteWeb)) + (location.hash || '');
+          }, 1200);
+        }
+      } else if (remoteCode > APP_VERSION_CODE) {
+        showUpdateBar({
+          title: 'Auto-updating APK → v' + (info.versionName || remoteCode),
+          notes: 'Dina-download ang bagong APK mula sa VPS…',
+          showApk: true,
+          apkUrl: info.apkUrl,
+        });
+        // Native Android WebView: trigger silent download; else navigate to APK (browser install)
+        if (autoApply && window.SoscialNative?.checkUpdate) {
+          window.SoscialNative.checkUpdate();
+        } else if (autoApply && /SocialParkCctvApp|SocialParkCctvTV/i.test(navigator.userAgent) && !sessionStorage.getItem('soscial_apk_autodl')) {
+          sessionStorage.setItem('soscial_apk_autodl', '1');
+          // Fallback: open APK URL inside webview
+          const a = document.createElement('a');
+          a.href = info.apkUrl || '/soscial.apk';
+          a.click();
+        }
+      }
+
+      if (activeTab === 'account') renderAccount();
+      return info;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  $('updateDismiss') && ($('updateDismiss').onclick = () => show($('updateBar'), false));
+  $('updateReload') && ($('updateReload').onclick = async () => {
+    show($('updateBar'), false);
+    await applyWebUpdateSilent();
+    location.reload();
+  });
+
+  function startUpdatePolling() {
+    if (updatePollTimer) clearInterval(updatePollTimer);
+    checkVpsUpdate({ autoApply: true });
+    updatePollTimer = setInterval(() => {
+      checkVpsUpdate({ autoApply: true });
+      if (token) loadData().catch(() => {});
+    }, 45_000);
+  }
+  startUpdatePolling();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkVpsUpdate({ autoApply: true });
+  });
+
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=1.4.1').then((reg) => {
+      reg.update().catch(() => {});
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!sessionStorage.getItem('soscial_sw_reloaded')) {
+          sessionStorage.setItem('soscial_sw_reloaded', '1');
+          location.reload();
+        }
+      });
+    }).catch(() => {});
   }
 
   if (token) enterApp();

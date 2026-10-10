@@ -136,6 +136,21 @@
       box-shadow: 0 10px 28px rgba(201, 162, 39, .35);
       color: #1a1200;
     }
+    .portal-apps {
+      margin-top: 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .btn-cctv {
+      background: linear-gradient(135deg, #1f6f4a, #0d3d28);
+      box-shadow: 0 10px 28px rgba(31, 111, 74, .35);
+      color: #e8fff4;
+    }
+    .btn-apps {
+      background: linear-gradient(135deg, #1e4a7a, #0f2744);
+      box-shadow: 0 10px 28px rgba(30, 74, 122, .35);
+      color: #e8f2ff;
+    }
     .btn-ghost {
       margin-top: 10px;
       background: transparent;
@@ -265,7 +280,21 @@
     $(endif)
 
     <button type="button" class="btn btn-buy" id="btn-buy">Buy Unli Internet</button>
-    <p class="fine">Powered by JMM Wireless · Province of Masbate</p>
+
+    <div class="portal-apps" aria-label="SOCIAL Park CCTV">
+      <a class="btn btn-cctv" id="btn-cctv-viewer"
+         href="https://jmtechsolution.cloud/soscial/"
+         target="_blank" rel="noopener noreferrer">
+        CCTV Viewer
+      </a>
+      <a class="btn btn-apps" id="btn-download-apps"
+         href="https://jmtechsolution.cloud/soscial/download"
+         target="_blank" rel="noopener noreferrer">
+        Download Apps
+      </a>
+    </div>
+
+    <p class="fine">Powered by JMM Wireless · Province of Masbate · SOCIAL Park CCTV</p>
   </div>
 
   <div class="modal-bg" id="pay-modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
