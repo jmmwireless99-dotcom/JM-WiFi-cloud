@@ -24,7 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
     /** Always load latest web shell from VPS — cameras come from live API. */
-    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.5.0";
+    public static final String APP_URL = "https://jmtechsolution.cloud/soscial/?v=1.6.0";
 
     private WebView webView;
     private ProgressBar progress;
@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowFileAccess(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        String uaTag = isTv ? " SocialParkCctvTV/1.5" : " SocialParkCctvApp/1.5";
+        String uaTag = isTv ? " SocialParkCctvTV/1.6" : " SocialParkCctvApp/1.6";
         settings.setUserAgentString(settings.getUserAgentString() + uaTag);
 
         webView.setFocusable(true);

@@ -1,10 +1,10 @@
 {
-  "versionName": "1.5.0",
-  "versionCode": 8,
-  "webBuild": "1.5.0",
+  "versionName": "1.6.0",
+  "versionCode": 9,
+  "webBuild": "1.6.0",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/soscial/?v=1.5.0",
-  "notes": "32 SOCIAL channels \u00b7 on-demand H.264 remux pool \u00b7 Account \u2192 Updates",
-  "releasedAt": "2026-10-10T03:30:00Z"
+  "webUrl": "https://jmtechsolution.cloud/soscial/?v=1.6.0",
+  "notes": "Passwordless SOCIAL viewer · auto-viewer /soscial/v/<id> · ensure-live · 32ch",
+  "releasedAt": "2026-10-10T04:10:00Z"
 }
