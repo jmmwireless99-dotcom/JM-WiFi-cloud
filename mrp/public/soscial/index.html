@@ -8,16 +8,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SOCIAL CCTV" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon-192.png?v=1.7.1" type="image/png" />
-  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.1" />
+  <link rel="icon" href="./icon-192.png?v=1.7.2" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon-192.png?v=1.7.2" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta property="og:title" content="SOCIAL Park CCTV Viewer" />
   <meta property="og:description" content="JM Wireless · SOCIAL PARK live CCTV viewer" />
-  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.1" />
+  <meta property="og:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.2" />
   <meta property="og:url" content="https://jmtechsolution.cloud/social/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.1" />
+  <meta name="twitter:image" content="https://jmtechsolution.cloud/social/logo.png?v=1.7.2" />
   <title>SOCIAL Park CCTV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -367,7 +367,7 @@
   <div id="login">
     <div class="brand-block">
       <div class="brand-mark" aria-hidden="true">
-        <img src="./logo.png?v=1.7.1" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
+        <img src="./logo.png?v=1.7.2" alt="JM Wireless · SOCIAL PARK" width="128" height="128" />
       </div>
       <h1>SOCIAL<span>PARK</span></h1>
       <p id="brandTagline">JM Wireless · Live CCTV — enter viewer key. Walang password.</p>
@@ -386,10 +386,10 @@
         style="display:block;width:100%;margin-top:10px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.45);background:rgba(232,168,56,.12);color:var(--acc2);font-weight:800;font-size:14px;cursor:pointer">
         Install App
       </button>
-      <a href="/soscial.apk?v=1.7.1"
+      <a href="/soscial.apk?v=1.7.2"
         style="display:block;text-align:center;margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(232,168,56,.4);color:var(--acc2);text-decoration:none;font-weight:700;font-size:14px"
         tabindex="3">
-        ⬇ Download Android / TV APK v1.7.1
+        ⬇ Download Android / TV APK v1.7.2
       </a>
       <a href="/social/download"
         style="display:block;text-align:center;margin-top:8px;color:var(--dim);font-size:12px;text-decoration:underline"
@@ -402,7 +402,7 @@
 
   <div id="app" class="hidden">
     <div class="topbar">
-      <img class="topbar-logo" src="./logo.png?v=1.7.1" alt="" width="36" height="36" />
+      <img class="topbar-logo" src="./logo.png?v=1.7.2" alt="" width="36" height="36" />
       <div style="flex:1;min-width:0">
         <h2>SOCIAL Park</h2>
         <div class="sub" id="topSub">CCTV · key access</div>
@@ -416,7 +416,7 @@
         <button type="button" id="updateReload" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           I-refresh cameras
         </button>
-        <a id="updateApk" href="/soscial.apk?v=1.7.1" class="hidden"
+        <a id="updateApk" href="/soscial.apk?v=1.7.2" class="hidden"
           style="display:none;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
           Download new APK
         </a>
@@ -436,11 +436,11 @@
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--ok);color:#062416;font-weight:800;border:0;font-size:14px;cursor:pointer">
           Install App
         </button>
-        <a id="apkBtn" href="/soscial.apk?v=1.7.1"
+        <a id="apkBtn" href="/soscial.apk?v=1.7.2"
           style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:14px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none;font-size:14px">
-          Download APK v1.7.1
+          Download APK v1.7.2
         </a>
-        <a href="/soscial-tv.apk?v=1.7.1" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
+        <a href="/soscial-tv.apk?v=1.7.2" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">TV APK</a>
         <a href="/soscial.zip" class="ghost" style="display:inline-flex;align-items:center;padding:10px 14px;text-decoration:none">ZIP</a>
         <button type="button" class="ghost" id="installDismiss">Hide</button>
       </div>
@@ -521,7 +521,7 @@
   let playbackHlsUrl = '';
   let pendingAutoCamId = null;
   let autoViewHandled = false;
-  const APP_WEB_BUILD = '1.7.1';
+  const APP_WEB_BUILD = '1.7.2';
   const APP_VERSION_CODE = 11;
   const CAM_FP_KEY = 'soscial_cam_fp';
   const KEY_STORE = 'social_viewer_key';
@@ -726,6 +726,7 @@
     if (/^TOURISM\b/i.test(compact)) return 'TOURISM';
     if (/^MINI[\s-]*PLAZA/i.test(raw)) return 'MINI PLAZA';
     if (/^1ST[\s-]*GATE/i.test(raw)) return '1ST GATE';
+    if (/^2ND[\s-]*GATE/i.test(raw)) return '2ND GATE';
     if (/^TOWER\b/i.test(compact)) return 'TOWER';
     if (/^PDRRMO\b/i.test(compact)) return 'PDRRMO';
     if (/^RIZAL\b/i.test(compact)) return 'RIZAL';
@@ -737,7 +738,7 @@
     return generic || 'OTHER';
   }
   const AREA_TAB_ORDER = [
-    'CIRCLE OUTDOOR', 'CIRCLE INDOOR', 'CSU', 'TOURISM', 'MINI PLAZA', '1ST GATE',
+    'CIRCLE OUTDOOR', 'CIRCLE INDOOR', 'CSU', 'TOURISM', 'MINI PLAZA', '1ST GATE', '2ND GATE',
     'TOWER', 'PDRRMO', 'RIZAL', 'CAPITOL SIDE', '4TH GATE', '3RD GATE', 'UNKNOWN', 'OTHER',
   ];
   function areaTabsFor(list) {
@@ -990,7 +991,7 @@
               style="flex:1;min-width:140px;padding:12px 14px;border-radius:12px;border:0;background:var(--ok);color:#062416;font-weight:800;cursor:pointer">
               Check update now
             </button>
-            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.7.1'}"
+            <a id="acctApkLink" href="${u.apkUrl || '/soscial.apk?v=1.7.2'}"
               style="flex:1;min-width:140px;display:${needsApk ? 'inline-flex' : 'none'};align-items:center;justify-content:center;padding:12px 14px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
               Install APK v${remoteName}
             </a>
@@ -1005,11 +1006,11 @@
           <p style="margin:8px 0 12px;font-size:13px;color:var(--dim);line-height:1.5">
             Isang APK para sa cellphone at Android TV. Kapag may bago sa VPS, auto-update sa Account.
           </p>
-          <a href="/soscial.apk?v=1.7.1"
+          <a href="/soscial.apk?v=1.7.2"
             style="display:inline-flex;padding:12px 16px;border-radius:12px;background:var(--acc);color:#1a1204;font-weight:800;text-decoration:none">
-            Download APK v1.7.1
+            Download APK v1.7.2
           </a>
-          <a href="/soscial-tv.apk?v=1.7.1"
+          <a href="/soscial-tv.apk?v=1.7.2"
             style="display:inline-flex;margin-left:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);color:var(--acc2);font-weight:700;text-decoration:none">
             TV APK
           </a>
@@ -1362,7 +1363,7 @@
     const apk = $('updateApk');
     if (apk) {
       if (showApk) {
-        apk.href = apkUrl || '/soscial.apk?v=1.7.1';
+        apk.href = apkUrl || '/soscial.apk?v=1.7.2';
         apk.style.display = 'inline-flex';
         apk.classList.remove('hidden');
       } else {
@@ -1461,7 +1462,7 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=1.7.1').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1.7.2').then((reg) => {
       reg.update().catch(() => {});
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!sessionStorage.getItem('soscial_sw_reloaded')) {

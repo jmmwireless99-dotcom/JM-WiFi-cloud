@@ -2,7 +2,7 @@
  * SOCIAL Park (station 71) — display names by NVR channel (D# = channel N).
  * Device LAN IP is kept in the name (project pattern); NVR cams keep lan_ip = NVR.
  *
- * D18 was not in the operator list — leave Unknown (do not invent a site name).
+ * D18 = 2ND GATE · 192.168.20.28 (operator). D19 CAPITOL-SIDE-1 also lists .28 in name — OK.
  * Circle-In-2/3 (.43/.42) stay on CIRCLE-INDOOR tab as CIRCLE-IN-* names.
  */
 
@@ -28,7 +28,7 @@ export const SOCIAL_CHANNEL_NAMES = {
   15: { label: 'PDRRMO-1', lanIp: '192.168.20.26' },
   16: { label: 'PDRRMO-2', lanIp: '192.168.20.27' },
   17: { label: 'RIZAL-1', lanIp: '192.168.20.29' },
-  // 18: not provided by operator — handled as UNKNOWN in rename script
+  18: { label: '2ND-GATE', lanIp: '192.168.20.28' },
   19: { label: 'CAPITOL-SIDE-1', lanIp: '192.168.20.28' },
   20: { label: 'RIZAL-2', lanIp: '192.168.20.30' },
   21: { label: 'TOWER-3', lanIp: '192.168.20.31' },
@@ -57,6 +57,7 @@ export const SOCIAL_AREA_TAB_ORDER = [
   'TOURISM',
   'MINI PLAZA',
   '1ST GATE',
+  '2ND GATE',
   'TOWER',
   'PDRRMO',
   'RIZAL',
@@ -105,6 +106,7 @@ export function areaGroupFromName(name) {
   if (/^TOURISM\b/i.test(compact)) return 'TOURISM';
   if (/^MINI[\s-]*PLAZA/i.test(raw)) return 'MINI PLAZA';
   if (/^1ST[\s-]*GATE/i.test(raw)) return '1ST GATE';
+  if (/^2ND[\s-]*GATE/i.test(raw)) return '2ND GATE';
   if (/^TOWER\b/i.test(compact)) return 'TOWER';
   if (/^PDRRMO\b/i.test(compact)) return 'PDRRMO';
   if (/^RIZAL\b/i.test(compact)) return 'RIZAL';
@@ -112,7 +114,7 @@ export function areaGroupFromName(name) {
   // 4RT / 4RTH / 4TH GATE
   if (/^4R?T?H?[\s-]*GATE/i.test(raw) || /^4RT/i.test(raw)) return '4TH GATE';
   if (/^3RD[\s-]*GATE/i.test(raw)) return '3RD GATE';
-  if (/^UNKNOWN\b/i.test(compact) || /^D18\b/i.test(compact)) return 'UNKNOWN';
+  if (/^UNKNOWN\b/i.test(compact)) return 'UNKNOWN';
 
   // Generic: drop trailing unit number (FOO-1 / FOO 1 → FOO)
   const generic = compact.replace(/[\s-]+\d+[A-Z]?$/, '').trim();

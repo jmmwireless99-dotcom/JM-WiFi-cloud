@@ -2,7 +2,7 @@
 /**
  * Rename SOCIAL station 71 cameras to operator area names (D# = NVR channel).
  * Keeps rtsp channel mapping; stores device LAN IP in the display name.
- * Does not invent D18 — labels UNKNOWN with existing IP if present.
+ * D18 → 2ND-GATE · 192.168.20.28
  *
  * Run on VPS: node /opt/mrp/scripts/rename-social-cameras.mjs
  * Dry-run:    node /opt/mrp/scripts/rename-social-cameras.mjs --dry-run
@@ -41,10 +41,6 @@ async function main() {
     const directKey = lan !== SOCIAL_NVR_LAN ? lan : null;
     if (directKey && SOCIAL_DIRECT_CIRCLE_IN[directKey]) {
       nextName = formatSocialCamName(SOCIAL_DIRECT_CIRCLE_IN[directKey], directKey);
-    } else if (ch === 18) {
-      // Operator did not provide D18 — keep IP, label Unknown
-      const keepIp = namedIp || (lan !== SOCIAL_NVR_LAN ? lan : null);
-      nextName = formatSocialCamName('UNKNOWN', keepIp);
     } else if (ch && SOCIAL_CHANNEL_NAMES[ch]) {
       const { label, lanIp } = SOCIAL_CHANNEL_NAMES[ch];
       nextName = formatSocialCamName(label, lanIp);

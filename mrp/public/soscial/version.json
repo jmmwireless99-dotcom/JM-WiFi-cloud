@@ -1,10 +1,10 @@
 {
-  "versionName": "1.7.1",
-  "versionCode": 11,
-  "webBuild": "1.7.1",
+  "versionName": "1.7.2",
+  "versionCode": 12,
+  "webBuild": "1.7.2",
   "apkUrl": "https://jmtechsolution.cloud/soscial.apk",
   "tvApkUrl": "https://jmtechsolution.cloud/soscial-tv.apk",
-  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.1",
-  "notes": "Area tabs by camera name · renamed SOCIAL channels (CIRCLE/CSU/TOWER/…) · viewer key gate",
-  "releasedAt": "2026-10-10T05:00:00Z"
+  "webUrl": "https://jmtechsolution.cloud/social/?v=1.7.2",
+  "notes": "D18 \u2192 2ND GATE \u00b7 192.168.20.28 \u00b7 2ND GATE area tab",
+  "releasedAt": "2026-10-10T05:20:00Z"
 }
