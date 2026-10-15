@@ -1,5 +1,5 @@
 /**
- * SOCIAL Park (station 71) — NVR channels D1–D30.
+ * SOCIAL Park (station 71) — NVR channels D1–D31.
  * Display names come from the Dahua NVR ChannelTitle (see sync-social-nvr-names.mjs).
  * Do not seed/overwrite with hardcoded CIRCLE-OUTDOOR / CSU labels here.
  */
@@ -38,7 +38,7 @@ export function formatSocialCamName(label, _lanIp) {
 
 export function isCanonicalSocialChannel(ch) {
   const n = Number(ch);
-  return Number.isFinite(n) && n >= 1 && n <= 30;
+  return Number.isFinite(n) && n >= 1 && n <= 31;
 }
 
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pull Dahua NVR ChannelTitle names into SOCIAL station 71 cameras (D1–D30).
+ * Pull Dahua NVR ChannelTitle names into SOCIAL station 71 cameras (D1–D31).
  * Source of truth = NVR (DHI-NVR4232), not hardcoded seed labels.
  *
  * Ensures MikroTik dstnat HTTP tunnel (default :10580 → NVR :80), then Digest CGI.
