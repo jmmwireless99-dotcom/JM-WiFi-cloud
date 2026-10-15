@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * SOCIAL station 71 cleanup:
- * - Keep only NVR channels D1–D30 (delete extras / direct IPC leftovers)
+ * - Keep only NVR channels D1–D31 (delete extras / direct IPC leftovers)
  * - Do NOT apply hardcoded seed labels — names come from the NVR.
  *
  * Prefer: node /opt/mrp/scripts/sync-social-nvr-names.mjs
@@ -51,7 +51,7 @@ async function main() {
   }
 
   console.log(
-    `station ${SOCIAL_STATION_ID}: keep ${keep.length} NVR D1–D30, delete ${toDelete.length} extras${dryRun ? ' (dry-run)' : ''}`
+    `station ${SOCIAL_STATION_ID}: keep ${keep.length} NVR D1–D31, delete ${toDelete.length} extras${dryRun ? ' (dry-run)' : ''}`
   );
   console.log('Names are owned by NVR ChannelTitle — run sync-social-nvr-names.mjs to refresh.');
   for (const d of toDelete) {
@@ -66,7 +66,7 @@ async function main() {
       ]);
     }
     await pool.query(
-      `UPDATE nvr_areas SET channels = 30 WHERE station_id = $1`,
+      `UPDATE nvr_areas SET channels = 31 WHERE station_id = $1`,
       [SOCIAL_STATION_ID]
     );
   }

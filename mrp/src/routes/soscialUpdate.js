@@ -58,7 +58,7 @@ async function readVersionFile() {
   }
 }
 
-/** Viewer catalog: enabled NVR channels D1–D30 only (no Circle-In extras / UNKNOWN). */
+/** Viewer catalog: enabled NVR channels D1–D31 only (no Circle-In extras / UNKNOWN). */
 function isViewerSocialCamera(c) {
   if (!c?.enabled) return false;
   const ch = channelFromRtspPath(c.rtsp_path || c.rtspPath);
